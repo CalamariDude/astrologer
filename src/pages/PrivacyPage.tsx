@@ -90,7 +90,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-lg font-semibold text-foreground">12. Contact</h2>
-            <p>Questions about privacy? Reach us at <a href="mailto:zeineddine.jad@gmail.com" className="text-primary underline">zeineddine.jad@gmail.com</a> or visit our <Link to="/support" className="text-primary underline">Support</Link> page.</p>
+            <p>Questions about privacy? Visit our <Link to="/support" className="text-primary underline">Support</Link> page to submit a ticket.</p>
           </section>
         </div>
       </div>

@@ -41,9 +41,10 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    // Full key (sk_live_) for admin ops like promo codes; fall back to restricted key
+    // Full key (sk_live_) for admin ops; fall back to restricted key
     const stripeFullKey = Deno.env.get("COSMOSIS_STRIPE_FULL_KEY");
     const stripeKey = stripeFullKey || Deno.env.get("COSMOSIS_STRIPE_SECRET_KEY") || Deno.env.get("COSMOSIS_STRIPE_SECRET_KEY_TEST");
+    const stripeTestKey = Deno.env.get("COSMOSIS_STRIPE_SECRET_KEY_TEST");
 
     if (!stripeKey) throw new Error("No Stripe secret key configured");
 
@@ -367,30 +368,33 @@ serve(async (req) => {
           couponParams.duration_in_months = String(body.duration_in_months);
         }
 
-        const coupon = await stripePost("coupons", couponParams, stripeKey);
-
-        // Step 2: Create promotion code (newer Stripe API uses nested promotion[coupon] format)
-        let promoForm = `promotion[type]=coupon&promotion[coupon]=${encodeURIComponent(coupon.id)}&code=${encodeURIComponent(body.code.toUpperCase())}`;
-        if (body.max_redemptions) promoForm += `&max_redemptions=${body.max_redemptions}`;
-
-        const promoRes = await fetch("https://api.stripe.com/v1/promotion_codes", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${stripeKey}`,
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: promoForm,
-        });
-        const promo = await promoRes.json();
-        if (!promoRes.ok) {
-          console.error("Promo code creation failed:", JSON.stringify(promo));
-          return json({
-            coupon,
-            promo_code: null,
-            warning: `Coupon created (${coupon.id}) but promotion code failed: ${promo?.error?.message || "unknown error"}.`,
+        // Helper to create coupon + promo code on a given Stripe key
+        async function createCouponAndPromo(key: string) {
+          const c = await stripePost("coupons", couponParams, key);
+          const form = `promotion[type]=coupon&promotion[coupon]=${encodeURIComponent(c.id)}&code=${encodeURIComponent(body.code.toUpperCase())}${body.max_redemptions ? `&max_redemptions=${body.max_redemptions}` : ""}`;
+          const res = await fetch("https://api.stripe.com/v1/promotion_codes", {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/x-www-form-urlencoded" },
+            body: form,
           });
+          const p = await res.json();
+          if (!res.ok) throw new Error(p?.error?.message || "Promo code creation failed");
+          return { coupon: c, promo_code: p };
         }
-        return json({ coupon, promo_code: promo });
+
+        // Create in live mode
+        const liveResult = await createCouponAndPromo(stripeKey);
+
+        // Also create in test mode so promo codes work on localhost
+        if (stripeTestKey && stripeTestKey !== stripeKey) {
+          try {
+            await createCouponAndPromo(stripeTestKey);
+          } catch (e: any) {
+            console.error("Test mode promo creation failed (non-critical):", e.message);
+          }
+        }
+
+        return json(liveResult);
       }
 
       case "deactivate_promo_code": {

@@ -13,7 +13,6 @@ import {
   SynastryVisual,
   ProfectionsVisual,
   TransitTimelineVisual,
-  AstrocartographyVisual,
   ThemeShowcaseVisual,
   CompositeChartVisual,
   AsteroidsVisual,
@@ -492,7 +491,7 @@ export default function HomePage() {
           visual={
             <div className="relative group">
               <div className="absolute -inset-10 bg-gradient-to-br from-red-500/[0.07] to-orange-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
-              <img src="/transits.png" alt="Transit timeline" className="w-full h-auto relative drop-shadow-2xl rounded-2xl" />
+              <img src="/transits.png" alt="Transit timeline" className="w-[60%] mx-auto h-auto relative drop-shadow-2xl rounded-2xl" />
             </div>
           }
         />
@@ -533,8 +532,8 @@ export default function HomePage() {
           visual={
             <div className="relative group">
               <div className="absolute -inset-10 bg-gradient-to-br from-purple-500/[0.08] to-pink-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
-              <AstrocartographyVisual className="w-full h-auto relative drop-shadow-2xl" />
-              <div className="absolute -bottom-3 inset-x-0 text-center">
+              <img src="/astrocartography.png" alt="Astrocartography planetary lines on world map" className="w-full h-auto relative drop-shadow-2xl rounded-2xl" />
+              <div className="absolute -bottom-12 inset-x-0 text-center">
                 <span className="inline-block px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] sm:text-xs font-bold uppercase tracking-[0.15em]">
                   Astrologer Pro
                 </span>
@@ -544,9 +543,9 @@ export default function HomePage() {
         />
 
         <FeatureShowcase
-          tag="Chart Modes"
-          headline={<>Switch views<br className="hidden sm:block" /> with a tap.</>}
-          body="Natal, synastry, composite, progressed, relocated — all one tap away. Add a second person and instantly switch between every chart mode. Change any person's chart in under 5 seconds."
+          tag="Lightning Fast"
+          headline={<>Zero friction.<br className="hidden sm:block" /> Zero waiting.</>}
+          body="Natal, synastry, composite, progressed, relocated — every mode one tap away. Switch charts, swap people, toggle transits. No loading screens, no page reloads. Built for speed so you stay in flow."
           visual={
             <div className="relative group">
               <div className="absolute -inset-10 bg-gradient-to-br from-violet-500/[0.07] to-indigo-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />

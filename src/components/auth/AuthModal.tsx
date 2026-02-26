@@ -232,7 +232,7 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'login' }: AuthModalPr
                 Create Account
               </Button>
               <p className="text-[11px] text-muted-foreground text-center">
-                Upgrade to Pro anytime for AI readings, chart saving, and more
+                Create an account to save charts, do astrocartography, and AI readings
               </p>
             </form>
           )}

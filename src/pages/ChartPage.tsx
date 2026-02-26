@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useSearchParams, Link } from 'react-router-dom';
-import { Loader2, MapPin, Plus, X, Pencil, ClipboardPaste, FolderOpen, LogIn, User, Calendar, Clock, Search, Sparkles, Grid3X3, RotateCcw, Gauge, Table2, TrendingUp, CalendarClock, ArrowUpDown, StickyNote, Download, CreditCard, LogOut, ChevronDown, Shield } from 'lucide-react';
+import { Loader2, MapPin, Plus, X, Pencil, ClipboardPaste, FolderOpen, LogIn, User, Calendar, Clock, Search, Sparkles, Grid3X3, RotateCcw, Gauge, Table2, TrendingUp, CalendarClock, ArrowUpDown, StickyNote, Download, CreditCard, LogOut, ChevronDown, Shield, UserCog } from 'lucide-react';
 import { SaveChartButton } from '@/components/charts/SaveChartButton';
 import { getSavedCharts, type SavedChart } from '@/components/charts/SaveChartButton';
 import { toast } from 'sonner';
@@ -22,22 +22,22 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/lib/supabase';
 import type { TransitData, CompositeData, ProgressedData, RelocatedData, AsteroidsParam } from '@/components/biwheel/types';
-import { GalacticToggle } from '@/components/galactic';
+import { GalacticToggle } from '@/components/galactic/GalacticToggle';
 import { useWebGLSupport } from '@/hooks/useWebGLSupport';
 
 // Lazy-load GalacticMode to avoid loading Three.js until needed
 const GalacticMode = React.lazy(() => import('@/components/galactic/GalacticMode'));
 
-// Astro tools
-import { AspectGridTable } from '@/components/astro-tools/AspectGridTable';
-import { ProfectionsPanel } from '@/components/astro-tools/ProfectionsPanel';
-import { EphemerisTable } from '@/components/astro-tools/EphemerisTable';
-import { GraphicEphemeris } from '@/components/astro-tools/GraphicEphemeris';
-import { TransitTimeline } from '@/components/astro-tools/TransitTimeline';
-import { AgeDegreePanel } from '@/components/astro-tools/AgeDegreePanel';
-import { DeclinationPanel } from '@/components/astro-tools/DeclinationPanel';
-import { ChartNotes } from '@/components/astro-tools/ChartNotes';
-import { AIReading } from '@/components/astro-tools/AIReading';
+// Astro tools — lazy-loaded (each tab only loads when selected)
+const AspectGridTable = React.lazy(() => import('@/components/astro-tools/AspectGridTable').then(m => ({ default: m.AspectGridTable })));
+const ProfectionsPanel = React.lazy(() => import('@/components/astro-tools/ProfectionsPanel').then(m => ({ default: m.ProfectionsPanel })));
+const EphemerisTable = React.lazy(() => import('@/components/astro-tools/EphemerisTable').then(m => ({ default: m.EphemerisTable })));
+const GraphicEphemeris = React.lazy(() => import('@/components/astro-tools/GraphicEphemeris').then(m => ({ default: m.GraphicEphemeris })));
+const TransitTimeline = React.lazy(() => import('@/components/astro-tools/TransitTimeline').then(m => ({ default: m.TransitTimeline })));
+const AgeDegreePanel = React.lazy(() => import('@/components/astro-tools/AgeDegreePanel').then(m => ({ default: m.AgeDegreePanel })));
+const DeclinationPanel = React.lazy(() => import('@/components/astro-tools/DeclinationPanel').then(m => ({ default: m.DeclinationPanel })));
+const ChartNotes = React.lazy(() => import('@/components/astro-tools/ChartNotes').then(m => ({ default: m.ChartNotes })));
+const AIReading = React.lazy(() => import('@/components/astro-tools/AIReading').then(m => ({ default: m.AIReading })));
 
 const ZODIAC_SIGNS = [
   'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
@@ -408,12 +408,28 @@ export default function ChartPage() {
   const [saveAfterGenerate, setSaveAfterGenerate] = useState(false);
   const webglSupported = useWebGLSupport();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [displayName, setDisplayName] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
     if (!user) { setIsAdmin(false); return; }
-    supabase.from('astrologer_profiles').select('is_admin').eq('id', user.id).single()
-      .then(({ data }) => setIsAdmin(data?.is_admin ?? false));
+    supabase.from('astrologer_profiles').select('is_admin, display_name').eq('id', user.id).single()
+      .then(({ data }) => {
+        setIsAdmin(data?.is_admin ?? false);
+        setDisplayName(data?.display_name || '');
+      });
   }, [user]);
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    setSavingProfile(true);
+    const { error } = await supabase.from('astrologer_profiles').update({ display_name: displayName.trim() }).eq('id', user.id);
+    setSavingProfile(false);
+    if (error) { toast.error('Failed to save'); return; }
+    toast.success('Profile updated');
+    setShowProfile(false);
+  };
 
   // Shared visibility state — synced from 2D chart, passed one-way to galactic mode
   const [sharedVisiblePlanets, setSharedVisiblePlanets] = useState<Set<string>>(
@@ -862,6 +878,10 @@ export default function ChartPage() {
                     {isPaid && <div className="text-[10px] text-emerald-500 font-medium mt-0.5">Pro</div>}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setShowProfile(true)}>
+                    <UserCog className="w-4 h-4 mr-2" />
+                    Profile
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setShowSaved(true)}>
                     <FolderOpen className="w-4 h-4 mr-2" />
                     My Charts
@@ -1192,6 +1212,34 @@ export default function ChartPage() {
       <AstroComImport isOpen={showAstroImport} onClose={() => setShowAstroImport(false)} onImport={handleAstroImport} />
       <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} />
       <UpgradeModal isOpen={showUpgrade} onClose={() => setShowUpgrade(false)} />
+
+      {/* ── Profile Edit ─────────────────────────────────────── */}
+      {showProfile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowProfile(false)}>
+          <div className="w-full max-w-sm bg-background rounded-xl shadow-2xl border p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <div>
+              <h2 className="text-lg font-bold">Edit Profile</h2>
+              <p className="text-xs text-muted-foreground">{user?.email}</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Display Name</label>
+              <input
+                type="text"
+                value={displayName}
+                onChange={e => setDisplayName(e.target.value)}
+                placeholder="Your name"
+                className="mt-1 w-full h-10 px-3 rounded-lg border bg-background text-sm"
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setShowProfile(false)}>Cancel</Button>
+              <Button size="sm" onClick={handleSaveProfile} disabled={savingProfile}>
+                {savingProfile ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
