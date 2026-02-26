@@ -539,16 +539,19 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
       // Clear progressed when enabling relocated
       setProgressedPerson(null);
       setShowSolarArc(false);
-      // Auto-set location if not already set (matches desktop TogglePanel behavior)
-      setRelocatedLocation(prev => {
-        if (prev) return prev; // Keep existing location
-        if (person === 'B') return biWheelProps.locationB || biWheelProps.originalLocation || null;
-        return biWheelProps.originalLocation || null;
-      });
+      // On mobile, don't auto-set to birth location (produces identical chart, wastes credit).
+      // Instead, auto-open the location picker so the user picks a real location.
+      if (!relocatedLocation) {
+        // Only open picker if no location is already set
+        if (!user) { setShowAuthModal(true); return; }
+        if (!isPaid) { setShowUpgradeModal(true); return; }
+        setDrawerOpen(false);
+        setTimeout(() => setShowLocationPicker(true), 300); // Delay so drawer closes first
+      }
     } else {
       setRelocatedLocation(null);
     }
-  }, [biWheelProps.originalLocation, biWheelProps.locationB]);
+  }, [relocatedLocation, user, isPaid]);
 
   // Location picker handlers
   const handleOpenLocationPicker = useCallback(() => {
@@ -566,8 +569,9 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   // Generate a key that changes when control state changes
   // This forces BiWheelSynastry to re-mount with new initial values
   const chartKey = useMemo(() => {
-    return `${chartMode}-${Array.from(visiblePlanets).sort().join(',')}-${Array.from(visibleAspects).sort().join(',')}-${showHouses}-${showDegreeMarkers}-${Array.from(enabledAsteroidGroups).sort().join(',')}-${showTransits}-${transitDate}-${progressedPerson}-${progressedDate}-${showSolarArc}-${relocatedPerson}-${chartTheme}`;
-  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups, showTransits, transitDate, progressedPerson, progressedDate, showSolarArc, relocatedPerson, chartTheme]);
+    const locKey = relocatedLocation ? `${relocatedLocation.lat},${relocatedLocation.lng}` : 'none';
+    return `${chartMode}-${Array.from(visiblePlanets).sort().join(',')}-${Array.from(visibleAspects).sort().join(',')}-${showHouses}-${showDegreeMarkers}-${Array.from(enabledAsteroidGroups).sort().join(',')}-${showTransits}-${transitDate}-${progressedPerson}-${progressedDate}-${showSolarArc}-${relocatedPerson}-${locKey}-${chartTheme}`;
+  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups, showTransits, transitDate, progressedPerson, progressedDate, showSolarArc, relocatedPerson, relocatedLocation, chartTheme]);
 
   return (
     <div ref={containerRef} className="w-full">

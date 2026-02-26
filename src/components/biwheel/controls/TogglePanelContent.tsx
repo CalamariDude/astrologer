@@ -487,7 +487,9 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
                       fontSize: isMobile ? 14 : 11,
                       border: `1px solid ${COLORS.gridLineFaint}`,
                       borderRadius: 6,
-                      color: COLORS.textSecondary,
+                      background: COLORS.backgroundAlt2,
+                      color: COLORS.textPrimary,
+                      colorScheme: COLORS.background.charAt(1) < '8' ? 'dark' : 'light',
                     }}
                   />
                 </div>
@@ -650,7 +652,7 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
                     type="date"
                     value={progressedDate}
                     onChange={(e) => onSetProgressedDate(e.target.value)}
-                    style={{ width: '100%', padding: isMobile ? '10px 12px' : '4px 6px', fontSize: isMobile ? 14 : 11, border: `1px solid ${COLORS.gridLineFaint}`, borderRadius: 6, color: COLORS.textSecondary }}
+                    style={{ width: '100%', padding: isMobile ? '10px 12px' : '4px 6px', fontSize: isMobile ? 14 : 11, border: `1px solid ${COLORS.gridLineFaint}`, borderRadius: 6, background: COLORS.backgroundAlt2, color: COLORS.textPrimary, colorScheme: COLORS.background.charAt(1) < '8' ? 'dark' : 'light' }}
                   />
                 </div>
               )}
