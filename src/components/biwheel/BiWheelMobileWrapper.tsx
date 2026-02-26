@@ -6,7 +6,7 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { BiWheelSynastry } from './BiWheelSynastry';
 import { TogglePanelContent } from './controls/TogglePanelContent';
-import type { BiWheelSynastryProps, AsteroidGroup, ChartMode } from './types';
+import type { BiWheelSynastryProps, AsteroidGroup, ChartMode, LocationData } from './types';
 import { ASTEROID_GROUPS } from './types';
 import { ASTEROIDS, ASTEROID_GROUP_INFO } from './utils/constants';
 import { Drawer } from 'vaul';
@@ -14,6 +14,12 @@ import { Settings2, Download, Image, FileText, Mail, Loader2, Share2, Link2, Che
 // Lazy-import chart export (pulls in jsPDF ~357KB) — only needed on export button click
 const getChartExport = () => import('@/lib/chartExport');
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { AuthModal } from '@/components/auth/AuthModal';
+import { UpgradeModal } from '@/components/subscription/UpgradeModal';
+// Lazy-load LocationPicker — Leaflet is ~4MB, only needed when relocate modal opens
+const LocationPicker = React.lazy(() => import('./controls/LocationPicker').then(m => ({ default: m.LocationPicker })));
 
 interface BiWheelMobileWrapperProps extends Omit<BiWheelSynastryProps, 'size' | 'showTogglePanel'> {
   /** Minimum chart size in pixels (must be at least 500 for proper rendering) */
@@ -93,7 +99,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   // BiWheel control state (lifted up for drawer access)
   const [visiblePlanets, setVisiblePlanets] = useState<Set<string>>(
     biWheelProps.initialVisiblePlanets
-      || (savedDefaults?.visiblePlanets ? new Set(savedDefaults.visiblePlanets) : new Set(['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'northnode', 'southnode', 'ascendant', 'midheaven']))
+      || (savedDefaults?.visiblePlanets ? new Set(savedDefaults.visiblePlanets) : new Set(['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto']))
   );
   const [visibleAspects, setVisibleAspects] = useState<Set<string>>(
     biWheelProps.initialVisibleAspects
@@ -117,6 +123,14 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   // Relocated state (lifted for mobile drawer access)
   const [relocatedPerson, setRelocatedPerson] = useState<'A' | 'B' | 'both' | null>(null);
   const [relocatedLoading, setRelocatedLoading] = useState(false);
+  const [relocatedLocation, setRelocatedLocation] = useState<LocationData | null>(null);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  // Auth & subscription (for location picker gating)
+  const { user } = useAuth();
+  const { isPaid } = useSubscription();
 
   // Theme state (lifted for mobile drawer access)
   const [chartTheme, setChartTheme] = useState<string>(biWheelProps.initialTheme || 'classic');
@@ -497,6 +511,46 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     localStorage.setItem('biwheel-chart-defaults', JSON.stringify(defaults));
   }, [visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups]);
 
+  // Mutual exclusivity: progressed ↔ relocated
+  const handleSetProgressedPerson = useCallback((person: 'A' | 'B' | 'both' | null) => {
+    setProgressedPerson(person);
+    if (person) {
+      // Clear relocated when enabling progressed
+      setRelocatedPerson(null);
+      setRelocatedLocation(null);
+    }
+  }, []);
+
+  const handleSetRelocatedPerson = useCallback((person: 'A' | 'B' | 'both' | null) => {
+    setRelocatedPerson(person);
+    if (person) {
+      // Clear progressed when enabling relocated
+      setProgressedPerson(null);
+      setShowSolarArc(false);
+      // Auto-set location if not already set (matches desktop TogglePanel behavior)
+      setRelocatedLocation(prev => {
+        if (prev) return prev; // Keep existing location
+        if (person === 'B') return biWheelProps.locationB || biWheelProps.originalLocation || null;
+        return biWheelProps.originalLocation || null;
+      });
+    } else {
+      setRelocatedLocation(null);
+    }
+  }, [biWheelProps.originalLocation, biWheelProps.locationB]);
+
+  // Location picker handlers
+  const handleOpenLocationPicker = useCallback(() => {
+    if (!user) { setShowAuthModal(true); return; }
+    if (!isPaid) { setShowUpgradeModal(true); return; }
+    setDrawerOpen(false); // Close options drawer first
+    setShowLocationPicker(true);
+  }, [user, isPaid]);
+
+  const handleLocationConfirm = useCallback((location: LocationData) => {
+    setRelocatedLocation(location);
+    setShowLocationPicker(false);
+  }, []);
+
   // Generate a key that changes when control state changes
   // This forces BiWheelSynastry to re-mount with new initial values
   const chartKey = useMemo(() => {
@@ -628,11 +682,14 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
               initialShowSolarArc={showSolarArc}
               initialRelocatedPerson={relocatedPerson}
               initialTheme={chartTheme}
+              // External relocated control — provides location on re-mount
+              externalRelocatedLocation={relocatedLocation}
+              externalRelocatedPerson={relocatedPerson}
               onChartModeChange={(mode) => { setChartMode(mode); biWheelProps.onChartModeChange?.(mode); }}
-              onProgressedPersonChange={setProgressedPerson}
+              onProgressedPersonChange={handleSetProgressedPerson}
               onProgressedDateChange={setProgressedDate}
               onShowSolarArcChange={setShowSolarArc}
-              onRelocatedPersonChange={setRelocatedPerson}
+              onRelocatedPersonChange={handleSetRelocatedPerson}
               onProgressedLoadingChange={setProgressedLoading}
               onRelocatedLoadingChange={setRelocatedLoading}
               onThemeChange={(theme) => { setChartTheme(theme); biWheelProps.onThemeChange?.(theme); }}
@@ -735,14 +792,15 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                   progressedDate={progressedDate}
                   progressedLoading={progressedLoading}
                   showSolarArc={showSolarArc}
-                  onSetProgressedPerson={setProgressedPerson}
+                  onSetProgressedPerson={handleSetProgressedPerson}
                   onSetProgressedDate={setProgressedDate}
                   onSetShowSolarArc={setShowSolarArc}
                   // Relocated controls
                   enableRelocated={biWheelProps.enableRelocated}
                   relocatedPerson={relocatedPerson}
                   relocatedLoading={relocatedLoading}
-                  onSetRelocatedPerson={setRelocatedPerson}
+                  onSetRelocatedPerson={handleSetRelocatedPerson}
+                  onOpenLocationPicker={handleOpenLocationPicker}
                   // Theme controls
                   chartTheme={chartTheme as any}
                   onThemeChange={(theme) => { setChartTheme(theme); biWheelProps.onThemeChange?.(theme); }}
@@ -752,6 +810,26 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
             </Drawer.Content>
           </Drawer.Portal>
         </Drawer.Root>
+
+        {/* Location Picker Modal (mobile) — lazy-loaded with Leaflet */}
+        {showLocationPicker && (
+          <React.Suspense fallback={null}>
+            <LocationPicker
+              isOpen={showLocationPicker}
+              onClose={() => setShowLocationPicker(false)}
+              onConfirm={handleLocationConfirm}
+              originalLocation={biWheelProps.originalLocation}
+              currentLocation={relocatedLocation || undefined}
+              birthDate={biWheelProps.birthDateA}
+              birthTime={biWheelProps.birthTimeA}
+              showAstroLines={true}
+            />
+          </React.Suspense>
+        )}
+
+        {/* Auth/Upgrade modals for gated features (mobile) */}
+        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+        <UpgradeModal isOpen={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
 
         {/* Email share modal */}
         {showEmailModal && (

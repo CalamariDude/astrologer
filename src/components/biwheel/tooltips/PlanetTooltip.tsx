@@ -244,17 +244,24 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: mobile ? 6 : 8,
-          marginBottom: mobile ? 5 : 8,
+          gap: mobile ? 4 : 8,
+          marginBottom: mobile ? 3 : 8,
           borderBottom: `1px solid ${COLORS.gridLine}`,
-          paddingBottom: mobile ? 4 : 6,
+          paddingBottom: mobile ? 2 : 6,
         }}
       >
-        <span style={{ fontSize: mobile ? 16 : 20, color }}>{symbol}</span>
-        <div>
-          <div style={{ color: COLORS.textPrimary, fontWeight: 600, fontSize: mobile ? 12 : 14 }}>{planetName}</div>
-          <div style={{ color, fontSize: mobile ? 10 : 11 }}>{name}</div>
-        </div>
+        <span style={{ fontSize: mobile ? 14 : 20, color }}>{symbol}</span>
+        {mobile ? (
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, flex: 1 }}>
+            <span style={{ color: COLORS.textPrimary, fontWeight: 600, fontSize: 11 }}>{planetName}</span>
+            <span style={{ color, fontSize: 9 }}>{name}</span>
+          </div>
+        ) : (
+          <div>
+            <div style={{ color: COLORS.textPrimary, fontWeight: 600, fontSize: 14 }}>{planetName}</div>
+            <div style={{ color, fontSize: 11 }}>{name}</div>
+          </div>
+        )}
       </div>
 
       {/* Planet/Asteroid description — hidden on mobile */}
@@ -273,32 +280,32 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
       )}
 
       {/* Position badges */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: mobile ? 2 : 4, marginBottom: mobile ? 3 : 8 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: mobile ? 2 : 4, marginBottom: mobile ? 2 : 8 }}>
         {data.sign && (
           <span style={{
-            fontSize: mobile ? 8 : 10, fontWeight: 600, padding: mobile ? '1px 5px' : '2px 8px', borderRadius: mobile ? 3 : 4,
+            fontSize: mobile ? 8 : 10, fontWeight: 600, padding: mobile ? '0px 4px' : '2px 8px', borderRadius: mobile ? 3 : 4,
             backgroundColor: 'rgba(99,102,241,0.1)', color: 'rgba(99,102,241,0.8)',
-            textTransform: 'uppercase', letterSpacing: '0.3px',
+            textTransform: 'uppercase', letterSpacing: '0.3px', lineHeight: mobile ? '14px' : undefined,
           }}>
             {data.sign}
           </span>
         )}
         {(ownHouse || data.house) && (
           <span style={{
-            fontSize: mobile ? 8 : 10, fontWeight: 600, padding: mobile ? '1px 5px' : '2px 8px', borderRadius: mobile ? 3 : 4,
+            fontSize: mobile ? 8 : 10, fontWeight: 600, padding: mobile ? '0px 4px' : '2px 8px', borderRadius: mobile ? 3 : 4,
             backgroundColor: 'rgba(16,185,129,0.1)', color: 'rgba(16,185,129,0.8)',
-            textTransform: 'uppercase', letterSpacing: '0.3px',
+            textTransform: 'uppercase', letterSpacing: '0.3px', lineHeight: mobile ? '14px' : undefined,
           }}>
             House {ownHouse ?? data.house}
           </span>
         )}
         {data.retrograde && (
           <span style={{
-            fontSize: mobile ? 8 : 10, fontWeight: 600, padding: mobile ? '1px 5px' : '2px 8px', borderRadius: mobile ? 3 : 4,
+            fontSize: mobile ? 8 : 10, fontWeight: 600, padding: mobile ? '0px 4px' : '2px 8px', borderRadius: mobile ? 3 : 4,
             backgroundColor: 'rgba(249,115,22,0.1)', color: '#f97316',
-            textTransform: 'uppercase', letterSpacing: '0.3px',
+            textTransform: 'uppercase', letterSpacing: '0.3px', lineHeight: mobile ? '14px' : undefined,
           }}>
-            Retrograde
+            Rx
           </span>
         )}
       </div>
@@ -374,17 +381,17 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
         >
           <div
             style={{
-              fontSize: 11,
+              fontSize: mobile ? 9 : 11,
               fontWeight: 600,
               color: COLORS.textSecondary,
-              marginBottom: 6,
+              marginBottom: mobile ? 3 : 6,
               textTransform: 'uppercase',
               letterSpacing: '0.5px',
             }}
           >
             Aspects to {partnerName} ({sortedAspects.length})
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: mobile ? 2 : 4 }}>
             {sortedAspects.slice(0, maxAspects).map((asp, idx) => {
               // Get the partner planet (the one from the other chart)
               const partnerPlanet = chart === 'A' ? asp.planetB : asp.planetA;
@@ -437,8 +444,8 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 8,
-                      padding: '5px 8px',
+                      gap: mobile ? 4 : 8,
+                      padding: mobile ? '2px 6px' : '5px 8px',
                       backgroundColor: isTight ? 'rgba(168, 85, 247, 0.1)' : 'rgba(0,0,0,0.03)',
                       borderRadius: isExpanded ? '6px 6px 0 0' : 6,
                       border: isTight ? '1px solid rgba(168, 85, 247, 0.3)' : '1px solid transparent',
@@ -455,11 +462,11 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
                     {/* Aspect symbol with white background circle */}
                     <div
                       style={{
-                        width: 26,
-                        height: 26,
+                        width: mobile ? 18 : 26,
+                        height: mobile ? 18 : 26,
                         borderRadius: '50%',
                         backgroundColor: COLORS.background,
-                        border: `2px solid ${asp.aspect.color}`,
+                        border: `${mobile ? 1.5 : 2}px solid ${asp.aspect.color}`,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -468,7 +475,7 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
                     >
                       <span
                         style={{
-                          fontSize: 16,
+                          fontSize: mobile ? 10 : 16,
                           fontWeight: 'bold',
                           color: asp.aspect.color,
                           lineHeight: 1,
@@ -480,28 +487,23 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
 
                     {/* Aspect name and partner planet */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: asp.aspect.color,
-                          textTransform: 'capitalize',
-                        }}
-                      >
-                        {asp.aspect.name}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: COLORS.textPrimary,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 4,
-                        }}
-                      >
-                        <span style={{ fontSize: 13 }}>{partnerSymbol}</span>
-                        <span>{partnerPlanetName}</span>
-                      </div>
+                      {mobile ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                          <span style={{ fontSize: 9, fontWeight: 600, color: asp.aspect.color, textTransform: 'capitalize' }}>{asp.aspect.name}</span>
+                          <span style={{ fontSize: 10 }}>{partnerSymbol}</span>
+                          <span style={{ fontSize: 9, color: COLORS.textPrimary }}>{partnerPlanetName}</span>
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: asp.aspect.color, textTransform: 'capitalize' }}>
+                            {asp.aspect.name}
+                          </div>
+                          <div style={{ fontSize: 12, color: COLORS.textPrimary, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <span style={{ fontSize: 13 }}>{partnerSymbol}</span>
+                            <span>{partnerPlanetName}</span>
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     {/* Orb */}
@@ -811,18 +813,18 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
 
       {/* No aspects message */}
       {!isTransit && sortedAspects.length === 0 && (
-        <div style={{ color: COLORS.textMuted, fontSize: 11, fontStyle: 'italic' }}>
+        <div style={{ color: COLORS.textMuted, fontSize: mobile ? 9 : 11, fontStyle: 'italic' }}>
           No aspects with visible planets
         </div>
       )}
       {isTransit && filteredTransitAspects.length === 0 && (
-        <div style={{ color: COLORS.textMuted, fontSize: 11, fontStyle: 'italic', marginTop: 8 }}>
+        <div style={{ color: COLORS.textMuted, fontSize: mobile ? 9 : 11, fontStyle: 'italic', marginTop: mobile ? 4 : 8 }}>
           No aspects to natal planets
         </div>
       )}
 
-      {/* House Overlay Interpretation - only for natal planets */}
-      {!isTransit && houseInterpretation && partnerHouse && (
+      {/* House Overlay Interpretation - only for natal planets, hidden on mobile */}
+      {!mobile && !isTransit && houseInterpretation && partnerHouse && (
         <div
           style={{
             borderTop: `1px solid ${COLORS.gridLine}`,
