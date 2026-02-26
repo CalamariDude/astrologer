@@ -214,24 +214,24 @@ function InlineBirthForm({
           )}
         </div>
 
-        {/* Date & Time row */}
-        <div className="grid grid-cols-2 divide-x divide-border/30">
-          <div className="group flex items-center gap-2 px-2 sm:px-3 py-2.5 border-b border-border/30 transition-colors group-focus-within:border-foreground/20">
+        {/* Date & Time — stacked on small screens, side by side on larger */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 sm:divide-x divide-border/30">
+          <div className="group flex items-center gap-3 px-3 py-2.5 border-b border-border/30 transition-colors group-focus-within:border-foreground/20">
             <Calendar className="w-4 h-4 text-muted-foreground/50 shrink-0" />
             <input
               type="date"
               value={data.date}
               onChange={(e) => onChange({ ...data, date: e.target.value })}
-              className={`${inputBase} min-w-0`}
+              className={inputBase}
             />
           </div>
-          <div className="group flex items-center gap-2 px-2 sm:px-3 py-2.5 border-b border-border/30 transition-colors group-focus-within:border-foreground/20">
+          <div className="group flex items-center gap-3 px-3 py-2.5 border-b border-border/30 transition-colors group-focus-within:border-foreground/20">
             <Clock className="w-4 h-4 text-muted-foreground/50 shrink-0" />
             <input
               type="time"
               value={data.time}
               onChange={(e) => onChange({ ...data, time: e.target.value })}
-              className={`${inputBase} min-w-0`}
+              className={inputBase}
             />
           </div>
         </div>
