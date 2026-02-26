@@ -81,9 +81,10 @@ function findByName(name: string): SavedChart[] {
 interface SaveChartButtonProps {
   personA: PersonInfo;
   personB?: PersonInfo | null;
+  hasSynastry?: boolean;
 }
 
-export function SaveChartButton({ personA, personB }: SaveChartButtonProps) {
+export function SaveChartButton({ personA, personB, hasSynastry }: SaveChartButtonProps) {
   const [showNameInput, setShowNameInput] = useState(false);
   const [chartName, setChartName] = useState('');
   const [saved, setSaved] = useState(false);
@@ -215,7 +216,7 @@ export function SaveChartButton({ personA, personB }: SaveChartButtonProps) {
         className={`gap-2 ${isAlreadySaved ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
         {saved ? <Check className="w-4 h-4 text-emerald-500" /> : <Save className="w-4 h-4" />}
-        {saved ? 'Saved' : isAlreadySaved ? 'Already Saved' : 'Save Chart'}
+        {saved ? 'Saved' : isAlreadySaved ? 'Already Saved' : hasSynastry ? 'Save Charts' : 'Save Chart'}
       </Button>
 
       {showNameInput && !nameConflict && (

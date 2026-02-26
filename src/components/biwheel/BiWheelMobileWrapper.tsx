@@ -497,10 +497,11 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
             {isMobile && (
               <button
                 onClick={() => setDrawerOpen(true)}
-                className="p-1.5 md:p-2 rounded-lg bg-muted hover:bg-muted/70 transition-colors"
+                className="flex items-center gap-1 px-2 py-1.5 md:px-2.5 md:py-2 rounded-lg bg-muted hover:bg-muted/70 transition-colors"
                 title="Chart options"
               >
                 <Settings2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                <span className="text-[10px] md:text-xs">Options</span>
               </button>
             )}
 
@@ -579,7 +580,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
           className="rounded-xl border border-border"
           style={{
             maxWidth: '100%',
-            touchAction: isMobile ? 'manipulation' : (scale > 1 ? 'none' : 'auto'),
+            touchAction: isMobile ? 'pan-x pan-y' : (scale > 1 ? 'none' : 'auto'),
             cursor: !isMobile && scale > 1 ? (isMousePanning ? 'grabbing' : 'grab') : 'default',
           }}
           {...(!isMobile ? {

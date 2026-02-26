@@ -406,6 +406,27 @@ export default function ChartPage() {
   const [activeTab, setActiveTab] = useState('aspect-grid');
   const [showGalactic, setShowGalactic] = useState(false);
   const [saveAfterGenerate, setSaveAfterGenerate] = useState(false);
+
+  // Check if current birth data is already saved
+  const isChartAlreadySaved = useMemo(() => {
+    if (!personAData.lat) return false;
+    const charts = getSavedCharts();
+    return charts.some((c) => {
+      const matchA = c.person_a_date === personAData.date
+        && c.person_a_time === personAData.time
+        && c.person_a_lat === personAData.lat
+        && c.person_a_lng === personAData.lng;
+      if (!matchA) return false;
+      if (personBData) {
+        return c.person_b_date === personBData.date
+          && c.person_b_time === personBData.time
+          && c.person_b_lat === personBData.lat
+          && c.person_b_lng === personBData.lng;
+      }
+      return !c.person_b_date;
+    });
+  }, [personAData.date, personAData.time, personAData.lat, personAData.lng,
+      personBData?.date, personBData?.time, personBData?.lat, personBData?.lng]);
   const webglSupported = useWebGLSupport();
   const [isAdmin, setIsAdmin] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -976,14 +997,15 @@ export default function ChartPage() {
                     <><Sparkles className="w-3.5 h-3.5" /> Calculate Chart</>
                   )}
                 </Button>
-                <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <label className={`flex items-center gap-1.5 select-none ${isChartAlreadySaved ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                   <input
                     type="checkbox"
-                    checked={saveAfterGenerate}
+                    checked={isChartAlreadySaved || saveAfterGenerate}
+                    disabled={isChartAlreadySaved}
                     onChange={(e) => setSaveAfterGenerate(e.target.checked)}
-                    className="w-3.5 h-3.5 rounded border-border accent-primary cursor-pointer"
+                    className="w-3.5 h-3.5 rounded border-border accent-primary cursor-pointer disabled:cursor-not-allowed"
                   />
-                  <span className="text-xs text-muted-foreground">Save to My Charts</span>
+                  <span className="text-xs text-muted-foreground">{isChartAlreadySaved ? 'Already Saved' : 'Save to My Charts'}</span>
                 </label>
                 {hasChart && (
                   <Button variant="ghost" size="sm" onClick={() => setEditing(false)} className="text-muted-foreground">
@@ -1000,58 +1022,90 @@ export default function ChartPage() {
       {hasChart && personA ? (
         <div className="container py-4 md:py-6 space-y-4 md:space-y-6 px-2 md:px-6">
           <div>
-            {/* Combined birth info card + save + galactic toggle */}
-            <div className="flex items-center justify-between mb-2 gap-2">
-              {!editing && (
-                <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border/50 bg-muted/30 text-sm min-w-0">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                      <span className="font-medium truncate">{personAData.name || 'Unnamed'}</span>
-                      <span className="text-muted-foreground/40">&middot;</span>
-                      <span className="text-muted-foreground text-xs">{formatDate(personAData.date)}</span>
-                      <span className="text-muted-foreground/40">&middot;</span>
-                      <span className="text-muted-foreground text-xs">{personAData.time}</span>
-                      {personAData.location && (
-                        <>
-                          <span className="text-muted-foreground/40">&middot;</span>
-                          <span className="text-muted-foreground text-xs truncate max-w-[160px]">{shortLocation(personAData.location)}</span>
-                        </>
-                      )}
-                    </div>
+            {/* Name header + birth info */}
+            {!editing && (
+              <div className="mb-2">
+                {/* Names — prominent, full width */}
+                <div className="flex items-baseline gap-2 mb-1">
+                  <h1 className="text-lg sm:text-xl font-semibold tracking-tight truncate">
+                    {personAData.name || 'Unnamed'}
                     {personBData && hasSynastry && (
-                      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-0.5">
-                        <span className="text-[10px] text-muted-foreground/40">&</span>
-                        <span className="font-medium truncate">{personBData.name || 'Unnamed'}</span>
-                        <span className="text-muted-foreground/40">&middot;</span>
-                        <span className="text-muted-foreground text-xs">{formatDate(personBData.date)}</span>
-                        <span className="text-muted-foreground/40">&middot;</span>
-                        <span className="text-muted-foreground text-xs">{personBData.time}</span>
-                        {personBData.location && (
-                          <>
-                            <span className="text-muted-foreground/40">&middot;</span>
-                            <span className="text-muted-foreground text-xs truncate max-w-[160px]">{shortLocation(personBData.location)}</span>
-                          </>
-                        )}
-                      </div>
+                      <span className="text-muted-foreground font-normal"> & {personBData.name || 'Unnamed'}</span>
                     )}
-                  </div>
+                  </h1>
                   <button
                     onClick={() => setEditing(true)}
-                    className="shrink-0 text-muted-foreground/60 hover:text-foreground transition-colors p-0.5"
+                    className="shrink-0 text-muted-foreground/50 hover:text-foreground transition-colors p-0.5"
                     title="Edit birth data"
                   >
                     <Pencil className="w-3 h-3" />
                   </button>
-                  <div className="w-px h-4 bg-border/50 shrink-0" />
-                  <SaveChartButton personA={personA} personB={personB} />
                 </div>
-              )}
-              <div className="shrink-0 ml-auto">
-                {webglSupported && (
-                  <GalacticToggle active={showGalactic} onToggle={() => setShowGalactic(v => !v)} />
-                )}
+                {/* Birth details */}
+                <div className="text-xs text-muted-foreground">
+                  <div className="flex items-center gap-x-1.5 whitespace-nowrap overflow-hidden">
+                    <span>{formatDate(personAData.date)}</span>
+                    <span className="opacity-40">&middot;</span>
+                    <span>{personAData.time}</span>
+                    {personAData.location && (
+                      <>
+                        <span className="opacity-40">&middot;</span>
+                        <span className="truncate max-w-[140px]">{shortLocation(personAData.location)}</span>
+                      </>
+                    )}
+                    {/* Single-line for desktop synastry */}
+                    {personBData && hasSynastry && (
+                      <span className="hidden sm:contents">
+                        <span className="opacity-30 mx-1">|</span>
+                        <span>{formatDate(personBData.date)}</span>
+                        <span className="opacity-40">&middot;</span>
+                        <span>{personBData.time}</span>
+                        {personBData.location && (
+                          <>
+                            <span className="opacity-40">&middot;</span>
+                            <span className="truncate max-w-[140px]">{shortLocation(personBData.location)}</span>
+                          </>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                  {/* Stacked second line on mobile for synastry */}
+                  {personBData && hasSynastry && (
+                    <div className="flex items-center gap-x-1.5 whitespace-nowrap overflow-hidden mt-0.5 sm:hidden">
+                      <span>{formatDate(personBData.date)}</span>
+                      <span className="opacity-40">&middot;</span>
+                      <span>{personBData.time}</span>
+                      {personBData.location && (
+                        <>
+                          <span className="opacity-40">&middot;</span>
+                          <span className="truncate max-w-[140px]">{shortLocation(personBData.location)}</span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {/* Actions row */}
+                <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center gap-2">
+                    <SaveChartButton personA={personA} personB={personB} hasSynastry={!!personBData && hasSynastry} />
+                  </div>
+                  <div className="shrink-0">
+                    {webglSupported && (
+                      <GalacticToggle active={showGalactic} onToggle={() => setShowGalactic(v => !v)} />
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+            {editing && (
+              <div className="flex items-center justify-end mb-2">
+                <div className="shrink-0">
+                  {webglSupported && (
+                    <GalacticToggle active={showGalactic} onToggle={() => setShowGalactic(v => !v)} />
+                  )}
+                </div>
+              </div>
+            )}
 
             {showGalactic && webglSupported ? (
               <React.Suspense fallback={
