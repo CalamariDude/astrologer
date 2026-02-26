@@ -1886,10 +1886,12 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         />
 
         {/* Decan ring (between zodiac and outer house ring) */}
-        <DecanRing
-          dimensions={dimensions}
-          rotationOffset={rotationOffset}
-        />
+        {state.showDecans && (
+          <DecanRing
+            dimensions={dimensions}
+            rotationOffset={rotationOffset}
+          />
+        )}
 
         {/* Planet rings */}
         <PlanetRing
