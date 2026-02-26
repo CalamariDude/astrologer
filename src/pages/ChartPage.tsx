@@ -1234,7 +1234,7 @@ export default function ChartPage() {
               </div>
             }>
             <TabsContent value="aspect-grid" className="mt-4 min-h-[400px]">
-              <AspectGridTable chartA={personA.natalChart} chartB={hasSynastry ? personB!.natalChart : undefined} nameA={personA.name || 'Person A'} nameB={hasSynastry ? (personB!.name || 'Person B') : undefined} />
+              <AspectGridTable chartA={personA.natalChart} chartB={hasSynastry ? personB!.natalChart : undefined} nameA={personA.name || 'Person A'} nameB={hasSynastry ? (personB!.name || 'Person B') : undefined} visiblePlanets={sharedVisiblePlanets} visibleAspects={sharedVisibleAspects} />
             </TabsContent>
             <TabsContent value="profections" className="mt-4 min-h-[400px]">
               <ProfectionsPanel natalChart={personA.natalChart} birthDate={personA.date} name={personA.name || 'Person A'} />

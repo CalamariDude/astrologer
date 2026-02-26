@@ -24,6 +24,10 @@ interface AspectGridTableProps {
   chartB?: NatalChart;
   nameA: string;
   nameB?: string;
+  /** When provided, only these planets appear in the grid (synced from chart options) */
+  visiblePlanets?: Set<string>;
+  /** When provided, only these aspect types appear in the grid (synced from chart options) */
+  visibleAspects?: Set<string>;
 }
 
 const GRID_PLANETS = [...PLANET_GROUPS.core, ...PLANET_GROUPS.outer, 'chiron'] as string[];
@@ -433,7 +437,7 @@ function AspectCell({ aspect, planetA, planetB, viewMode, isSynastry }: {
   );
 }
 
-export function AspectGridTable({ chartA, chartB, nameA, nameB }: AspectGridTableProps) {
+export function AspectGridTable({ chartA, chartB, nameA, nameB, visiblePlanets, visibleAspects }: AspectGridTableProps) {
   const [showMinor, setShowMinor] = useState(false);
   const [viewMode, setViewMode] = useState<'symbols' | 'heatmap'>('symbols');
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 768);
@@ -448,11 +452,22 @@ export function AspectGridTable({ chartA, chartB, nameA, nameB }: AspectGridTabl
   const planetsA = chartA.planets;
   const planetsB = chartB?.planets || chartA.planets;
 
-  const availablePlanetsA = GRID_PLANETS.filter(p => planetsA[p]?.longitude !== undefined);
-  const availablePlanetsB = GRID_PLANETS.filter(p => planetsB[p]?.longitude !== undefined);
+  // Use visiblePlanets from chart options if provided, otherwise fall back to full GRID_PLANETS
+  const gridPlanetList = visiblePlanets
+    ? GRID_PLANETS.filter(p => visiblePlanets.has(p))
+    : GRID_PLANETS;
+  const availablePlanetsA = gridPlanetList.filter(p => planetsA[p]?.longitude !== undefined);
+  const availablePlanetsB = gridPlanetList.filter(p => planetsB[p]?.longitude !== undefined);
 
   const rowPlanets = availablePlanetsA;
   const colPlanets = isSynastry ? availablePlanetsB : availablePlanetsA;
+
+  // When visibleAspects is provided from chart options, use it; otherwise fall back to showMinor toggle
+  const effectiveAllowedAspects = useMemo(() => {
+    if (visibleAspects) return visibleAspects;
+    if (showMinor) return undefined; // all aspects
+    return new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare']);
+  }, [visibleAspects, showMinor]);
 
   // Detect aspect patterns
   const patterns = useMemo(
@@ -463,7 +478,7 @@ export function AspectGridTable({ chartA, chartB, nameA, nameB }: AspectGridTabl
   // Count aspects
   const counts = useMemo(() => {
     let harmonious = 0, challenging = 0, neutral = 0;
-    const allowedAspects = showMinor ? undefined : new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare'] as const);
+    const allowedAspects = effectiveAllowedAspects;
 
     for (let r = 0; r < rowPlanets.length; r++) {
       for (let c = 0; c < colPlanets.length; c++) {
@@ -480,11 +495,11 @@ export function AspectGridTable({ chartA, chartB, nameA, nameB }: AspectGridTabl
       }
     }
     return { harmonious, challenging, neutral, total: harmonious + challenging + neutral };
-  }, [rowPlanets, colPlanets, planetsA, planetsB, showMinor]);
+  }, [rowPlanets, colPlanets, planetsA, planetsB, effectiveAllowedAspects]);
 
   // Theme breakdown
   const themeCounts = useMemo(() => {
-    const allowedAspects = showMinor ? undefined : new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare'] as const);
+    const allowedAspects = effectiveAllowedAspects;
     const result: Record<string, number> = {};
     for (const key of Object.keys(LIFE_THEMES)) result[key] = 0;
 
@@ -502,7 +517,7 @@ export function AspectGridTable({ chartA, chartB, nameA, nameB }: AspectGridTabl
       }
     }
     return result;
-  }, [rowPlanets, colPlanets, planetsA, planetsB, showMinor]);
+  }, [rowPlanets, colPlanets, planetsA, planetsB, effectiveAllowedAspects]);
 
   return (
     <div className="space-y-4">
@@ -516,12 +531,15 @@ export function AspectGridTable({ chartA, chartB, nameA, nameB }: AspectGridTabl
             {isSynastry ? `${nameA} \u00D7 ${nameB}` : nameA} &mdash; {counts.total} aspects found
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-muted-foreground">Minor</label>
-            <Switch checked={showMinor} onCheckedChange={setShowMinor} />
+        {/* Minor toggle — hidden when aspects are controlled by chart options */}
+        {!visibleAspects && (
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-muted-foreground">Minor</label>
+              <Switch checked={showMinor} onCheckedChange={setShowMinor} />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Summary Pills */}
@@ -597,7 +615,7 @@ export function AspectGridTable({ chartA, chartB, nameA, nameB }: AspectGridTabl
                         if (longA === undefined || longB === undefined) {
                           return <td key={colPlanet} className={CELL_CLASS} />;
                         }
-                        const allowedAspects = showMinor ? undefined : new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare'] as const);
+                        const allowedAspects = effectiveAllowedAspects;
                         const aspect = detectAspect(longA, longB, allowedAspects as any, rowPlanet, colPlanet);
                         return (
                           <AspectCell key={colPlanet} aspect={aspect} planetA={rowPlanet} planetB={colPlanet} viewMode={viewMode} isSynastry={true} />
@@ -680,7 +698,7 @@ export function AspectGridTable({ chartA, chartB, nameA, nameB }: AspectGridTabl
                           if (longA === undefined || longB === undefined) {
                             return <td key={colPlanet} className={CELL_CLASS} />;
                           }
-                          const allowedAspects = showMinor ? undefined : new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare'] as const);
+                          const allowedAspects = effectiveAllowedAspects;
                           const aspect = detectAspect(longA, longB, allowedAspects as any, rowPlanet, colPlanet);
                           return (
                             <AspectCell key={colPlanet} aspect={aspect} planetA={rowPlanet} planetB={colPlanet} viewMode={viewMode} isSynastry={false} />

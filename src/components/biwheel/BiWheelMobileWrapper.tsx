@@ -112,10 +112,17 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   );
   const [chartMode, setChartMode] = useState<ChartMode>(biWheelProps.initialChartMode || 'synastry');
 
-  // Progressed state (lifted for mobile drawer access)
-  const [progressedPerson, setProgressedPerson] = useState<'A' | 'B' | 'both' | null>(null);
+  // Today's date string (used for transit and progressed defaults)
   const now2 = new Date();
   const todayStr = `${now2.getFullYear()}-${String(now2.getMonth() + 1).padStart(2, '0')}-${String(now2.getDate()).padStart(2, '0')}`;
+
+  // Transit state (lifted for mobile drawer access)
+  const [showTransits, setShowTransits] = useState(false);
+  const [transitDate, setTransitDate] = useState(todayStr);
+  const [transitLoading, setTransitLoading] = useState(false);
+
+  // Progressed state (lifted for mobile drawer access)
+  const [progressedPerson, setProgressedPerson] = useState<'A' | 'B' | 'both' | null>(null);
   const [progressedDate, setProgressedDate] = useState(todayStr);
   const [progressedLoading, setProgressedLoading] = useState(false);
   const [showSolarArc, setShowSolarArc] = useState(false);
@@ -554,8 +561,8 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   // Generate a key that changes when control state changes
   // This forces BiWheelSynastry to re-mount with new initial values
   const chartKey = useMemo(() => {
-    return `${chartMode}-${Array.from(visiblePlanets).sort().join(',')}-${Array.from(visibleAspects).sort().join(',')}-${showHouses}-${showDegreeMarkers}-${Array.from(enabledAsteroidGroups).sort().join(',')}-${progressedPerson}-${progressedDate}-${showSolarArc}-${relocatedPerson}-${chartTheme}`;
-  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups, progressedPerson, progressedDate, showSolarArc, relocatedPerson, chartTheme]);
+    return `${chartMode}-${Array.from(visiblePlanets).sort().join(',')}-${Array.from(visibleAspects).sort().join(',')}-${showHouses}-${showDegreeMarkers}-${Array.from(enabledAsteroidGroups).sort().join(',')}-${showTransits}-${transitDate}-${progressedPerson}-${progressedDate}-${showSolarArc}-${relocatedPerson}-${chartTheme}`;
+  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups, showTransits, transitDate, progressedPerson, progressedDate, showSolarArc, relocatedPerson, chartTheme]);
 
   return (
     <div ref={containerRef} className="w-full">
@@ -677,6 +684,10 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
               initialShowHouses={showHouses}
               initialShowDegreeMarkers={showDegreeMarkers}
               initialChartMode={chartMode}
+              // Transit initial state
+              initialShowTransits={showTransits}
+              initialTransitDate={transitDate}
+              // Progressed/Relocated initial state
               initialProgressedPerson={progressedPerson}
               initialProgressedDate={progressedDate}
               initialShowSolarArc={showSolarArc}
@@ -685,7 +696,11 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
               // External relocated control — provides location on re-mount
               externalRelocatedLocation={relocatedLocation}
               externalRelocatedPerson={relocatedPerson}
+              // Change callbacks
               onChartModeChange={(mode) => { setChartMode(mode); biWheelProps.onChartModeChange?.(mode); }}
+              onShowTransitsChange={setShowTransits}
+              onTransitDateChange={setTransitDate}
+              onTransitLoadingChange={setTransitLoading}
               onProgressedPersonChange={handleSetProgressedPerson}
               onProgressedDateChange={setProgressedDate}
               onShowSolarArcChange={setShowSolarArc}
@@ -781,6 +796,11 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                   onSetChartMode={(mode: ChartMode) => { setChartMode(mode); biWheelProps.onChartModeChange?.(mode); }}
                   enableComposite={biWheelProps.enableComposite}
                   enableTransits={biWheelProps.enableTransits}
+                  showTransits={showTransits}
+                  transitDate={transitDate}
+                  transitLoading={transitLoading}
+                  onSetShowTransits={setShowTransits}
+                  onSetTransitDate={setTransitDate}
                   enableAsteroids={true}
                   enabledAsteroidGroups={enabledAsteroidGroups}
                   onToggleAsteroidGroup={toggleAsteroidGroup}

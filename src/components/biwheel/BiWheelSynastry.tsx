@@ -333,6 +333,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   asteroids,
   // Transit props
   enableTransits = false,
+  initialShowTransits = false,
   initialTransitDate,
   initialTransitTime,
   onFetchTransits,
@@ -369,6 +370,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   onProgressedLoadingChange,
   onRelocatedLoadingChange,
   onShowTransitsChange,
+  onTransitDateChange,
+  onTransitLoadingChange,
   onAsteroidsChange,
   // Asteroids data fetch
   onFetchAsteroidData,
@@ -401,7 +404,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     selectedSign: null,
     tooltipPosition: null,
     // Transit/Composite state
-    showTransits: false,
+    showTransits: initialShowTransits,
     transitDate: initialTransitDate || today,
     transitTime: initialTransitTime || currentTime,
     transitData: null,
@@ -727,6 +730,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
     const fetchData = async () => {
       setState(prev => ({ ...prev, transitLoading: true }));
+      onTransitLoadingChange?.(true);
       try {
         console.log('Fetching transits for:', state.transitDate, state.transitTime);
         const data = await onFetchTransits(state.transitDate, state.transitTime, chartA, chartB, computedAsteroids);
@@ -735,14 +739,16 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           console.warn('Transit data received but no planets found');
         }
         setState(prev => ({ ...prev, transitData: data, transitLoading: false }));
+        onTransitLoadingChange?.(false);
       } catch (error) {
         console.error('Failed to fetch transits:', error);
         setState(prev => ({ ...prev, transitLoading: false, transitData: null }));
+        onTransitLoadingChange?.(false);
       }
     };
 
     fetchData();
-  }, [state.showTransits, state.transitDate, state.transitTime, chartA, chartB, onFetchTransits, computedAsteroids]);
+  }, [state.showTransits, state.transitDate, state.transitTime, chartA, chartB, onFetchTransits, computedAsteroids, onTransitLoadingChange]);
 
   // Fetch composite when chartMode is 'composite'
   useEffect(() => {
@@ -901,7 +907,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
   const setTransitDate = useCallback((date: string) => {
     setState(prev => ({ ...prev, transitDate: date }));
-  }, []);
+    onTransitDateChange?.(date);
+  }, [onTransitDateChange]);
 
   const setTransitTime = useCallback((time: string) => {
     setState(prev => ({ ...prev, transitTime: time }));

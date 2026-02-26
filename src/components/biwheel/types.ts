@@ -161,6 +161,7 @@ export interface BiWheelSynastryProps {
   asteroids?: AsteroidsParam;
   // Transit props
   enableTransits?: boolean;
+  initialShowTransits?: boolean;
   initialTransitDate?: string;
   initialTransitTime?: string;
   onFetchTransits?: (date: string, time: string, chartA: NatalChart, chartB: NatalChart, asteroids?: AsteroidsParam) => Promise<TransitData>;
@@ -198,6 +199,8 @@ export interface BiWheelSynastryProps {
   onProgressedLoadingChange?: (loading: boolean) => void;
   onRelocatedLoadingChange?: (loading: boolean) => void;
   onShowTransitsChange?: (show: boolean) => void;
+  onTransitDateChange?: (date: string) => void;
+  onTransitLoadingChange?: (loading: boolean) => void;
   onAsteroidsChange?: (asteroids: AsteroidsParam) => void;
   // Asteroids data fetch callback - called when asteroid groups are enabled to fetch positions
   onFetchAsteroidData?: (asteroids: string[]) => Promise<{ chartA: Record<string, any>; chartB: Record<string, any> }>;
