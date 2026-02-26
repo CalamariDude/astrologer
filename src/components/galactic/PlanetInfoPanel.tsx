@@ -10,7 +10,7 @@ import { X, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Planet3D, Aspect3D } from './types';
 import { ASPECTS, ASTEROIDS } from '../biwheel/utils/constants';
 import { PLANET_NASA_DATA, PLANET_COLORS_3D } from './constants';
-import { calculateSpark } from '../biwheel/utils/chartMath';
+import { calculateDegreeSign } from '../biwheel/utils/chartMath';
 
 interface PlanetInfoPanelProps {
   planet: Planet3D;
@@ -64,7 +64,7 @@ export function PlanetInfoPanel({ planet, aspects, onClose }: PlanetInfoPanelPro
 
   const nasaData = PLANET_NASA_DATA[planet.key];
   const asteroidData = (ASTEROIDS as Record<string, { description?: string }>)[planet.key];
-  const spark = calculateSpark(planet.longitude);
+  const deg = calculateDegreeSign(planet.longitude);
   const realColor = PLANET_COLORS_3D[planet.key] ?? planet.color;
 
   const formatDegree = (lng: number) => {
@@ -153,8 +153,8 @@ export function PlanetInfoPanel({ planet, aspects, onClose }: PlanetInfoPanelPro
             </div>
           )}
           <div className="bg-muted/50 rounded-lg p-2 text-center">
-            <span className="text-muted-foreground block text-[11px]">Spark</span>
-            <p className="font-medium">{spark.sparkSymbol} {spark.sparkSign}</p>
+            <span className="text-muted-foreground block text-[11px]">Degree</span>
+            <p className="font-medium">{deg.degreeSymbol} {deg.degreeSign}</p>
           </div>
           <div className="bg-muted/50 rounded-lg p-2 text-center">
             <span className="text-muted-foreground block text-[11px]">Category</span>

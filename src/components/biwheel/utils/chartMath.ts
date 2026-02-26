@@ -297,7 +297,7 @@ export function midpoint(long1: number, long2: number): number {
 }
 
 /**
- * Spark calculation
+ * Degree sign calculation
  * Maps each degree within a sign to a zodiac sign based on parity:
  * - degree mod 12, 0-indexed: 0→Aries, 1→Taurus, ..., 6→Libra, 11→Pisces
  * - For ODD signs (Aries, Gemini, Leo, Libra, Sagittarius, Aquarius): use the mapped sign directly
@@ -306,7 +306,7 @@ export function midpoint(long1: number, long2: number): number {
  * Example: degree 6 in Aries (odd) → index 6 → Libra (7th sign)
  * Example: degree 6 in Scorpio (even) → index 6 → Libra → opposite → Aries
  */
-export function calculateSpark(longitude: number): { sparkSign: string; sparkSymbol: string; sparkIndex: number } {
+export function calculateDegreeSign(longitude: number): { degreeSign: string; degreeSymbol: string; degreeIndex: number } {
   const SIGNS = [
     'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
     'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'
@@ -323,20 +323,23 @@ export function calculateSpark(longitude: number): { sparkSign: string; sparkSym
   // Sign parity: Aries(index 0)=1st sign(odd), Taurus(index 1)=2nd sign(even), ...
   const isEvenSign = signIndex % 2 === 1;
 
-  // Map degree to spark sign index (0-indexed: 0→Aries, 6→Libra, 11→Pisces)
-  let sparkIdx = degreeInSign % 12;
+  // Map degree to degree sign index (0-indexed: 0→Aries, 6→Libra, 11→Pisces)
+  let degIdx = degreeInSign % 12;
 
   // For even signs, take the opposite sign
   if (isEvenSign) {
-    sparkIdx = (sparkIdx + 6) % 12;
+    degIdx = (degIdx + 6) % 12;
   }
 
   return {
-    sparkSign: SIGNS[sparkIdx],
-    sparkSymbol: SYMBOLS[sparkIdx],
-    sparkIndex: sparkIdx,
+    degreeSign: SIGNS[degIdx],
+    degreeSymbol: SYMBOLS[degIdx],
+    degreeIndex: degIdx,
   };
 }
+
+/** @deprecated Use calculateDegreeSign instead */
+export const calculateSpark = calculateDegreeSign;
 
 /**
  * Decan calculation using the triplicity (Chaldean) system

@@ -113,8 +113,8 @@ function calculateDimensions(size: number, showTransits: boolean = false, _showP
   const decanWidth = showDecans ? 38 : 0;
   const decanInner = decanOuter - decanWidth;
 
-  // Person A's rings (outer person) - from outside in: planet, degree, spark, minute
-  // Degree/spark/minute are a tight cluster; planet symbol has breathing room
+  // Person A's rings (outer person) - from outside in: planet, degree, degree sign, minute
+  // Degree/degree sign/minute are a tight cluster; planet symbol has breathing room
   const planetARing = decanInner - 38;
   const degreeARing = planetARing - 38;
   const signARing = degreeARing - 38;
@@ -126,8 +126,8 @@ function calculateDimensions(size: number, showTransits: boolean = false, _showP
   // Tick after Person B's planet (between B and A)
   const tickBToA = minuteARing - 14;
 
-  // Person B's rings (inner person) - from outside in: planet, degree, spark, minute
-  // Degree/spark/minute are a tight cluster
+  // Person B's rings (inner person) - from outside in: planet, degree, degree sign, minute
+  // Degree/degree sign/minute are a tight cluster
   const planetBRing = tickBToA - 32;
   const degreeBRing = planetBRing - 32;
   const signBRing = degreeBRing - 30;
@@ -227,7 +227,7 @@ function calculateSingleWheelDimensions(size: number, showTransits: boolean = fa
   const decanWidth = showDecans ? 38 : 0;
   const decanInner = decanOuter - decanWidth;
 
-  // Single planet ring — degree/spark/minute are a tight cluster
+  // Single planet ring — degree/degree sign/minute are a tight cluster
   const singlePlanetRing = decanInner - 56;
   const singleDegreeRing = singlePlanetRing - 48;
   const singleSignRing = singleDegreeRing - 38;

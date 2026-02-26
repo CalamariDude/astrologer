@@ -5,7 +5,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { PLANETS, COLORS, ASTEROIDS, ARABIC_PARTS } from '../utils/constants';
-import { formatLongitude, calculateSpark } from '../utils/chartMath';
+import { formatLongitude, calculateDegreeSign } from '../utils/chartMath';
 import type { PlanetData, NatalChart } from '../types';
 import type { SynastryAspect, AspectType } from '../utils/aspectCalculations';
 import {
@@ -324,10 +324,10 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
           )}
 
           {data.longitude !== undefined && (() => {
-            const spark = calculateSpark(data.longitude);
+            const deg = calculateDegreeSign(data.longitude);
             return (
               <div style={{ color: COLORS.textMuted, marginBottom: 4 }}>
-                Spark: {spark.sparkSymbol} {spark.sparkSign}
+                Degree: {deg.degreeSymbol} {deg.degreeSign}
               </div>
             );
           })()}

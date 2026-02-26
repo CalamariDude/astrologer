@@ -13,7 +13,7 @@
 
 import React from 'react';
 import { PLANETS, ZODIAC_SIGNS, COLORS, ASTEROIDS, ARABIC_PARTS, getElementColor, getThemeAwarePlanetColor } from '../utils/constants';
-import { longitudeToXY, calculateDecan, calculateSpark } from '../utils/chartMath';
+import { longitudeToXY, calculateDecan, calculateDegreeSign } from '../utils/chartMath';
 import type { ChartDimensions, NatalChart, PlacedPlanet, PlanetData, ChartMode, CompositeData } from '../types';
 import type { SynastryAspect } from '../utils/aspectCalculations';
 
@@ -458,14 +458,14 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
   const planetASize = 54;
   const asteroidASize = 16;  // Size for asteroids with text labels (3-5 letters)
   const angleASize = 24;  // AC/MC text labels
-  const signASize = 28;  // spark symbol size
+  const signASize = 28;  // degree symbol size
   const degreeASize = 22;
   const minuteASize = 15;
 
   const planetBSize = 46;
   const asteroidBSize = 13;  // Size for asteroids with text labels (3-5 letters)
   const angleBSize = 20;  // AC/MC text labels
-  const signBSize = 23;  // spark symbol size
+  const signBSize = 23;  // degree symbol size
   const degreeBSize = 18;
   const minuteBSize = 12;
 
@@ -566,7 +566,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
         const degInSign = Math.floor(planet.longitude % 30);
         const minutes = Math.floor((planet.longitude % 1) * 60);
         const planetColor = getPlanetColor(planet.key);
-        const spark = calculateSpark(planet.longitude);
+        const deg = calculateDegreeSign(planet.longitude);
         const textRotation = isTextLabel(planet.key) ? getRadialRotation(planet.displayLongitude) : 0;
 
         // Use single-wheel radii in personA mode
@@ -611,12 +611,12 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
               </text>
             )}
 
-            {/* Spark symbol (between degrees and minutes, colored by spark element) */}
+            {/* Degree symbol (between degrees and minutes, colored by degree element) */}
             {signPos && (
               <text
                 x={signPos.x}
                 y={signPos.y}
-                fill={getSignColor(spark.sparkIndex * 30)}
+                fill={getSignColor(deg.degreeIndex * 30)}
                 fontSize={highlighted ? signASize * highlightScale : signASize}
                 fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
                 fontWeight="bold"
@@ -624,7 +624,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
                 dominantBaseline="central"
                 style={{ userSelect: 'none', transition: 'font-size 0.15s ease-out' }}
               >
-                {spark.sparkSymbol}
+                {deg.degreeSymbol}
               </text>
             )}
 
@@ -697,7 +697,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
         const minutes = Math.floor((planet.longitude % 1) * 60);
         const planetColor = getPlanetColor(planet.key);
         const textRotation = isTextLabel(planet.key) ? getRadialRotation(planet.displayLongitude) : 0;
-        const spark = calculateSpark(planet.longitude);
+        const deg = calculateDegreeSign(planet.longitude);
 
         // Use single-wheel radii in personB mode
         const effectiveDegreeRing = isSingleWheel ? singleDegRadius : degreeBRing;
@@ -741,12 +741,12 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
               </text>
             )}
 
-            {/* Spark symbol (between degrees and minutes, colored by spark element) */}
+            {/* Degree symbol (between degrees and minutes, colored by degree element) */}
             {signPos && (
               <text
                 x={signPos.x}
                 y={signPos.y}
-                fill={getSignColor(spark.sparkIndex * 30)}
+                fill={getSignColor(deg.degreeIndex * 30)}
                 fontSize={highlighted ? signBSize * highlightScale : signBSize}
                 fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
                 fontWeight="bold"
@@ -754,7 +754,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
                 dominantBaseline="central"
                 style={{ userSelect: 'none', transition: 'font-size 0.15s ease-out' }}
               >
-                {spark.sparkSymbol}
+                {deg.degreeSymbol}
               </text>
             )}
 
@@ -825,7 +825,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
         const degInSign = Math.floor(planet.longitude % 30);
         const minutes = Math.floor((planet.longitude % 1) * 60);
         const planetColor = getPlanetColor(planet.key);
-        const spark = calculateSpark(planet.longitude);
+        const deg = calculateDegreeSign(planet.longitude);
         const textRotation = isTextLabel(planet.key) ? getRadialRotation(planet.displayLongitude) : 0;
 
         // Calculate positions at single-wheel radii
@@ -864,12 +864,12 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
               </text>
             )}
 
-            {/* Spark symbol (between degrees and minutes, colored by spark element) */}
+            {/* Degree symbol (between degrees and minutes, colored by degree element) */}
             {signPos && (
               <text
                 x={signPos.x}
                 y={signPos.y}
-                fill={getSignColor(spark.sparkIndex * 30)}
+                fill={getSignColor(deg.degreeIndex * 30)}
                 fontSize={highlighted ? signASize * highlightScale : signASize}
                 fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
                 fontWeight="bold"
@@ -877,7 +877,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
                 dominantBaseline="central"
                 style={{ userSelect: 'none', transition: 'font-size 0.15s ease-out' }}
               >
-                {spark.sparkSymbol}
+                {deg.degreeSymbol}
               </text>
             )}
 

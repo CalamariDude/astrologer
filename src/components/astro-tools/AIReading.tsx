@@ -104,7 +104,7 @@ function VantageTreeViewer({ trees }: { trees: ChartReadingTree[] }) {
                 badge={`${p.aspects.length} asp`}
               >
                 {/* Layers */}
-                {p.spark && <TreeNode label={<span>Spark: <span className="text-purple-500">{p.spark.sign}</span></span>} />}
+                {p.spark && <TreeNode label={<span>Degree: <span className="text-purple-500">{p.spark.sign}</span></span>} />}
                 {p.decan && <TreeNode label={<span>Decan {p.decan.number}: <span className="text-cyan-500">{p.decan.sign}</span></span>} />}
                 {p.fusion_cusp && <TreeNode label={<span className="text-orange-500">Fusion cusp H{p.fusion_cusp.from_house}–H{p.fusion_cusp.to_house}</span>} />}
                 {p.retrograde_house && <TreeNode label={<span className="text-red-400">House ruler retrograde</span>} />}
@@ -490,7 +490,7 @@ export function AIReading({ chartA, chartB, nameA, nameB }: AIReadingProps) {
 
           {/* Explanation */}
           <p className="text-[11px] text-muted-foreground/70 leading-relaxed border-t border-border/40 pt-3">
-            This isn't just ChatGPT with your chart — we build a 9-layer vantage tree from your exact positions, analyze each planet through its house, spark, decan, sign, aspects, and dispositor chains, then synthesize everything into one cohesive reading. It takes a moment, but the accuracy is worth it.
+            This isn't just ChatGPT with your chart — we build a 9-layer vantage tree from your exact positions, analyze each planet through its house, degree, decan, sign, aspects, and dispositor chains, then synthesize everything into one cohesive reading. It takes a moment, but the accuracy is worth it.
           </p>
         </div>
       )}

@@ -462,7 +462,7 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
                     {line.aspect.aspect.exactOrb.toFixed(1)}°
                   </text>
                 )}
-                {/* Declination spark indicator */}
+                {/* Declination degree indicator */}
                 {decAspect && (
                   <text
                     x={apex.x + 9}

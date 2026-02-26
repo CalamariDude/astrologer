@@ -11,7 +11,7 @@ import { Html, Text, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
 import type { Planet3D } from './types';
 import { PLANET_COLORS_3D } from './constants';
-import { calculateSpark } from '../biwheel/utils/chartMath';
+import { calculateDegreeSign } from '../biwheel/utils/chartMath';
 
 // ─── Texture caches (shared across instances) ────────────────────────────────
 
@@ -748,15 +748,15 @@ export function PlanetNode3D({ planet, selected, onSelect, animationDelay = 0, d
   // Orb glow size — larger like landing page, still capped
   const auraSize = Math.min(planet.size * 5, planet.orb * 0.2 + planet.size * 2.5);
 
-  // Degree + sign + spark label text
-  const { degreeText, sparkSymbol } = useMemo(() => {
+  // Degree + sign + degree label text
+  const { degreeText, degreeSymbol } = useMemo(() => {
     const signDeg = Math.floor(planet.longitude % 30);
     const signs = ['Ari', 'Tau', 'Gem', 'Can', 'Leo', 'Vir', 'Lib', 'Sco', 'Sag', 'Cap', 'Aqu', 'Pis'];
     const signIndex = Math.floor(planet.longitude / 30);
-    const spark = calculateSpark(planet.longitude);
+    const deg = calculateDegreeSign(planet.longitude);
     return {
       degreeText: `${signDeg}° ${signs[signIndex] ?? ''}`,
-      sparkSymbol: spark.sparkSymbol,
+      degreeSymbol: deg.degreeSymbol,
     };
   }, [planet.longitude]);
 
@@ -955,7 +955,7 @@ export function PlanetNode3D({ planet, selected, onSelect, animationDelay = 0, d
             outlineColor="#000000"
             fillOpacity={(isActive ? 0.9 : 0.6) * dimFactor * transitFactor}
           >
-            {degreeText} {sparkSymbol}{planet.retrograde ? ' ℞' : ''}
+            {degreeText} {degreeSymbol}{planet.retrograde ? ' ℞' : ''}
           </Text>
         </Billboard>
       )}
