@@ -463,7 +463,7 @@ export default function ChartPage() {
 
   // Shared visibility state — synced from 2D chart, passed one-way to galactic mode
   const [sharedVisiblePlanets, setSharedVisiblePlanets] = useState<Set<string>>(
-    new Set(['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'northnode', 'southnode', 'ascendant', 'midheaven'])
+    new Set(['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'])
   );
   const [sharedVisibleAspects, setSharedVisibleAspects] = useState<Set<string>>(
     new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare'])

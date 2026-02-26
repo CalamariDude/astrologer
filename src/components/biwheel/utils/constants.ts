@@ -192,12 +192,10 @@ export const ASTEROID_GROUP_INFO = {
   points: { name: 'Calc. Points', color: '#9C27B0', icon: '⊕' },
 } as const;
 
-// Default visible planets
+// Default visible planets — Sun through Pluto (the 10 core planets)
 export const DEFAULT_VISIBLE_PLANETS = new Set([
-  ...PLANET_GROUPS.core,
-  ...PLANET_GROUPS.outer,
-  ...PLANET_GROUPS.asteroids,
-  ...PLANET_GROUPS.angles,
+  'sun', 'moon', 'mercury', 'venus', 'mars',
+  'jupiter', 'saturn', 'uranus', 'neptune', 'pluto',
 ]);
 
 // Per-planet maximum orbs (effective orb = average of both planets' orbs)
