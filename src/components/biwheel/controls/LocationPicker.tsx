@@ -1,0 +1,572 @@
+/**
+ * Location Picker Modal
+ * Map-based location selector using react-leaflet with Mapbox tiles
+ * Used for selecting a new location for relocated chart calculation
+ */
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { MapContainer, TileLayer, Marker, Polyline, useMapEvents, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import type { LocationData } from '../types';
+import { COLORS } from '../utils/constants';
+import { swissEphemeris } from '@/api/swissEphemeris';
+
+// Astrocartography line types
+interface AstroLine {
+  planet: string;
+  lineType: 'MC' | 'IC' | 'ASC' | 'DSC';
+  points: { lat: number; lng: number }[];
+  color: string;
+}
+
+interface AstrocartographyData {
+  lines: AstroLine[];
+}
+
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+
+// Map styles
+const MAP_STYLES = {
+  dark: `https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`,
+  streets: `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`,
+};
+
+// Fix for default marker icons
+delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
+
+// Custom gold marker for selected location
+const goldMarkerIcon = L.divIcon({
+  className: 'custom-gold-marker',
+  html: `
+    <div style="
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+      border: 3px solid white;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    ">
+      <div style="
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: white;
+      "></div>
+    </div>
+  `,
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
+});
+
+// Blue marker for original birth location
+const blueMarkerIcon = L.divIcon({
+  className: 'custom-blue-marker',
+  html: `
+    <div style="
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      border: 2px solid white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      opacity: 0.7;
+    "></div>
+  `,
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
+});
+
+interface LocationPickerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (location: LocationData) => void;
+  originalLocation?: LocationData;
+  currentLocation?: LocationData;
+  // For astrocartography lines
+  birthDate?: string;
+  birthTime?: string;
+  showAstroLines?: boolean;
+}
+
+// Component to handle map click events
+function MapClickHandler({
+  onLocationSelect
+}: {
+  onLocationSelect: (lat: number, lng: number) => void
+}) {
+  useMapEvents({
+    click: (e) => {
+      onLocationSelect(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
+
+// Component to center map on location and handle resize
+function MapCenterController({ location }: { location: { lat: number; lng: number } | null }) {
+  const map = useMap();
+
+  // Invalidate size when map is first displayed (fixes modal rendering issue)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [map]);
+
+  useEffect(() => {
+    if (location) {
+      map.setView([location.lat, location.lng], map.getZoom());
+    }
+  }, [location, map]);
+
+  return null;
+}
+
+// Reverse geocode using Mapbox API
+async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  try {
+    const response = await fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${MAPBOX_TOKEN}&types=place,locality,region,country`
+    );
+    const data = await response.json();
+
+    if (data.features && data.features.length > 0) {
+      // Get the most specific place name
+      const feature = data.features[0];
+      return feature.place_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    }
+    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  } catch (error) {
+    console.error('Reverse geocode error:', error);
+    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  }
+}
+
+export const LocationPicker: React.FC<LocationPickerProps> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  originalLocation,
+  currentLocation,
+  birthDate,
+  birthTime,
+  showAstroLines = true,
+}) => {
+  const [selectedLocation, setSelectedLocation] = useState<LocationData | null>(
+    currentLocation || null
+  );
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [mapStyle, setMapStyle] = useState<'dark' | 'streets'>('streets');
+  const [astroLines, setAstroLines] = useState<AstroLine[]>([]);
+  const [astroLoading, setAstroLoading] = useState(false);
+  const [showLines, setShowLines] = useState(true);
+  const [selectedPlanets, setSelectedPlanets] = useState<Set<string>>(
+    new Set(['Sun', 'Moon', 'Venus', 'Mars'])
+  );
+
+  // Reset selected location when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedLocation(currentLocation || null);
+    }
+  }, [isOpen, currentLocation]);
+
+  // Fetch astrocartography lines when modal opens
+  useEffect(() => {
+    if (!isOpen || !showAstroLines || !birthDate || !originalLocation) {
+      return;
+    }
+
+    const fetchAstroLines = async () => {
+      setAstroLoading(true);
+      try {
+        const data = await swissEphemeris.astrocartography({
+          birth_date: birthDate,
+          birth_time: birthTime || '12:00',
+          lat: originalLocation.lat,
+          lng: originalLocation.lng,
+        });
+
+        if (data?.lines) {
+          setAstroLines(data.lines);
+        }
+      } catch (err) {
+        console.error('Failed to fetch astrocartography:', err);
+      } finally {
+        setAstroLoading(false);
+      }
+    };
+
+    fetchAstroLines();
+  }, [isOpen, showAstroLines, birthDate, birthTime, originalLocation]);
+
+  const handleLocationSelect = useCallback(async (lat: number, lng: number) => {
+    setIsGeocoding(true);
+    const name = await reverseGeocode(lat, lng);
+    setSelectedLocation({ lat, lng, name });
+    setIsGeocoding(false);
+  }, []);
+
+  const handleConfirm = () => {
+    if (selectedLocation) {
+      onConfirm(selectedLocation);
+      onClose();
+    }
+  };
+
+  const handleReset = () => {
+    setSelectedLocation(null);
+  };
+
+  if (!isOpen) return null;
+
+  // Default center: original birth location, or Beirut
+  const defaultCenter = originalLocation
+    ? { lat: originalLocation.lat, lng: originalLocation.lng }
+    : { lat: 33.89, lng: 35.50 };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'rgba(0, 0, 0, 0.7)',
+        backdropFilter: 'blur(4px)',
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        style={{
+          width: '90%',
+          maxWidth: 700,
+          maxHeight: '90vh',
+          background: COLORS.background,
+          borderRadius: 12,
+          boxShadow: '0 25px 50px rgba(0, 0, 0, 0.3)',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: '16px 20px',
+            borderBottom: '1px solid #e5e5e5',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <div>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: COLORS.textPrimary }}>
+              Select Relocated Location
+            </h2>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: COLORS.textMuted }}>
+              Click on the map to choose a new location for the relocated chart
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: 24,
+              color: COLORS.gridLineFaint,
+              cursor: 'pointer',
+              padding: 4,
+              lineHeight: 1,
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Map Style Toggle */}
+        <div
+          style={{
+            padding: '8px 20px',
+            borderBottom: '1px solid #e5e5e5',
+            display: 'flex',
+            gap: 8,
+            alignItems: 'center',
+          }}
+        >
+          <span style={{ fontSize: 12, color: COLORS.textMuted }}>Map Style:</span>
+          <button
+            onClick={() => setMapStyle('streets')}
+            style={{
+              padding: '4px 12px',
+              fontSize: 11,
+              background: mapStyle === 'streets' ? '#3b82f6' : '#f0f0f0',
+              color: mapStyle === 'streets' ? '#fff' : '#666',
+              border: 'none',
+              borderRadius: 4,
+              cursor: 'pointer',
+            }}
+          >
+            Streets
+          </button>
+          <button
+            onClick={() => setMapStyle('dark')}
+            style={{
+              padding: '4px 12px',
+              fontSize: 11,
+              background: mapStyle === 'dark' ? '#3b82f6' : '#f0f0f0',
+              color: mapStyle === 'dark' ? '#fff' : '#666',
+              border: 'none',
+              borderRadius: 4,
+              cursor: 'pointer',
+            }}
+          >
+            Dark
+          </button>
+          {originalLocation && (
+            <span style={{ marginLeft: 'auto', fontSize: 11, color: COLORS.textMuted }}>
+              Birth: {originalLocation.name}
+            </span>
+          )}
+        </div>
+
+        {/* Astrocartography Controls */}
+        {showAstroLines && astroLines.length > 0 && (
+          <div
+            style={{
+              padding: '8px 20px',
+              borderBottom: '1px solid #e5e5e5',
+              display: 'flex',
+              gap: 8,
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
+              <input
+                type="checkbox"
+                checked={showLines}
+                onChange={(e) => setShowLines(e.target.checked)}
+              />
+              Show Lines
+            </label>
+            {showLines && (
+              <>
+                <span style={{ fontSize: 10, color: COLORS.textMuted }}>|</span>
+                {['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'].map(planet => (
+                  <button
+                    key={planet}
+                    onClick={() => {
+                      const next = new Set(selectedPlanets);
+                      if (next.has(planet)) {
+                        next.delete(planet);
+                      } else {
+                        next.add(planet);
+                      }
+                      setSelectedPlanets(next);
+                    }}
+                    style={{
+                      padding: '2px 8px',
+                      fontSize: 10,
+                      background: selectedPlanets.has(planet) ? '#3b82f6' : '#f0f0f0',
+                      color: selectedPlanets.has(planet) ? '#fff' : '#666',
+                      border: 'none',
+                      borderRadius: 3,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {planet}
+                  </button>
+                ))}
+              </>
+            )}
+            {astroLoading && (
+              <span style={{ fontSize: 10, color: COLORS.textMuted }}>Loading lines...</span>
+            )}
+          </div>
+        )}
+
+        {/* Map Container */}
+        <div style={{ height: '400px', minHeight: '400px', position: 'relative' }}>
+          <MapContainer
+            key={`${defaultCenter.lat}-${defaultCenter.lng}-${mapStyle}`}
+            center={[defaultCenter.lat, defaultCenter.lng]}
+            zoom={5}
+            style={{ height: '400px', width: '100%' }}
+            zoomControl={true}
+          >
+            <TileLayer
+              attribution='&copy; Mapbox'
+              url={MAP_STYLES[mapStyle]}
+              tileSize={512}
+              zoomOffset={-1}
+            />
+            <MapClickHandler onLocationSelect={handleLocationSelect} />
+            <MapCenterController location={selectedLocation} />
+
+            {/* Original birth location marker (blue) */}
+            {originalLocation && (
+              <Marker
+                position={[originalLocation.lat, originalLocation.lng]}
+                icon={blueMarkerIcon}
+              />
+            )}
+
+            {/* Selected relocated location marker (gold) */}
+            {selectedLocation && (
+              <Marker
+                position={[selectedLocation.lat, selectedLocation.lng]}
+                icon={goldMarkerIcon}
+              />
+            )}
+
+            {/* Astrocartography lines */}
+            {showLines && astroLines
+              .filter(line => selectedPlanets.has(line.planet))
+              .map((line, index) => (
+                <Polyline
+                  key={`${line.planet}-${line.lineType}-${index}`}
+                  positions={line.points.map(p => [p.lat, p.lng] as [number, number])}
+                  pathOptions={{
+                    color: line.color,
+                    weight: line.lineType === 'MC' || line.lineType === 'IC' ? 3 : 2,
+                    opacity: line.lineType === 'MC' || line.lineType === 'ASC' ? 0.8 : 0.5,
+                    dashArray: line.lineType === 'IC' || line.lineType === 'DSC' ? '5, 5' : undefined,
+                  }}
+                />
+              ))}
+          </MapContainer>
+
+          {/* Geocoding indicator */}
+          {isGeocoding && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 10,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: 'rgba(0,0,0,0.7)',
+                color: '#fff',
+                padding: '6px 12px',
+                borderRadius: 4,
+                fontSize: 12,
+                zIndex: 1000,
+              }}
+            >
+              Looking up location...
+            </div>
+          )}
+        </div>
+
+        {/* Selected Location Info */}
+        <div
+          style={{
+            padding: '12px 20px',
+            borderTop: '1px solid #e5e5e5',
+            background: COLORS.backgroundAlt,
+          }}
+        >
+          {selectedLocation ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
+                  border: '2px solid white',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, color: COLORS.textPrimary }}>
+                  {selectedLocation.name}
+                </div>
+                <div style={{ fontSize: 11, color: COLORS.textMuted }}>
+                  {selectedLocation.lat.toFixed(4)}°, {selectedLocation.lng.toFixed(4)}°
+                </div>
+              </div>
+              <button
+                onClick={handleReset}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: 11,
+                  background: '#f0f0f0',
+                  border: '1px solid #ddd',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  color: COLORS.textMuted,
+                }}
+              >
+                Clear
+              </button>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', color: COLORS.gridLineFaint, fontSize: 13 }}>
+              Click on the map to select a location
+            </div>
+          )}
+        </div>
+
+        {/* Footer Actions */}
+        <div
+          style={{
+            padding: '12px 20px',
+            borderTop: '1px solid #e5e5e5',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: 8,
+          }}
+        >
+          <button
+            onClick={onClose}
+            style={{
+              padding: '8px 20px',
+              fontSize: 13,
+              background: '#f0f0f0',
+              border: '1px solid #ddd',
+              borderRadius: 6,
+              cursor: 'pointer',
+              color: COLORS.textSecondary,
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={!selectedLocation}
+            style={{
+              padding: '8px 20px',
+              fontSize: 13,
+              background: selectedLocation ? '#FFD700' : '#ccc',
+              border: 'none',
+              borderRadius: 6,
+              cursor: selectedLocation ? 'pointer' : 'not-allowed',
+              color: selectedLocation ? '#1a1a1a' : '#666',
+              fontWeight: 600,
+            }}
+          >
+            Confirm Location
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default LocationPicker;

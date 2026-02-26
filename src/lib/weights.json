@@ -1,0 +1,4063 @@
+{
+  "version": "1.0",
+  "lastUpdated": "2026-01-24T18:04:38.043Z",
+  "adjustments": {
+    "aspect-venus-venus-conjunction-4-7": {
+      "name": "venus conjunction venus",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "venus",
+      "aspect": "conjunction",
+      "orbRange": "4-7°",
+      "currentWeight": 126,
+      "adjustment": 95,
+      "updatedAt": "2026-01-15T20:39:00.961Z"
+    },
+    "aspect-ascendant-uranus-trine-0-3": {
+      "name": "uranus trine ascendant",
+      "type": "aspect",
+      "planet1": "uranus",
+      "planet2": "ascendant",
+      "aspect": "trine",
+      "orbRange": "0-3°",
+      "currentWeight": 56,
+      "adjustment": 25,
+      "updatedAt": "2026-01-15T20:42:59.903Z"
+    },
+    "house-Bmars-in-Ah4": {
+      "name": "mars in 4th House",
+      "type": "house_overlay",
+      "planet1": "mars",
+      "house": 4,
+      "currentWeight": 54,
+      "adjustment": 30,
+      "updatedAt": "2026-01-15T20:43:17.315Z"
+    },
+    "aspect-mars-pluto-trine-0-3": {
+      "name": "mars trine pluto",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "pluto",
+      "aspect": "trine",
+      "orbRange": "0-3°",
+      "currentWeight": 51,
+      "adjustment": 25,
+      "updatedAt": "2026-01-15T20:44:37.776Z"
+    },
+    "aspect-ascendant-pluto-opposition-4-7": {
+      "name": "pluto opposition ascendant",
+      "type": "aspect",
+      "planet1": "pluto",
+      "planet2": "ascendant",
+      "aspect": "opposition",
+      "orbRange": "4-7°",
+      "currentWeight": -35,
+      "adjustment": -12,
+      "updatedAt": "2026-01-15T20:46:36.456Z"
+    },
+    "aspect-juno-neptune-trine-0-3": {
+      "name": "neptune trine juno",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "juno",
+      "aspect": "trine",
+      "orbRange": "0-3°",
+      "currentWeight": 31,
+      "adjustment": -1,
+      "updatedAt": "2026-01-15T20:47:34.345Z"
+    },
+    "dignity-neptune": {
+      "name": "Person A's Neptune in fall (Capricorn)",
+      "type": "dignity",
+      "planet1": "neptune",
+      "sign": "Capricorn",
+      "currentWeight": -28,
+      "adjustment": -1,
+      "updatedAt": "2026-01-15T20:50:39.097Z"
+    },
+    "aspect-uranus-venus-conjunction-4-7": {
+      "name": "uranus conjunction venus",
+      "type": "aspect",
+      "planet1": "uranus",
+      "planet2": "venus",
+      "aspect": "conjunction",
+      "orbRange": "4-7°",
+      "currentWeight": 25,
+      "adjustment": 5,
+      "updatedAt": "2026-01-15T20:51:20.303Z"
+    },
+    "aspect-juno-uranus-trine-4-7": {
+      "name": "uranus trine juno",
+      "type": "aspect",
+      "planet1": "uranus",
+      "planet2": "juno",
+      "aspect": "trine",
+      "orbRange": "4-7°",
+      "currentWeight": 23,
+      "adjustment": -1,
+      "updatedAt": "2026-01-15T20:51:42.998Z"
+    },
+    "aspect-juno-jupiter-conjunction-4-7": {
+      "name": "juno conjunction jupiter",
+      "type": "aspect",
+      "planet1": "juno",
+      "planet2": "jupiter",
+      "aspect": "conjunction",
+      "orbRange": "4-7°",
+      "currentWeight": 23,
+      "adjustment": 15,
+      "updatedAt": "2026-01-15T20:52:18.008Z"
+    },
+    "house-Asaturn-in-Bh7": {
+      "name": "saturn in 7th House",
+      "type": "house_overlay",
+      "planet1": "saturn",
+      "house": 7,
+      "currentWeight": 27,
+      "adjustment": 50,
+      "updatedAt": "2026-01-15T21:03:06.548Z"
+    },
+    "aspect-saturn-venus-quincunx-0-3": {
+      "name": "saturn quincunx venus",
+      "type": "aspect",
+      "planet1": "saturn",
+      "planet2": "venus",
+      "aspect": "quincunx",
+      "orbRange": "0-3°",
+      "currentWeight": -31,
+      "adjustment": -50,
+      "updatedAt": "2026-01-15T21:04:51.004Z"
+    },
+    "aspect-saturn-uranus-quincunx-0-3": {
+      "name": "uranus quincunx saturn",
+      "type": "aspect",
+      "planet1": "uranus",
+      "planet2": "saturn",
+      "aspect": "quincunx",
+      "orbRange": "0-3°",
+      "currentWeight": -22,
+      "adjustment": -1,
+      "updatedAt": "2026-01-15T21:08:24.684Z"
+    },
+    "aspect-juno-uranus-quincunx-0-3": {
+      "name": "uranus quincunx juno",
+      "type": "aspect",
+      "planet1": "uranus",
+      "planet2": "juno",
+      "aspect": "quincunx",
+      "orbRange": "0-3°",
+      "currentWeight": -22,
+      "adjustment": -1,
+      "updatedAt": "2026-01-15T21:08:30.997Z"
+    },
+    "aspect-jupiter-neptune-quincunx-0-3": {
+      "name": "neptune quincunx jupiter",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "jupiter",
+      "aspect": "quincunx",
+      "orbRange": "0-3°",
+      "currentWeight": -22,
+      "adjustment": -1,
+      "updatedAt": "2026-01-15T21:08:35.731Z"
+    },
+    "aspect-chiron-pluto-quincunx-0-3": {
+      "name": "pluto quincunx chiron",
+      "type": "aspect",
+      "planet1": "pluto",
+      "planet2": "chiron",
+      "aspect": "quincunx",
+      "orbRange": "0-3°",
+      "currentWeight": -22,
+      "adjustment": -1,
+      "updatedAt": "2026-01-15T21:09:03.250Z"
+    },
+    "aspect-ascendant-mercury-square-0-3": {
+      "name": "mercury square ascendant",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "ascendant",
+      "aspect": "square",
+      "orbRange": "0-3°",
+      "currentWeight": -22,
+      "adjustment": -60,
+      "updatedAt": "2026-01-15T21:10:00.008Z"
+    },
+    "aspect-moon-northnode-square-4-7": {
+      "name": "moon square northnode",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "northnode",
+      "aspect": "square",
+      "orbRange": "4-7°",
+      "currentWeight": -19,
+      "adjustment": -30,
+      "updatedAt": "2026-01-15T21:11:17.608Z"
+    },
+    "aspect-ascendant-moon-opposition-0-3": {
+      "name": "moon opposition ascendant",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "ascendant",
+      "aspect": "opposition",
+      "orbRange": "0-3°",
+      "currentWeight": -17,
+      "adjustment": 30,
+      "updatedAt": "2026-01-15T21:14:02.779Z"
+    },
+    "aspect-juno-jupiter-conjunction-8-10": {
+      "name": "jupiter conjunction juno",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "juno",
+      "aspect": "conjunction",
+      "orbRange": "8-10°",
+      "currentWeight": 15,
+      "adjustment": 35,
+      "updatedAt": "2026-01-15T21:15:05.237Z"
+    },
+    "aspect-ascendant-pluto-conjunction-4-7": {
+      "name": "pluto conjunction ascendant",
+      "type": "aspect",
+      "planet1": "pluto",
+      "planet2": "ascendant",
+      "aspect": "conjunction",
+      "orbRange": "4-7°",
+      "currentWeight": 15,
+      "adjustment": -15,
+      "updatedAt": "2026-01-15T21:15:25.931Z"
+    },
+    "house-Bsun-in-Ah3": {
+      "name": "sun in 3th House",
+      "type": "house_overlay",
+      "planet1": "sun",
+      "house": 3,
+      "currentWeight": 15,
+      "adjustment": 6,
+      "updatedAt": "2026-01-15T21:15:55.688Z"
+    },
+    "house-Bmoon-in-Ah3": {
+      "name": "moon in 3th House",
+      "type": "house_overlay",
+      "planet1": "moon",
+      "house": 3,
+      "currentWeight": 15,
+      "adjustment": 6,
+      "updatedAt": "2026-01-15T21:15:58.315Z"
+    },
+    "house-Bvenus-in-Ah3": {
+      "name": "venus in 3th House",
+      "type": "house_overlay",
+      "planet1": "venus",
+      "house": 3,
+      "currentWeight": 13,
+      "adjustment": 6,
+      "updatedAt": "2026-01-15T21:16:01.821Z"
+    },
+    "house-Amars-in-Bh3": {
+      "name": "mars in 3th House",
+      "type": "house_overlay",
+      "planet1": "mars",
+      "house": 3,
+      "currentWeight": 12,
+      "adjustment": -2,
+      "updatedAt": "2026-01-15T21:16:14.140Z"
+    },
+    "dignity-uranus": {
+      "name": "Person A's Uranus in domicile (Aquarius)",
+      "type": "dignity",
+      "planet1": "uranus",
+      "sign": "Aquarius",
+      "currentWeight": 12,
+      "adjustment": -1,
+      "updatedAt": "2026-01-15T21:16:18.863Z"
+    },
+    "aspect-uranus-uranus-square-0-3": {
+      "name": "uranus square uranus",
+      "type": "aspect",
+      "planet1": "uranus",
+      "planet2": "uranus",
+      "aspect": "square",
+      "orbRange": "0-3°",
+      "currentWeight": -10,
+      "adjustment": -60,
+      "updatedAt": "2026-01-15T21:17:51.109Z"
+    },
+    "house-Bmercury-in-Ah3": {
+      "name": "mercury in 3th House",
+      "type": "house_overlay",
+      "planet1": "mercury",
+      "house": 3,
+      "currentWeight": 10,
+      "adjustment": 3,
+      "updatedAt": "2026-01-15T21:18:31.400Z"
+    },
+    "aspect-venus-venus-sextile-0-3": {
+      "name": "venus sextile venus",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "venus",
+      "aspect": "sextile",
+      "orbRange": "0-3°",
+      "currentWeight": 45,
+      "adjustment": 70,
+      "updatedAt": "2026-01-15T21:24:03.079Z"
+    },
+    "aspect-mars-venus-sextile-0-3": {
+      "name": "venus sextile mars",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "mars",
+      "aspect": "sextile",
+      "orbRange": "0-3°",
+      "currentWeight": 42,
+      "adjustment": 70,
+      "updatedAt": "2026-01-15T21:24:32.361Z"
+    },
+    "house-Avenus-in-Bh7": {
+      "name": "venus in 7th House",
+      "type": "house_overlay",
+      "planet1": "venus",
+      "house": 7,
+      "currentWeight": 39,
+      "adjustment": 70,
+      "updatedAt": "2026-01-15T21:24:41.073Z"
+    },
+    "house-Amercury-in-Bh7": {
+      "name": "mercury in 7th House",
+      "type": "house_overlay",
+      "planet1": "mercury",
+      "house": 7,
+      "currentWeight": 30,
+      "adjustment": 60,
+      "updatedAt": "2026-01-15T21:25:14.553Z"
+    },
+    "house-Bneptune-in-Ah7": {
+      "name": "neptune in 7th House",
+      "type": "house_overlay",
+      "planet1": "neptune",
+      "house": 7,
+      "currentWeight": 27,
+      "adjustment": -20,
+      "updatedAt": "2026-01-15T21:25:59.866Z"
+    },
+    "aspect-moon-venus-trine-0-3": {
+      "name": "moon trine venus",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "venus",
+      "aspect": "trine",
+      "orbRange": "0-3°",
+      "currentWeight": 63,
+      "adjustment": 75,
+      "updatedAt": "2026-01-15T21:27:45.020Z"
+    },
+    "house-Amars-in-Bh4": {
+      "name": "mars in 4th House",
+      "type": "house_overlay",
+      "planet1": "mars",
+      "house": 4,
+      "currentWeight": 54,
+      "adjustment": -30,
+      "updatedAt": "2026-01-15T21:28:11.943Z"
+    },
+    "aspect-moon-moon-trine-0-3": {
+      "name": "moon trine moon",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "moon",
+      "aspect": "trine",
+      "orbRange": "0-3°",
+      "currentWeight": 53,
+      "adjustment": 70,
+      "updatedAt": "2026-01-15T21:28:25.590Z"
+    },
+    "house-Bpluto-in-Ah5": {
+      "name": "pluto in 5th House",
+      "type": "house_overlay",
+      "planet1": "pluto",
+      "house": 5,
+      "currentWeight": 50,
+      "adjustment": 25,
+      "updatedAt": "2026-01-15T21:28:52.462Z"
+    },
+    "aspect-venus-venus-trine-4-7": {
+      "name": "venus trine venus",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "venus",
+      "aspect": "trine",
+      "orbRange": "4-7°",
+      "currentWeight": 47,
+      "adjustment": 60,
+      "updatedAt": "2026-01-15T21:29:02.016Z"
+    },
+    "aspect-jupiter-venus-conjunction-4-7": {
+      "name": "jupiter conjunction venus",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "venus",
+      "aspect": "conjunction",
+      "orbRange": "4-7°",
+      "currentWeight": 47,
+      "adjustment": 60,
+      "updatedAt": "2026-01-15T21:29:18.478Z"
+    },
+    "aspect-sun-sun-trine-4-7": {
+      "name": "sun trine sun",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "sun",
+      "aspect": "trine",
+      "orbRange": "4-7°",
+      "currentWeight": 39,
+      "adjustment": 10,
+      "updatedAt": "2026-01-15T21:30:16.575Z"
+    },
+    "aspect-chiron-mars-conjunction-0-3": {
+      "name": "chiron conjunction mars",
+      "type": "aspect",
+      "planet1": "chiron",
+      "planet2": "mars",
+      "aspect": "conjunction",
+      "orbRange": "0-3°",
+      "currentWeight": 38,
+      "adjustment": -30,
+      "updatedAt": "2026-01-15T21:30:41.452Z"
+    },
+    "aspect-northnode-saturn-quincunx-0-3": {
+      "name": "saturn quincunx northnode",
+      "type": "aspect",
+      "planet1": "saturn",
+      "planet2": "northnode",
+      "aspect": "quincunx",
+      "orbRange": "0-3°",
+      "currentWeight": -37,
+      "adjustment": -10,
+      "updatedAt": "2026-01-15T21:32:39.671Z"
+    },
+    "aspect-neptune-northnode-quincunx-0-3": {
+      "name": "neptune quincunx northnode",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "northnode",
+      "aspect": "quincunx",
+      "orbRange": "0-3°",
+      "currentWeight": -34,
+      "adjustment": -5,
+      "updatedAt": "2026-01-15T21:32:42.684Z"
+    },
+    "aspect-jupiter-moon-conjunction-4-7": {
+      "name": "jupiter conjunction moon",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "moon",
+      "aspect": "conjunction",
+      "orbRange": "4-7°",
+      "currentWeight": 36,
+      "adjustment": 45,
+      "updatedAt": "2026-01-15T21:33:04.359Z"
+    },
+    "aspect-chiron-venus-trine-4-7": {
+      "name": "venus trine chiron",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "chiron",
+      "aspect": "trine",
+      "orbRange": "4-7°",
+      "currentWeight": 33,
+      "adjustment": 20,
+      "updatedAt": "2026-01-15T21:33:49.156Z"
+    },
+    "aspect-pluto-sun-conjunction-0-3": {
+      "name": "pluto conjunction sun",
+      "type": "aspect",
+      "planet1": "pluto",
+      "planet2": "sun",
+      "aspect": "conjunction",
+      "orbRange": "0-3°",
+      "currentWeight": 32,
+      "adjustment": -10,
+      "updatedAt": "2026-01-15T21:34:19.280Z"
+    },
+    "aspect-mars-saturn-opposition-0-3": {
+      "name": "saturn opposition mars",
+      "type": "aspect",
+      "planet1": "saturn",
+      "planet2": "mars",
+      "aspect": "opposition",
+      "orbRange": "0-3°",
+      "currentWeight": -31,
+      "adjustment": -50,
+      "updatedAt": "2026-01-15T21:34:39.320Z"
+    },
+    "aspect-moon-neptune-opposition-0-3": {
+      "name": "moon opposition neptune",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "neptune",
+      "aspect": "opposition",
+      "orbRange": "0-3°",
+      "currentWeight": -28,
+      "adjustment": -50,
+      "updatedAt": "2026-01-15T21:35:30.049Z"
+    },
+    "aspect-saturn-venus-square-0-3": {
+      "name": "venus square saturn",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "saturn",
+      "aspect": "square",
+      "orbRange": "0-3°",
+      "currentWeight": -25,
+      "adjustment": -35,
+      "updatedAt": "2026-01-15T21:40:56.685Z"
+    },
+    "aspect-jupiter-jupiter-trine": {
+      "name": "jupiter trine jupiter",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "jupiter",
+      "aspect": "trine",
+      "currentWeight": 20,
+      "adjustment": 20,
+      "updatedAt": "2026-01-26T00:00:00.000Z"
+    },
+    "aspect-jupiter-moon-sextile": {
+      "name": "moon sextile jupiter",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "jupiter",
+      "aspect": "sextile",
+      "currentWeight": 45,
+      "adjustment": 5,
+      "updatedAt": "2026-01-20T22:24:40.890Z"
+    },
+    "aspect-ascendant-jupiter-conjunction": {
+      "name": "jupiter conjunction ascendant",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "ascendant",
+      "aspect": "conjunction",
+      "currentWeight": 60,
+      "adjustment": -35,
+      "updatedAt": "2026-01-21T02:13:13.513Z"
+    },
+    "aspect-ascendant-jupiter-square": {
+      "name": "jupiter square ascendant",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "ascendant",
+      "aspect": "square",
+      "currentWeight": 0,
+      "adjustment": -10,
+      "updatedAt": "2026-01-19T23:01:49.030Z"
+    },
+    "aspect-chiron-jupiter-opposition": {
+      "name": "jupiter opposition chiron",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "chiron",
+      "aspect": "opposition",
+      "currentWeight": 10,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T02:23:47.452Z"
+    },
+    "aspect-chiron-jupiter-quincunx": {
+      "name": "jupiter quincunx chiron",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "chiron",
+      "aspect": "quincunx",
+      "currentWeight": -5,
+      "adjustment": 5,
+      "updatedAt": "2026-01-19T23:01:58.766Z"
+    },
+    "aspect-chiron-jupiter-sextile": {
+      "name": "jupiter sextile chiron",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "chiron",
+      "aspect": "sextile",
+      "currentWeight": 35,
+      "adjustment": 35,
+      "updatedAt": "2026-01-26T00:00:00.000Z"
+    },
+    "aspect-chiron-jupiter-square": {
+      "name": "jupiter square chiron",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "chiron",
+      "aspect": "square",
+      "currentWeight": -10,
+      "adjustment": 10,
+      "updatedAt": "2026-01-19T23:02:00.774Z"
+    },
+    "aspect-chiron-jupiter-trine": {
+      "name": "jupiter trine chiron",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "chiron",
+      "aspect": "trine",
+      "currentWeight": 50,
+      "adjustment": 50,
+      "updatedAt": "2026-01-26T00:00:00.000Z"
+    },
+    "aspect-chiron-jupiter-conjunction": {
+      "name": "jupiter conjunction chiron",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "chiron",
+      "aspect": "conjunction",
+      "currentWeight": 40,
+      "adjustment": -30,
+      "updatedAt": "2026-01-21T02:23:42.789Z"
+    },
+    "aspect-juno-jupiter-trine": {
+      "name": "jupiter trine juno",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "juno",
+      "aspect": "trine",
+      "currentWeight": 50,
+      "adjustment": 50,
+      "updatedAt": "2026-01-26T00:00:00.000Z"
+    },
+    "aspect-juno-jupiter-conjunction": {
+      "name": "jupiter conjunction juno",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "juno",
+      "aspect": "conjunction",
+      "currentWeight": 35,
+      "adjustment": 10,
+      "updatedAt": "2026-01-21T05:40:01.276Z"
+    },
+    "aspect-juno-jupiter-square": {
+      "name": "jupiter square juno",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "juno",
+      "aspect": "square",
+      "currentWeight": 0,
+      "adjustment": -10,
+      "updatedAt": "2026-01-19T23:02:56.653Z"
+    },
+    "aspect-jupiter-mars-sextile": {
+      "name": "mars sextile jupiter",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "jupiter",
+      "aspect": "sextile",
+      "currentWeight": 40,
+      "adjustment": -10,
+      "updatedAt": "2026-01-19T23:03:29.611Z"
+    },
+    "aspect-jupiter-mercury-conjunction": {
+      "name": "mercury conjunction jupiter",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "jupiter",
+      "aspect": "conjunction",
+      "currentWeight": 60,
+      "adjustment": -25,
+      "updatedAt": "2026-01-21T05:44:42.165Z"
+    },
+    "aspect-jupiter-mercury-sextile": {
+      "name": "mercury sextile jupiter",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "jupiter",
+      "aspect": "sextile",
+      "currentWeight": 35,
+      "adjustment": -15,
+      "updatedAt": "2026-01-21T05:44:46.729Z"
+    },
+    "aspect-jupiter-mercury-square": {
+      "name": "mercury square jupiter",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "jupiter",
+      "aspect": "square",
+      "currentWeight": 0,
+      "adjustment": -15,
+      "updatedAt": "2026-01-19T23:04:10.503Z"
+    },
+    "aspect-jupiter-mercury-trine": {
+      "name": "mercury trine jupiter",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "jupiter",
+      "aspect": "trine",
+      "currentWeight": 50,
+      "adjustment": 50,
+      "updatedAt": "2026-01-26T00:00:00.000Z"
+    },
+    "aspect-jupiter-northnode-square": {
+      "name": "jupiter square northnode",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "northnode",
+      "aspect": "square",
+      "currentWeight": 0,
+      "adjustment": -50,
+      "updatedAt": "2026-01-19T23:04:37.402Z"
+    },
+    "aspect-jupiter-northnode-opposition": {
+      "name": "jupiter opposition northnode",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "northnode",
+      "aspect": "opposition",
+      "currentWeight": 20,
+      "adjustment": 30,
+      "updatedAt": "2026-01-19T23:05:15.738Z"
+    },
+    "aspect-jupiter-northnode-trine": {
+      "name": "jupiter trine northnode",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "northnode",
+      "aspect": "trine",
+      "currentWeight": 50,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T05:45:18.461Z"
+    },
+    "aspect-jupiter-northnode-sextile": {
+      "name": "jupiter sextile northnode",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "northnode",
+      "aspect": "sextile",
+      "currentWeight": 35,
+      "adjustment": -15,
+      "updatedAt": "2026-01-19T23:06:14.884Z"
+    },
+    "aspect-jupiter-pluto-opposition": {
+      "name": "jupiter opposition pluto",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "pluto",
+      "aspect": "opposition",
+      "currentWeight": 10,
+      "adjustment": -20,
+      "updatedAt": "2026-01-19T23:07:01.156Z"
+    },
+    "aspect-jupiter-pluto-conjunction": {
+      "name": "jupiter conjunction pluto",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "pluto",
+      "aspect": "conjunction",
+      "currentWeight": 40,
+      "adjustment": -30,
+      "updatedAt": "2026-01-19T23:07:04.298Z"
+    },
+    "aspect-jupiter-pluto-trine": {
+      "name": "jupiter trine pluto",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "pluto",
+      "aspect": "trine",
+      "currentWeight": 50,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T05:45:41.311Z"
+    },
+    "aspect-jupiter-saturn-trine": {
+      "name": "jupiter trine saturn",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "saturn",
+      "aspect": "trine",
+      "currentWeight": 50,
+      "adjustment": -15,
+      "updatedAt": "2026-01-21T05:46:02.813Z"
+    },
+    "aspect-jupiter-saturn-sextile": {
+      "name": "jupiter sextile saturn",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "saturn",
+      "aspect": "sextile",
+      "currentWeight": 35,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T05:46:06.763Z"
+    },
+    "aspect-jupiter-saturn-conjunction": {
+      "name": "jupiter conjunction saturn",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "saturn",
+      "aspect": "conjunction",
+      "currentWeight": 30,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T05:46:11.372Z"
+    },
+    "aspect-jupiter-saturn-opposition": {
+      "name": "jupiter opposition saturn",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "saturn",
+      "aspect": "opposition",
+      "currentWeight": 5,
+      "adjustment": -15,
+      "updatedAt": "2026-01-21T05:45:49.796Z"
+    },
+    "aspect-jupiter-sun-opposition": {
+      "name": "sun opposition jupiter",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "jupiter",
+      "aspect": "opposition",
+      "currentWeight": 25,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T05:46:28.872Z"
+    },
+    "aspect-jupiter-sun-square": {
+      "name": "sun square jupiter",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "jupiter",
+      "aspect": "square",
+      "currentWeight": 0,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T05:46:39.546Z"
+    },
+    "aspect-jupiter-sun-sextile": {
+      "name": "sun sextile jupiter",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "jupiter",
+      "aspect": "sextile",
+      "currentWeight": 40,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T05:46:36.679Z"
+    },
+    "aspect-jupiter-sun-trine": {
+      "name": "sun trine jupiter",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "jupiter",
+      "aspect": "trine",
+      "currentWeight": 60,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T05:46:44.558Z"
+    },
+    "aspect-jupiter-sun-conjunction": {
+      "name": "sun conjunction jupiter",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "jupiter",
+      "aspect": "conjunction",
+      "currentWeight": 75,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T05:46:23.601Z"
+    },
+    "aspect-jupiter-sun-quincunx": {
+      "name": "sun quincunx jupiter",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "jupiter",
+      "aspect": "quincunx",
+      "currentWeight": 0,
+      "adjustment": -5,
+      "updatedAt": "2026-01-19T23:09:58.983Z"
+    },
+    "aspect-jupiter-uranus-conjunction": {
+      "name": "jupiter conjunction uranus",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "uranus",
+      "aspect": "conjunction",
+      "currentWeight": 40,
+      "adjustment": -20,
+      "updatedAt": "2026-01-19T23:10:11.294Z"
+    },
+    "aspect-jupiter-uranus-opposition": {
+      "name": "jupiter opposition uranus",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "uranus",
+      "aspect": "opposition",
+      "currentWeight": 10,
+      "adjustment": -30,
+      "updatedAt": "2026-01-21T05:47:56.511Z"
+    },
+    "aspect-jupiter-uranus-sextile": {
+      "name": "jupiter sextile uranus",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "uranus",
+      "aspect": "sextile",
+      "currentWeight": 35,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T05:47:59.848Z"
+    },
+    "aspect-jupiter-uranus-trine": {
+      "name": "jupiter trine uranus",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "uranus",
+      "aspect": "trine",
+      "currentWeight": 50,
+      "adjustment": -15,
+      "updatedAt": "2026-01-21T05:48:03.867Z"
+    },
+    "aspect-jupiter-venus-square": {
+      "name": "venus square jupiter",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "jupiter",
+      "aspect": "square",
+      "currentWeight": 5,
+      "adjustment": -65,
+      "updatedAt": "2026-01-21T05:48:40.603Z"
+    },
+    "aspect-moon-moon-opposition": {
+      "name": "moon opposition moon",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "moon",
+      "aspect": "opposition",
+      "currentWeight": 25,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T00:06:17.598Z"
+    },
+    "aspect-moon-moon-sextile": {
+      "name": "moon sextile moon",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "moon",
+      "aspect": "sextile",
+      "currentWeight": 45,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T00:06:29.629Z"
+    },
+    "aspect-moon-moon-trine": {
+      "name": "moon trine moon",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "moon",
+      "aspect": "trine",
+      "currentWeight": 70,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T00:06:42.933Z"
+    },
+    "aspect-moon-uranus-trine": {
+      "name": "moon trine uranus",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "uranus",
+      "aspect": "trine",
+      "currentWeight": 30,
+      "adjustment": -10,
+      "updatedAt": "2026-01-19T23:13:54.065Z"
+    },
+    "aspect-moon-uranus-sextile": {
+      "name": "moon sextile uranus",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "uranus",
+      "aspect": "sextile",
+      "currentWeight": 20,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T00:07:55.693Z"
+    },
+    "aspect-moon-uranus-conjunction": {
+      "name": "moon conjunction uranus",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "uranus",
+      "aspect": "conjunction",
+      "currentWeight": 15,
+      "adjustment": -75,
+      "updatedAt": "2026-01-21T00:07:07.172Z"
+    },
+    "aspect-moon-moon-square": {
+      "name": "moon square moon",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "moon",
+      "aspect": "square",
+      "currentWeight": 0,
+      "adjustment": -40,
+      "updatedAt": "2026-01-19T23:14:40.788Z"
+    },
+    "aspect-moon-uranus-square": {
+      "name": "moon square uranus",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "uranus",
+      "aspect": "square",
+      "currentWeight": -35,
+      "adjustment": -25,
+      "updatedAt": "2026-01-21T00:07:49.232Z"
+    },
+    "aspect-ascendant-moon-trine": {
+      "name": "moon trine ascendant",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "ascendant",
+      "aspect": "trine",
+      "currentWeight": 50,
+      "adjustment": -18,
+      "updatedAt": "2026-01-21T02:17:13.872Z"
+    },
+    "aspect-ascendant-moon-conjunction": {
+      "name": "moon conjunction ascendant",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "ascendant",
+      "aspect": "conjunction",
+      "currentWeight": 60,
+      "adjustment": -18,
+      "updatedAt": "2026-01-21T02:15:16.235Z"
+    },
+    "aspect-ascendant-moon-sextile": {
+      "name": "moon sextile ascendant",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "ascendant",
+      "aspect": "sextile",
+      "currentWeight": 35,
+      "adjustment": -15,
+      "updatedAt": "2026-01-19T23:15:40.130Z"
+    },
+    "aspect-chiron-moon-conjunction": {
+      "name": "moon conjunction chiron",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "chiron",
+      "aspect": "conjunction",
+      "currentWeight": 10,
+      "adjustment": -45,
+      "updatedAt": "2026-01-19T23:16:47.305Z"
+    },
+    "aspect-chiron-moon-quincunx": {
+      "name": "moon quincunx chiron",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "chiron",
+      "aspect": "quincunx",
+      "currentWeight": -15,
+      "adjustment": 5,
+      "updatedAt": "2026-01-19T23:16:17.618Z"
+    },
+    "aspect-chiron-moon-sextile": {
+      "name": "moon sextile chiron",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "chiron",
+      "aspect": "sextile",
+      "currentWeight": 20,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T02:33:17.118Z"
+    },
+    "aspect-chiron-moon-square": {
+      "name": "moon square chiron",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "chiron",
+      "aspect": "square",
+      "currentWeight": -35,
+      "adjustment": 15,
+      "updatedAt": "2026-01-19T23:17:14.943Z"
+    },
+    "aspect-chiron-moon-trine": {
+      "name": "moon trine chiron",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "chiron",
+      "aspect": "trine",
+      "currentWeight": 30,
+      "adjustment": -10,
+      "updatedAt": "2026-01-19T23:17:17.268Z"
+    },
+    "aspect-mars-moon-conjunction": {
+      "name": "moon conjunction mars",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "mars",
+      "aspect": "conjunction",
+      "currentWeight": 15,
+      "adjustment": -25,
+      "updatedAt": "2026-01-21T05:52:55.100Z"
+    },
+    "aspect-mars-moon-opposition": {
+      "name": "moon opposition mars",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "mars",
+      "aspect": "opposition",
+      "currentWeight": -25,
+      "adjustment": 15,
+      "updatedAt": "2026-01-21T05:52:58.509Z"
+    },
+    "aspect-mars-moon-square": {
+      "name": "moon square mars",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "mars",
+      "aspect": "square",
+      "currentWeight": -40,
+      "adjustment": 20,
+      "updatedAt": "2026-01-21T05:54:29.674Z"
+    },
+    "aspect-mercury-moon-square": {
+      "name": "moon square mercury",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "mercury",
+      "aspect": "square",
+      "currentWeight": -5,
+      "adjustment": -7,
+      "updatedAt": "2026-01-21T06:11:03.251Z"
+    },
+    "aspect-mercury-moon-opposition": {
+      "name": "moon opposition mercury",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "mercury",
+      "aspect": "opposition",
+      "currentWeight": 15,
+      "adjustment": -30,
+      "updatedAt": "2026-01-19T23:21:28.763Z"
+    },
+    "aspect-moon-northnode-opposition": {
+      "name": "moon opposition northnode",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "northnode",
+      "aspect": "opposition",
+      "currentWeight": 15,
+      "adjustment": -50,
+      "updatedAt": "2026-01-21T06:14:34.556Z"
+    },
+    "aspect-moon-northnode-sextile": {
+      "name": "moon sextile northnode",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "northnode",
+      "aspect": "sextile",
+      "currentWeight": 35,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T06:14:38.219Z"
+    },
+    "aspect-moon-northnode-trine": {
+      "name": "moon trine northnode",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "northnode",
+      "aspect": "trine",
+      "currentWeight": 50,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T06:14:46.649Z"
+    },
+    "aspect-moon-pluto-conjunction": {
+      "name": "moon conjunction pluto",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "pluto",
+      "aspect": "conjunction",
+      "currentWeight": 20,
+      "adjustment": 20,
+      "updatedAt": "2026-01-21T06:15:01.206Z"
+    },
+    "aspect-moon-pluto-quincunx": {
+      "name": "moon quincunx pluto",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "pluto",
+      "aspect": "quincunx",
+      "currentWeight": -20,
+      "adjustment": 5,
+      "updatedAt": "2026-01-19T23:24:12.980Z"
+    },
+    "aspect-moon-saturn-conjunction": {
+      "name": "moon conjunction saturn",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "saturn",
+      "aspect": "conjunction",
+      "currentWeight": 0,
+      "adjustment": -30,
+      "updatedAt": "2026-01-19T23:25:21.444Z"
+    },
+    "aspect-moon-sun-conjunction": {
+      "name": "sun conjunction moon",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "moon",
+      "aspect": "conjunction",
+      "currentWeight": 80,
+      "adjustment": 12,
+      "updatedAt": "2026-01-19T23:25:29.771Z"
+    },
+    "aspect-moon-sun-opposition": {
+      "name": "sun opposition moon",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "moon",
+      "aspect": "opposition",
+      "currentWeight": 40,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T06:15:44.218Z"
+    },
+    "aspect-moon-sun-square": {
+      "name": "sun square moon",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "moon",
+      "aspect": "square",
+      "currentWeight": 10,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T06:16:13.080Z"
+    },
+    "aspect-moon-sun-trine": {
+      "name": "sun trine moon",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "moon",
+      "aspect": "trine",
+      "currentWeight": 70,
+      "adjustment": 70,
+      "updatedAt": "2026-01-26T00:00:00.000Z"
+    },
+    "aspect-moon-sun-sextile": {
+      "name": "sun sextile moon",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "moon",
+      "aspect": "sextile",
+      "currentWeight": 50,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T06:16:00.882Z"
+    },
+    "aspect-moon-venus-conjunction": {
+      "name": "moon conjunction venus",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "venus",
+      "aspect": "conjunction",
+      "currentWeight": 75,
+      "adjustment": 7,
+      "updatedAt": "2026-01-19T23:26:41.569Z"
+    },
+    "aspect-moon-venus-opposition": {
+      "name": "moon opposition venus",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "venus",
+      "aspect": "opposition",
+      "currentWeight": 30,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T06:16:54.121Z"
+    },
+    "aspect-moon-venus-sextile": {
+      "name": "moon sextile venus",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "venus",
+      "aspect": "sextile",
+      "currentWeight": 50,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T06:17:05.848Z"
+    },
+    "aspect-moon-venus-trine": {
+      "name": "moon trine venus",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "venus",
+      "aspect": "trine",
+      "currentWeight": 75,
+      "adjustment": 75,
+      "updatedAt": "2026-01-26T00:00:00.000Z"
+    },
+    "aspect-moon-venus-square": {
+      "name": "moon square venus",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "venus",
+      "aspect": "square",
+      "currentWeight": 5,
+      "adjustment": -85,
+      "updatedAt": "2026-01-21T06:16:26.922Z"
+    },
+    "aspect-moon-venus-quincunx": {
+      "name": "moon quincunx venus",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "venus",
+      "aspect": "quincunx",
+      "currentWeight": 5,
+      "adjustment": -15,
+      "updatedAt": "2026-01-21T06:16:57.493Z"
+    },
+    "aspect-mars-sun-opposition": {
+      "name": "sun opposition mars",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "mars",
+      "aspect": "opposition",
+      "currentWeight": -15,
+      "adjustment": -25,
+      "updatedAt": "2026-01-24T18:02:53.676Z"
+    },
+    "aspect-mars-sun-conjunction": {
+      "name": "sun conjunction mars",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "mars",
+      "aspect": "conjunction",
+      "currentWeight": 40,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T00:00:59.429Z"
+    },
+    "aspect-mars-sun-sextile": {
+      "name": "sun sextile mars",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "mars",
+      "aspect": "sextile",
+      "currentWeight": 35,
+      "adjustment": -15,
+      "updatedAt": "2026-01-19T23:29:01.323Z"
+    },
+    "aspect-mars-sun-trine": {
+      "name": "sun trine mars",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "mars",
+      "aspect": "trine",
+      "currentWeight": 50,
+      "adjustment": 10,
+      "updatedAt": "2026-01-24T18:02:44.397Z"
+    },
+    "aspect-saturn-sun-trine": {
+      "name": "sun trine saturn",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "saturn",
+      "aspect": "trine",
+      "currentWeight": 50,
+      "adjustment": 40,
+      "updatedAt": "2026-01-21T00:12:12.770Z"
+    },
+    "aspect-sun-sun-square": {
+      "name": "sun square sun",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "sun",
+      "aspect": "square",
+      "currentWeight": 0,
+      "adjustment": -15,
+      "updatedAt": "2026-01-21T00:12:38.265Z"
+    },
+    "aspect-sun-sun-trine": {
+      "name": "sun trine sun",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "sun",
+      "aspect": "trine",
+      "currentWeight": 55,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T00:12:43.063Z"
+    },
+    "aspect-sun-sun-sextile": {
+      "name": "sun sextile sun",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "sun",
+      "aspect": "sextile",
+      "currentWeight": 40,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T00:12:45.905Z"
+    },
+    "aspect-sun-sun-opposition": {
+      "name": "sun opposition sun",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "sun",
+      "aspect": "opposition",
+      "currentWeight": 20,
+      "adjustment": 20,
+      "updatedAt": "2026-01-19T23:32:42.234Z"
+    },
+    "aspect-sun-uranus-square": {
+      "name": "sun square uranus",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "uranus",
+      "aspect": "square",
+      "currentWeight": -30,
+      "adjustment": -40,
+      "updatedAt": "2026-01-19T23:32:59.855Z"
+    },
+    "aspect-sun-uranus-conjunction": {
+      "name": "sun conjunction uranus",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "uranus",
+      "aspect": "conjunction",
+      "currentWeight": 30,
+      "adjustment": -15,
+      "updatedAt": "2026-01-21T00:13:15.542Z"
+    },
+    "aspect-ascendant-sun-opposition": {
+      "name": "sun opposition ascendant",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "ascendant",
+      "aspect": "opposition",
+      "currentWeight": 25,
+      "adjustment": 25,
+      "updatedAt": "2026-01-19T23:33:25.529Z"
+    },
+    "aspect-ascendant-sun-conjunction": {
+      "name": "sun conjunction ascendant",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "ascendant",
+      "aspect": "conjunction",
+      "currentWeight": 70,
+      "adjustment": -25,
+      "updatedAt": "2026-01-21T02:20:44.397Z"
+    },
+    "aspect-ascendant-sun-sextile": {
+      "name": "sun sextile ascendant",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "ascendant",
+      "aspect": "sextile",
+      "currentWeight": 35,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T02:20:50.773Z"
+    },
+    "aspect-ascendant-sun-square": {
+      "name": "sun square ascendant",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "ascendant",
+      "aspect": "square",
+      "currentWeight": -5,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T02:21:02.943Z"
+    },
+    "aspect-ascendant-sun-trine": {
+      "name": "sun trine ascendant",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "ascendant",
+      "aspect": "trine",
+      "currentWeight": 50,
+      "adjustment": -15,
+      "updatedAt": "2026-01-21T02:21:08.738Z"
+    },
+    "aspect-chiron-sun-conjunction": {
+      "name": "sun conjunction chiron",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "chiron",
+      "aspect": "conjunction",
+      "currentWeight": 20,
+      "adjustment": 10,
+      "updatedAt": "2026-01-21T05:36:58.327Z"
+    },
+    "aspect-chiron-sun-sextile": {
+      "name": "sun sextile chiron",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "chiron",
+      "aspect": "sextile",
+      "currentWeight": 25,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T05:37:16.286Z"
+    },
+    "aspect-chiron-sun-trine": {
+      "name": "sun trine chiron",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "chiron",
+      "aspect": "trine",
+      "currentWeight": 35,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T05:37:29.060Z"
+    },
+    "aspect-juno-sun-square": {
+      "name": "sun square juno",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "juno",
+      "aspect": "square",
+      "currentWeight": 0,
+      "adjustment": -20,
+      "updatedAt": "2026-01-19T23:34:43.794Z"
+    },
+    "aspect-mercury-sun-opposition": {
+      "name": "sun opposition mercury",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "mercury",
+      "aspect": "opposition",
+      "currentWeight": 15,
+      "adjustment": -35,
+      "updatedAt": "2026-01-19T23:34:58.460Z"
+    },
+    "aspect-mercury-sun-conjunction": {
+      "name": "sun conjunction mercury",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "mercury",
+      "aspect": "conjunction",
+      "currentWeight": 50,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T06:12:15.487Z"
+    },
+    "aspect-mercury-sun-sextile": {
+      "name": "sun sextile mercury",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "mercury",
+      "aspect": "sextile",
+      "currentWeight": 30,
+      "adjustment": 30,
+      "updatedAt": "2026-01-26T00:00:00.000Z"
+    },
+    "aspect-mercury-sun-quincunx": {
+      "name": "sun quincunx mercury",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "mercury",
+      "aspect": "quincunx",
+      "currentWeight": 0,
+      "adjustment": -15,
+      "updatedAt": "2026-01-19T23:35:47.435Z"
+    },
+    "aspect-mercury-sun-square": {
+      "name": "sun square mercury",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "mercury",
+      "aspect": "square",
+      "currentWeight": 0,
+      "adjustment": -25,
+      "updatedAt": "2026-01-19T23:35:58.014Z"
+    },
+    "aspect-mercury-sun-trine": {
+      "name": "sun trine mercury",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "mercury",
+      "aspect": "trine",
+      "currentWeight": 40,
+      "adjustment": 40,
+      "updatedAt": "2026-01-26T00:00:00.000Z"
+    },
+    "aspect-northnode-sun-opposition": {
+      "name": "sun opposition northnode",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "northnode",
+      "aspect": "opposition",
+      "currentWeight": 15,
+      "adjustment": 30,
+      "updatedAt": "2026-01-19T23:36:21.024Z"
+    },
+    "aspect-northnode-sun-conjunction": {
+      "name": "sun conjunction northnode",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "northnode",
+      "aspect": "conjunction",
+      "currentWeight": 60,
+      "adjustment": 10,
+      "updatedAt": "2026-01-19T23:36:34.435Z"
+    },
+    "aspect-northnode-sun-quincunx": {
+      "name": "sun quincunx northnode",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "northnode",
+      "aspect": "quincunx",
+      "currentWeight": 0,
+      "adjustment": -20,
+      "updatedAt": "2026-01-19T23:36:52.501Z"
+    },
+    "aspect-northnode-sun-sextile": {
+      "name": "sun sextile northnode",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "northnode",
+      "aspect": "sextile",
+      "currentWeight": 35,
+      "adjustment": -15,
+      "updatedAt": "2026-01-19T23:36:57.795Z"
+    },
+    "aspect-northnode-sun-square": {
+      "name": "sun square northnode",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "northnode",
+      "aspect": "square",
+      "currentWeight": -5,
+      "adjustment": -15,
+      "updatedAt": "2026-01-19T23:37:00.912Z"
+    },
+    "aspect-northnode-sun-trine": {
+      "name": "sun trine northnode",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "northnode",
+      "aspect": "trine",
+      "currentWeight": 50,
+      "adjustment": -20,
+      "updatedAt": "2026-01-19T23:37:10.483Z"
+    },
+    "aspect-pluto-sun-trine": {
+      "name": "sun trine pluto",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "pluto",
+      "aspect": "trine",
+      "currentWeight": 40,
+      "adjustment": -10,
+      "updatedAt": "2026-01-19T23:37:28.707Z"
+    },
+    "aspect-pluto-sun-conjunction": {
+      "name": "sun conjunction pluto",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "pluto",
+      "aspect": "conjunction",
+      "currentWeight": -10,
+      "adjustment": -10,
+      "updatedAt": "2026-01-19T23:37:34.450Z"
+    },
+    "aspect-sun-venus-square": {
+      "name": "sun square venus",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "venus",
+      "aspect": "square",
+      "currentWeight": 10,
+      "adjustment": -40,
+      "updatedAt": "2026-01-19T23:37:57.579Z"
+    },
+    "aspect-sun-venus-sextile": {
+      "name": "sun sextile venus",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "venus",
+      "aspect": "sextile",
+      "currentWeight": 45,
+      "adjustment": -10,
+      "updatedAt": "2026-01-24T18:03:28.006Z"
+    },
+    "aspect-sun-venus-trine": {
+      "name": "sun trine venus",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "venus",
+      "aspect": "trine",
+      "currentWeight": 60,
+      "adjustment": -110,
+      "updatedAt": "2026-01-24T18:03:30.397Z"
+    },
+    "aspect-mars-mercury-sextile": {
+      "name": "mercury sextile mars",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "mars",
+      "aspect": "sextile",
+      "currentWeight": 35,
+      "adjustment": 35,
+      "updatedAt": "2026-01-19T23:38:35.092Z"
+    },
+    "aspect-mars-mercury-conjunction": {
+      "name": "mercury conjunction mars",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "mars",
+      "aspect": "conjunction",
+      "currentWeight": 30,
+      "adjustment": -60,
+      "updatedAt": "2026-01-19T23:38:45.924Z"
+    },
+    "aspect-mars-mercury-opposition": {
+      "name": "mercury opposition mars",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "mars",
+      "aspect": "opposition",
+      "currentWeight": 0,
+      "adjustment": -50,
+      "updatedAt": "2026-01-19T23:39:14.636Z"
+    },
+    "aspect-mars-mercury-square": {
+      "name": "mercury square mars",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "mars",
+      "aspect": "square",
+      "currentWeight": -15,
+      "adjustment": -25,
+      "updatedAt": "2026-01-19T23:39:12.848Z"
+    },
+    "aspect-mars-mercury-trine": {
+      "name": "mercury trine mars",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "mars",
+      "aspect": "trine",
+      "currentWeight": 40,
+      "adjustment": -12,
+      "updatedAt": "2026-01-21T00:00:41.605Z"
+    },
+    "aspect-mercury-saturn-trine": {
+      "name": "mercury trine saturn",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "saturn",
+      "aspect": "trine",
+      "currentWeight": 45,
+      "adjustment": 25,
+      "updatedAt": "2026-01-19T23:39:40.241Z"
+    },
+    "aspect-mercury-saturn-opposition": {
+      "name": "mercury opposition saturn",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "saturn",
+      "aspect": "opposition",
+      "currentWeight": -5,
+      "adjustment": -25,
+      "updatedAt": "2026-01-21T00:04:17.173Z"
+    },
+    "aspect-mercury-saturn-conjunction": {
+      "name": "mercury conjunction saturn",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "saturn",
+      "aspect": "conjunction",
+      "currentWeight": 20,
+      "adjustment": -25,
+      "updatedAt": "2026-01-19T23:40:01.124Z"
+    },
+    "aspect-mercury-venus-square": {
+      "name": "mercury square venus",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "venus",
+      "aspect": "square",
+      "currentWeight": -10,
+      "adjustment": -60,
+      "updatedAt": "2026-01-19T23:40:33.615Z"
+    },
+    "aspect-mercury-venus-opposition": {
+      "name": "mercury opposition venus",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "venus",
+      "aspect": "opposition",
+      "currentWeight": 15,
+      "adjustment": -35,
+      "updatedAt": "2026-01-21T00:04:38.618Z"
+    },
+    "aspect-ascendant-mercury-opposition": {
+      "name": "mercury opposition ascendant",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "ascendant",
+      "aspect": "opposition",
+      "currentWeight": 20,
+      "adjustment": -20,
+      "updatedAt": "2026-01-21T02:14:39.553Z"
+    },
+    "aspect-ascendant-mercury-conjunction": {
+      "name": "mercury conjunction ascendant",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "ascendant",
+      "aspect": "conjunction",
+      "currentWeight": 50,
+      "adjustment": -35,
+      "updatedAt": "2026-01-21T02:14:32.821Z"
+    },
+    "aspect-ascendant-mercury-sextile": {
+      "name": "mercury sextile ascendant",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "ascendant",
+      "aspect": "sextile",
+      "currentWeight": 30,
+      "adjustment": -20,
+      "updatedAt": "2026-01-21T02:14:46.746Z"
+    },
+    "aspect-ascendant-mercury-square": {
+      "name": "mercury square ascendant",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "ascendant",
+      "aspect": "square",
+      "currentWeight": -60,
+      "adjustment": 45,
+      "updatedAt": "2026-01-21T02:14:59.718Z"
+    },
+    "aspect-chiron-mercury-conjunction": {
+      "name": "mercury conjunction chiron",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "chiron",
+      "aspect": "conjunction",
+      "currentWeight": 25,
+      "adjustment": -65,
+      "updatedAt": "2026-01-19T23:42:18.752Z"
+    },
+    "aspect-chiron-mercury-opposition": {
+      "name": "mercury opposition chiron",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "chiron",
+      "aspect": "opposition",
+      "currentWeight": -5,
+      "adjustment": -15,
+      "updatedAt": "2026-01-19T23:42:21.063Z"
+    },
+    "aspect-chiron-mercury-quincunx": {
+      "name": "mercury quincunx chiron",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "chiron",
+      "aspect": "quincunx",
+      "currentWeight": -5,
+      "adjustment": -5,
+      "updatedAt": "2026-01-19T23:42:25.203Z"
+    },
+    "aspect-chiron-mercury-sextile": {
+      "name": "mercury sextile chiron",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "chiron",
+      "aspect": "sextile",
+      "currentWeight": 25,
+      "adjustment": -10,
+      "updatedAt": "2026-01-19T23:42:34.183Z"
+    },
+    "aspect-chiron-mercury-trine": {
+      "name": "mercury trine chiron",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "chiron",
+      "aspect": "trine",
+      "currentWeight": 35,
+      "adjustment": -23,
+      "updatedAt": "2026-01-21T02:33:03.635Z"
+    },
+    "aspect-juno-mercury-trine": {
+      "name": "mercury trine juno",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "juno",
+      "aspect": "trine",
+      "currentWeight": 35,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T05:41:32.403Z"
+    },
+    "aspect-juno-mercury-conjunction": {
+      "name": "mercury conjunction juno",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "juno",
+      "aspect": "conjunction",
+      "currentWeight": 40,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T05:41:15.832Z"
+    },
+    "aspect-mercury-mercury-opposition": {
+      "name": "mercury opposition mercury",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "mercury",
+      "aspect": "opposition",
+      "currentWeight": 25,
+      "adjustment": -35,
+      "updatedAt": "2026-01-21T06:09:58.309Z"
+    },
+    "aspect-mercury-mercury-quincunx": {
+      "name": "mercury quincunx mercury",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "mercury",
+      "aspect": "quincunx",
+      "currentWeight": 0,
+      "adjustment": -15,
+      "updatedAt": "2026-01-19T23:43:55.233Z"
+    },
+    "aspect-mercury-mercury-square": {
+      "name": "mercury square mercury",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "mercury",
+      "aspect": "square",
+      "currentWeight": 5,
+      "adjustment": 45,
+      "updatedAt": "2026-01-21T06:10:18.131Z"
+    },
+    "aspect-mercury-mercury-sextile": {
+      "name": "mercury sextile mercury",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "mercury",
+      "aspect": "sextile",
+      "currentWeight": 40,
+      "adjustment": -20,
+      "updatedAt": "2026-01-19T23:44:24.959Z"
+    },
+    "aspect-mercury-mercury-trine": {
+      "name": "mercury trine mercury",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "mercury",
+      "aspect": "trine",
+      "currentWeight": 50,
+      "adjustment": -28,
+      "updatedAt": "2026-01-21T06:10:31.004Z"
+    },
+    "aspect-mercury-northnode-conjunction": {
+      "name": "mercury conjunction northnode",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "northnode",
+      "aspect": "conjunction",
+      "currentWeight": 50,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T06:11:34.494Z"
+    },
+    "aspect-mercury-northnode-opposition": {
+      "name": "mercury opposition northnode",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "northnode",
+      "aspect": "opposition",
+      "currentWeight": 10,
+      "adjustment": -25,
+      "updatedAt": "2026-01-21T06:11:37.863Z"
+    },
+    "aspect-mercury-northnode-sextile": {
+      "name": "mercury sextile northnode",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "northnode",
+      "aspect": "sextile",
+      "currentWeight": 40,
+      "adjustment": -25,
+      "updatedAt": "2026-01-19T23:45:04.028Z"
+    },
+    "aspect-mercury-northnode-square": {
+      "name": "mercury square northnode",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "northnode",
+      "aspect": "square",
+      "currentWeight": -10,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T06:11:42.405Z"
+    },
+    "aspect-mercury-northnode-trine": {
+      "name": "mercury trine northnode",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "northnode",
+      "aspect": "trine",
+      "currentWeight": 60,
+      "adjustment": -25,
+      "updatedAt": "2026-01-21T06:11:45.772Z"
+    },
+    "aspect-mercury-pluto-conjunction": {
+      "name": "mercury conjunction pluto",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "pluto",
+      "aspect": "conjunction",
+      "currentWeight": 30,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T06:11:50.181Z"
+    },
+    "aspect-mercury-pluto-sextile": {
+      "name": "mercury sextile pluto",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "pluto",
+      "aspect": "sextile",
+      "currentWeight": 25,
+      "adjustment": 3,
+      "updatedAt": "2026-01-21T06:12:00.665Z"
+    },
+    "aspect-mercury-pluto-trine": {
+      "name": "mercury trine pluto",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "pluto",
+      "aspect": "trine",
+      "currentWeight": 40,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T06:12:10.287Z"
+    },
+    "aspect-mars-venus-trine": {
+      "name": "venus trine mars",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "mars",
+      "aspect": "trine",
+      "currentWeight": 70,
+      "adjustment": -28,
+      "updatedAt": "2026-01-21T00:03:57.056Z"
+    },
+    "aspect-mars-venus-sextile": {
+      "name": "venus sextile mars",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "mars",
+      "aspect": "sextile",
+      "currentWeight": 70,
+      "adjustment": -25,
+      "updatedAt": "2026-01-21T00:03:26.555Z"
+    },
+    "aspect-mars-venus-conjunction": {
+      "name": "venus conjunction mars",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "mars",
+      "aspect": "conjunction",
+      "currentWeight": 50,
+      "adjustment": -100,
+      "updatedAt": "2026-01-19T23:49:15.196Z"
+    },
+    "aspect-mars-venus-square": {
+      "name": "venus square mars",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "mars",
+      "aspect": "square",
+      "currentWeight": 10,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T00:03:33.522Z"
+    },
+    "aspect-pluto-venus-sextile": {
+      "name": "venus sextile pluto",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "pluto",
+      "aspect": "sextile",
+      "currentWeight": 40,
+      "adjustment": 40,
+      "updatedAt": "2026-01-21T00:08:34.943Z"
+    },
+    "aspect-ascendant-venus-opposition": {
+      "name": "venus opposition ascendant",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "ascendant",
+      "aspect": "opposition",
+      "currentWeight": 30,
+      "adjustment": 50,
+      "updatedAt": "2026-01-21T02:22:06.815Z"
+    },
+    "aspect-ascendant-venus-square": {
+      "name": "venus square ascendant",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "ascendant",
+      "aspect": "square",
+      "currentWeight": 5,
+      "adjustment": -13,
+      "updatedAt": "2026-01-21T02:22:27.346Z"
+    },
+    "aspect-ascendant-venus-trine": {
+      "name": "venus trine ascendant",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "ascendant",
+      "aspect": "trine",
+      "currentWeight": 55,
+      "adjustment": -20,
+      "updatedAt": "2026-01-19T23:52:44.299Z"
+    },
+    "aspect-ascendant-venus-sextile": {
+      "name": "venus sextile ascendant",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "ascendant",
+      "aspect": "sextile",
+      "currentWeight": 40,
+      "adjustment": -10,
+      "updatedAt": "2026-01-19T23:52:53.286Z"
+    },
+    "aspect-chiron-venus-conjunction": {
+      "name": "venus conjunction chiron",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "chiron",
+      "aspect": "conjunction",
+      "currentWeight": 25,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T05:38:02.164Z"
+    },
+    "aspect-chiron-venus-sextile": {
+      "name": "venus sextile chiron",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "chiron",
+      "aspect": "sextile",
+      "currentWeight": 30,
+      "adjustment": -15,
+      "updatedAt": "2026-01-21T05:38:14.788Z"
+    },
+    "aspect-chiron-venus-trine": {
+      "name": "venus trine chiron",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "chiron",
+      "aspect": "trine",
+      "currentWeight": 20,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T05:38:53.419Z"
+    },
+    "aspect-northnode-venus-opposition": {
+      "name": "venus opposition northnode",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "northnode",
+      "aspect": "opposition",
+      "currentWeight": 20,
+      "adjustment": 50,
+      "updatedAt": "2026-01-19T23:54:30.286Z"
+    },
+    "aspect-northnode-venus-conjunction": {
+      "name": "venus conjunction northnode",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "northnode",
+      "aspect": "conjunction",
+      "currentWeight": 60,
+      "adjustment": 20,
+      "updatedAt": "2026-01-19T23:54:40.818Z"
+    },
+    "aspect-northnode-venus-square": {
+      "name": "venus square northnode",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "northnode",
+      "aspect": "square",
+      "currentWeight": 0,
+      "adjustment": -20,
+      "updatedAt": "2026-01-19T23:54:43.407Z"
+    },
+    "aspect-northnode-venus-quincunx": {
+      "name": "venus quincunx northnode",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "northnode",
+      "aspect": "quincunx",
+      "currentWeight": 0,
+      "adjustment": -15,
+      "updatedAt": "2026-01-19T23:54:46.710Z"
+    },
+    "aspect-venus-venus-square": {
+      "name": "venus square venus",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "venus",
+      "aspect": "square",
+      "currentWeight": 5,
+      "adjustment": -25,
+      "updatedAt": "2026-01-19T23:55:27.636Z"
+    },
+    "aspect-venus-venus-quincunx": {
+      "name": "venus quincunx venus",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "venus",
+      "aspect": "quincunx",
+      "currentWeight": 0,
+      "adjustment": -10,
+      "updatedAt": "2026-01-19T23:55:39.498Z"
+    },
+    "aspect-mars-mars-conjunction": {
+      "name": "mars conjunction mars",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "mars",
+      "aspect": "conjunction",
+      "currentWeight": 40,
+      "adjustment": 70,
+      "updatedAt": "2026-01-24T18:04:17.918Z"
+    },
+    "aspect-mars-mars-opposition": {
+      "name": "mars opposition mars",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "mars",
+      "aspect": "opposition",
+      "currentWeight": 20,
+      "adjustment": -5,
+      "updatedAt": "2026-01-20T22:27:06.612Z"
+    },
+    "aspect-mars-mars-quincunx": {
+      "name": "mars quincunx mars",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "mars",
+      "aspect": "quincunx",
+      "currentWeight": 0,
+      "adjustment": -20,
+      "updatedAt": "2026-01-20T22:27:11.611Z"
+    },
+    "aspect-mars-mars-sextile": {
+      "name": "mars sextile mars",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "mars",
+      "aspect": "sextile",
+      "currentWeight": 50,
+      "adjustment": -10,
+      "updatedAt": "2026-01-19T23:56:31.320Z"
+    },
+    "aspect-mars-mars-square": {
+      "name": "mars square mars",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "mars",
+      "aspect": "square",
+      "currentWeight": 0,
+      "adjustment": -60,
+      "updatedAt": "2026-01-19T23:56:42.448Z"
+    },
+    "aspect-mars-mars-trine": {
+      "name": "mars trine mars",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "mars",
+      "aspect": "trine",
+      "currentWeight": 70,
+      "adjustment": 10,
+      "updatedAt": "2026-01-24T18:02:29.718Z"
+    },
+    "aspect-ascendant-mars-conjunction": {
+      "name": "mars conjunction ascendant",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "ascendant",
+      "aspect": "conjunction",
+      "currentWeight": 40,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T02:13:49.930Z"
+    },
+    "aspect-ascendant-mars-opposition": {
+      "name": "mars opposition ascendant",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "ascendant",
+      "aspect": "opposition",
+      "currentWeight": 10,
+      "adjustment": -15,
+      "updatedAt": "2026-01-21T02:14:16.085Z"
+    },
+    "aspect-ascendant-mars-sextile": {
+      "name": "mars sextile ascendant",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "ascendant",
+      "aspect": "sextile",
+      "currentWeight": 35,
+      "adjustment": -20,
+      "updatedAt": "2026-01-19T23:58:50.538Z"
+    },
+    "aspect-ascendant-mars-square": {
+      "name": "mars square ascendant",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "ascendant",
+      "aspect": "square",
+      "currentWeight": -15,
+      "adjustment": -15,
+      "updatedAt": "2026-01-19T23:58:52.808Z"
+    },
+    "aspect-ascendant-mars-trine": {
+      "name": "mars trine ascendant",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "ascendant",
+      "aspect": "trine",
+      "currentWeight": 45,
+      "adjustment": -25,
+      "updatedAt": "2026-01-19T23:59:00.210Z"
+    },
+    "aspect-juno-mars-conjunction": {
+      "name": "mars conjunction juno",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "juno",
+      "aspect": "conjunction",
+      "currentWeight": 40,
+      "adjustment": 10,
+      "updatedAt": "2026-01-19T23:59:43.748Z"
+    },
+    "aspect-juno-mars-trine": {
+      "name": "mars trine juno",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "juno",
+      "aspect": "trine",
+      "currentWeight": 50,
+      "adjustment": -20,
+      "updatedAt": "2026-01-21T05:41:07.339Z"
+    },
+    "aspect-mars-northnode-conjunction": {
+      "name": "mars conjunction northnode",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "northnode",
+      "aspect": "conjunction",
+      "currentWeight": 40,
+      "adjustment": 10,
+      "updatedAt": "2026-01-21T05:58:57.039Z"
+    },
+    "aspect-mars-northnode-square": {
+      "name": "mars square northnode",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "northnode",
+      "aspect": "square",
+      "currentWeight": -10,
+      "adjustment": -5,
+      "updatedAt": "2026-01-20T00:01:33.164Z"
+    },
+    "aspect-mars-northnode-trine": {
+      "name": "mars trine northnode",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "northnode",
+      "aspect": "trine",
+      "currentWeight": 45,
+      "adjustment": -15,
+      "updatedAt": "2026-01-21T06:07:22.514Z"
+    },
+    "aspect-mars-northnode-sextile": {
+      "name": "mars sextile northnode",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "northnode",
+      "aspect": "sextile",
+      "currentWeight": 30,
+      "adjustment": -15,
+      "updatedAt": "2026-01-21T06:07:13.736Z"
+    },
+    "aspect-saturn-saturn-opposition": {
+      "name": "saturn opposition saturn",
+      "type": "aspect",
+      "planet1": "saturn",
+      "planet2": "saturn",
+      "aspect": "opposition",
+      "currentWeight": -40,
+      "adjustment": -110,
+      "updatedAt": "2026-01-20T00:02:30.175Z"
+    },
+    "aspect-ascendant-saturn-conjunction": {
+      "name": "saturn conjunction ascendant",
+      "type": "aspect",
+      "planet1": "saturn",
+      "planet2": "ascendant",
+      "aspect": "conjunction",
+      "currentWeight": -10,
+      "adjustment": -40,
+      "updatedAt": "2026-01-20T00:03:16.106Z"
+    },
+    "aspect-ascendant-saturn-sextile": {
+      "name": "saturn sextile ascendant",
+      "type": "aspect",
+      "planet1": "saturn",
+      "planet2": "ascendant",
+      "aspect": "sextile",
+      "currentWeight": 25,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T02:19:45.342Z"
+    },
+    "aspect-ascendant-saturn-trine": {
+      "name": "saturn trine ascendant",
+      "type": "aspect",
+      "planet1": "saturn",
+      "planet2": "ascendant",
+      "aspect": "trine",
+      "currentWeight": 40,
+      "adjustment": 10,
+      "updatedAt": "2026-01-21T02:19:55.088Z"
+    },
+    "aspect-chiron-saturn-conjunction": {
+      "name": "saturn conjunction chiron",
+      "type": "aspect",
+      "planet1": "saturn",
+      "planet2": "chiron",
+      "aspect": "conjunction",
+      "currentWeight": 0,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T05:35:57.433Z"
+    },
+    "aspect-chiron-saturn-opposition": {
+      "name": "saturn opposition chiron",
+      "type": "aspect",
+      "planet1": "saturn",
+      "planet2": "chiron",
+      "aspect": "opposition",
+      "currentWeight": -20,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T05:36:09.165Z"
+    },
+    "aspect-chiron-saturn-sextile": {
+      "name": "saturn sextile chiron",
+      "type": "aspect",
+      "planet1": "saturn",
+      "planet2": "chiron",
+      "aspect": "sextile",
+      "currentWeight": 20,
+      "adjustment": -10,
+      "updatedAt": "2026-01-20T00:05:17.187Z"
+    },
+    "aspect-chiron-saturn-trine": {
+      "name": "saturn trine chiron",
+      "type": "aspect",
+      "planet1": "saturn",
+      "planet2": "chiron",
+      "aspect": "trine",
+      "currentWeight": 30,
+      "adjustment": -15,
+      "updatedAt": "2026-01-21T05:36:42.956Z"
+    },
+    "aspect-juno-saturn-sextile": {
+      "name": "saturn sextile juno",
+      "type": "aspect",
+      "planet1": "saturn",
+      "planet2": "juno",
+      "aspect": "sextile",
+      "currentWeight": 30,
+      "adjustment": 5,
+      "updatedAt": "2026-01-20T00:05:28.147Z"
+    },
+    "aspect-northnode-saturn-conjunction": {
+      "name": "saturn conjunction northnode",
+      "type": "aspect",
+      "planet1": "saturn",
+      "planet2": "northnode",
+      "aspect": "conjunction",
+      "currentWeight": 30,
+      "adjustment": 4,
+      "updatedAt": "2026-01-20T00:06:11.799Z"
+    },
+    "aspect-ascendant-ascendant-opposition": {
+      "name": "ascendant opposition ascendant",
+      "type": "aspect",
+      "planet1": "ascendant",
+      "planet2": "ascendant",
+      "aspect": "opposition",
+      "currentWeight": 20,
+      "adjustment": 40,
+      "updatedAt": "2026-01-20T00:07:00.476Z"
+    },
+    "aspect-ascendant-ascendant-conjunction": {
+      "name": "ascendant conjunction ascendant",
+      "type": "aspect",
+      "planet1": "ascendant",
+      "planet2": "ascendant",
+      "aspect": "conjunction",
+      "currentWeight": 50,
+      "adjustment": -30,
+      "updatedAt": "2026-01-21T00:57:19.809Z"
+    },
+    "dignity-uranus-leo": {
+      "name": "Uranus in Leo",
+      "type": "dignity",
+      "planet1": "uranus",
+      "currentWeight": -5,
+      "adjustment": 5,
+      "updatedAt": "2026-01-20T00:11:11.361Z"
+    },
+    "dignity-uranus-scorpio": {
+      "name": "Uranus in Scorpio",
+      "type": "dignity",
+      "planet1": "uranus",
+      "currentWeight": 5,
+      "adjustment": -5,
+      "updatedAt": "2026-01-20T00:11:12.380Z"
+    },
+    "dignity-uranus-taurus": {
+      "name": "Uranus in Taurus",
+      "type": "dignity",
+      "planet1": "uranus",
+      "currentWeight": -8,
+      "adjustment": 8,
+      "updatedAt": "2026-01-20T00:11:15.372Z"
+    },
+    "dignity-neptune-cancer": {
+      "name": "Neptune in Cancer",
+      "type": "dignity",
+      "planet1": "neptune",
+      "currentWeight": 5,
+      "adjustment": -5,
+      "updatedAt": "2026-01-20T00:12:17.785Z"
+    },
+    "dignity-neptune-capricorn": {
+      "name": "Neptune in Capricorn",
+      "type": "dignity",
+      "planet1": "neptune",
+      "currentWeight": -8,
+      "adjustment": 8,
+      "updatedAt": "2026-01-20T00:12:20.970Z"
+    },
+    "dignity-neptune-pisces": {
+      "name": "Neptune in Pisces",
+      "type": "dignity",
+      "planet1": "neptune",
+      "currentWeight": 8,
+      "adjustment": -8,
+      "updatedAt": "2026-01-20T00:12:23.536Z"
+    },
+    "dignity-neptune-virgo": {
+      "name": "Neptune in Virgo",
+      "type": "dignity",
+      "planet1": "neptune",
+      "currentWeight": -5,
+      "adjustment": 5,
+      "updatedAt": "2026-01-20T00:12:25.089Z"
+    },
+    "dignity-pluto-taurus": {
+      "name": "Pluto in Taurus",
+      "type": "dignity",
+      "planet1": "pluto",
+      "currentWeight": -5,
+      "adjustment": 5,
+      "updatedAt": "2026-01-20T00:12:28.738Z"
+    },
+    "dignity-pluto-scorpio": {
+      "name": "Pluto in Scorpio",
+      "type": "dignity",
+      "planet1": "pluto",
+      "currentWeight": 8,
+      "adjustment": -8,
+      "updatedAt": "2026-01-20T00:12:31.246Z"
+    },
+    "dignity-pluto-libra": {
+      "name": "Pluto in Libra",
+      "type": "dignity",
+      "planet1": "pluto",
+      "currentWeight": -8,
+      "adjustment": 8,
+      "updatedAt": "2026-01-20T00:12:34.148Z"
+    },
+    "dignity-pluto-aries": {
+      "name": "Pluto in Aries",
+      "type": "dignity",
+      "planet1": "pluto",
+      "currentWeight": 5,
+      "adjustment": -5,
+      "updatedAt": "2026-01-20T00:12:36.503Z"
+    },
+    "dignity-juno-aries": {
+      "name": "Juno in Aries",
+      "type": "dignity",
+      "planet1": "juno",
+      "currentWeight": -5,
+      "adjustment": 5,
+      "updatedAt": "2026-01-20T00:13:15.575Z"
+    },
+    "dignity-juno-libra": {
+      "name": "Juno in Libra",
+      "type": "dignity",
+      "planet1": "juno",
+      "currentWeight": 8,
+      "adjustment": -8,
+      "updatedAt": "2026-01-20T00:13:16.761Z"
+    },
+    "dignity-juno-pisces": {
+      "name": "Juno in Pisces",
+      "type": "dignity",
+      "planet1": "juno",
+      "currentWeight": 5,
+      "adjustment": -5,
+      "updatedAt": "2026-01-20T00:13:17.764Z"
+    },
+    "dignity-juno-scorpio": {
+      "name": "Juno in Scorpio",
+      "type": "dignity",
+      "planet1": "juno",
+      "currentWeight": 8,
+      "adjustment": -8,
+      "updatedAt": "2026-01-20T00:13:18.822Z"
+    },
+    "dignity-juno-taurus": {
+      "name": "Juno in Taurus",
+      "type": "dignity",
+      "planet1": "juno",
+      "currentWeight": -5,
+      "adjustment": 5,
+      "updatedAt": "2026-01-20T00:13:19.916Z"
+    },
+    "dignity-juno-virgo": {
+      "name": "Juno in Virgo",
+      "type": "dignity",
+      "planet1": "juno",
+      "currentWeight": -8,
+      "adjustment": 8,
+      "updatedAt": "2026-01-20T00:13:21.763Z"
+    },
+    "dignity-chiron-gemini": {
+      "name": "Chiron in Gemini",
+      "type": "dignity",
+      "planet1": "chiron",
+      "currentWeight": -5,
+      "adjustment": 5,
+      "updatedAt": "2026-01-20T00:13:25.903Z"
+    },
+    "dignity-chiron-pisces": {
+      "name": "Chiron in Pisces",
+      "type": "dignity",
+      "planet1": "chiron",
+      "currentWeight": -5,
+      "adjustment": 5,
+      "updatedAt": "2026-01-20T00:13:28.152Z"
+    },
+    "dignity-chiron-sagittarius": {
+      "name": "Chiron in Sagittarius",
+      "type": "dignity",
+      "planet1": "chiron",
+      "currentWeight": 8,
+      "adjustment": -8,
+      "updatedAt": "2026-01-20T00:13:29.494Z"
+    },
+    "dignity-chiron-virgo": {
+      "name": "Chiron in Virgo",
+      "type": "dignity",
+      "planet1": "chiron",
+      "currentWeight": 8,
+      "adjustment": -8,
+      "updatedAt": "2026-01-20T00:13:34.368Z"
+    },
+    "house-juno-7": {
+      "name": "Juno in 7th House",
+      "type": "houseOverlay",
+      "planet1": "juno",
+      "house": 7,
+      "currentWeight": 0,
+      "adjustment": 70,
+      "updatedAt": "2026-01-20T00:15:21.540Z"
+    },
+    "house-moon-7": {
+      "name": "Moon in 7th House",
+      "type": "houseOverlay",
+      "planet1": "moon",
+      "house": 7,
+      "currentWeight": 0,
+      "adjustment": 60,
+      "updatedAt": "2026-01-20T00:15:26.834Z"
+    },
+    "house-saturn-7": {
+      "name": "Saturn in 7th House",
+      "type": "houseOverlay",
+      "planet1": "saturn",
+      "house": 7,
+      "currentWeight": 27,
+      "adjustment": 13,
+      "updatedAt": "2026-01-20T00:17:05.493Z"
+    },
+    "aspect-jupiter-jupiter-opposition": {
+      "name": "jupiter opposition jupiter",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "jupiter",
+      "aspect": "opposition",
+      "currentWeight": 25,
+      "adjustment": -33,
+      "updatedAt": "2026-01-20T22:23:37.539Z"
+    },
+    "aspect-jupiter-jupiter-quincunx": {
+      "name": "jupiter quincunx jupiter",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "jupiter",
+      "aspect": "quincunx",
+      "currentWeight": 0,
+      "adjustment": -5,
+      "updatedAt": "2026-01-20T22:23:45.843Z"
+    },
+    "aspect-jupiter-jupiter-sextile": {
+      "name": "jupiter sextile jupiter",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "jupiter",
+      "aspect": "sextile",
+      "currentWeight": 15,
+      "adjustment": 15,
+      "updatedAt": "2026-01-26T00:00:00.000Z"
+    },
+    "aspect-jupiter-jupiter-square": {
+      "name": "jupiter square jupiter",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "jupiter",
+      "aspect": "square",
+      "currentWeight": 5,
+      "adjustment": -15,
+      "updatedAt": "2026-01-20T22:24:16.781Z"
+    },
+    "aspect-jupiter-moon-trine": {
+      "name": "moon trine jupiter",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "jupiter",
+      "aspect": "trine",
+      "currentWeight": 60,
+      "adjustment": 5,
+      "updatedAt": "2026-01-20T22:25:19.569Z"
+    },
+    "aspect-jupiter-neptune-conjunction": {
+      "name": "jupiter conjunction neptune",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "neptune",
+      "aspect": "conjunction",
+      "currentWeight": 50,
+      "adjustment": -15,
+      "updatedAt": "2026-01-20T22:25:30.176Z"
+    },
+    "aspect-jupiter-neptune-opposition": {
+      "name": "jupiter opposition neptune",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "neptune",
+      "aspect": "opposition",
+      "currentWeight": 15,
+      "adjustment": -27,
+      "updatedAt": "2026-01-20T22:25:33.775Z"
+    },
+    "aspect-jupiter-neptune-quincunx": {
+      "name": "jupiter quincunx neptune",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "neptune",
+      "aspect": "quincunx",
+      "currentWeight": 0,
+      "adjustment": -8,
+      "updatedAt": "2026-01-20T22:25:36.272Z"
+    },
+    "aspect-jupiter-neptune-square": {
+      "name": "jupiter square neptune",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "neptune",
+      "aspect": "square",
+      "currentWeight": -5,
+      "adjustment": -13,
+      "updatedAt": "2026-01-20T22:26:00.847Z"
+    },
+    "aspect-jupiter-neptune-trine": {
+      "name": "jupiter trine neptune",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "neptune",
+      "aspect": "trine",
+      "currentWeight": 60,
+      "adjustment": 60,
+      "updatedAt": "2026-01-26T00:00:00.000Z"
+    },
+    "aspect-mars-uranus-square": {
+      "name": "mars square uranus",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "uranus",
+      "aspect": "square",
+      "currentWeight": -40,
+      "adjustment": -20,
+      "updatedAt": "2026-01-21T00:01:37.239Z"
+    },
+    "aspect-mercury-venus-quincunx": {
+      "name": "mercury quincunx venus",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "venus",
+      "aspect": "quincunx",
+      "currentWeight": 0,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T00:04:43.829Z"
+    },
+    "aspect-mercury-venus-sextile": {
+      "name": "mercury sextile venus",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "venus",
+      "aspect": "sextile",
+      "currentWeight": 30,
+      "adjustment": -8,
+      "updatedAt": "2026-01-21T00:04:50.971Z"
+    },
+    "aspect-mercury-venus-trine": {
+      "name": "mercury trine venus",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "venus",
+      "aspect": "trine",
+      "currentWeight": 40,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T00:05:22.642Z"
+    },
+    "aspect-moon-moon-conjunction": {
+      "name": "moon conjunction moon",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "moon",
+      "aspect": "conjunction",
+      "currentWeight": 75,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T00:05:42.443Z"
+    },
+    "aspect-moon-moon-quincunx": {
+      "name": "moon quincunx moon",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "moon",
+      "aspect": "quincunx",
+      "currentWeight": 0,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T00:06:22.137Z"
+    },
+    "aspect-pluto-venus-conjunction": {
+      "name": "venus conjunction pluto",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "pluto",
+      "aspect": "conjunction",
+      "currentWeight": 40,
+      "adjustment": 10,
+      "updatedAt": "2026-01-21T00:08:29.131Z"
+    },
+    "aspect-pluto-venus-trine": {
+      "name": "venus trine pluto",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "pluto",
+      "aspect": "trine",
+      "currentWeight": 50,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T00:08:41.211Z"
+    },
+    "aspect-pluto-venus-square": {
+      "name": "venus square pluto",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "pluto",
+      "aspect": "square",
+      "currentWeight": -25,
+      "adjustment": 10,
+      "updatedAt": "2026-01-21T00:08:52.493Z"
+    },
+    "aspect-saturn-sun-conjunction": {
+      "name": "sun conjunction saturn",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "saturn",
+      "aspect": "conjunction",
+      "currentWeight": 15,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T00:10:48.509Z"
+    },
+    "aspect-saturn-sun-sextile": {
+      "name": "sun sextile saturn",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "saturn",
+      "aspect": "sextile",
+      "currentWeight": 35,
+      "adjustment": 35,
+      "updatedAt": "2026-01-26T00:00:00.000Z"
+    },
+    "aspect-saturn-sun-square": {
+      "name": "sun square saturn",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "saturn",
+      "aspect": "square",
+      "currentWeight": -30,
+      "adjustment": -35,
+      "updatedAt": "2026-01-21T00:11:42.119Z"
+    },
+    "aspect-sun-sun-quincunx": {
+      "name": "sun quincunx sun",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "sun",
+      "aspect": "quincunx",
+      "currentWeight": 0,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T00:12:29.598Z"
+    },
+    "aspect-ascendant-ascendant-quincunx": {
+      "name": "ascendant quincunx ascendant",
+      "type": "aspect",
+      "planet1": "ascendant",
+      "planet2": "ascendant",
+      "aspect": "quincunx",
+      "currentWeight": 0,
+      "adjustment": -8,
+      "updatedAt": "2026-01-21T00:57:22.702Z"
+    },
+    "aspect-ascendant-ascendant-square": {
+      "name": "ascendant square ascendant",
+      "type": "aspect",
+      "planet1": "ascendant",
+      "planet2": "ascendant",
+      "aspect": "square",
+      "currentWeight": 0,
+      "adjustment": -12,
+      "updatedAt": "2026-01-21T02:11:37.069Z"
+    },
+    "aspect-ascendant-ascendant-trine": {
+      "name": "ascendant trine ascendant",
+      "type": "aspect",
+      "planet1": "ascendant",
+      "planet2": "ascendant",
+      "aspect": "trine",
+      "currentWeight": 40,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T02:12:05.290Z"
+    },
+    "aspect-ascendant-ascendant-sextile": {
+      "name": "ascendant sextile ascendant",
+      "type": "aspect",
+      "planet1": "ascendant",
+      "planet2": "ascendant",
+      "aspect": "sextile",
+      "currentWeight": 30,
+      "adjustment": -8,
+      "updatedAt": "2026-01-21T02:12:14.992Z"
+    },
+    "aspect-ascendant-chiron-conjunction": {
+      "name": "chiron conjunction ascendant",
+      "type": "aspect",
+      "planet1": "chiron",
+      "planet2": "ascendant",
+      "aspect": "conjunction",
+      "currentWeight": 20,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T02:12:33.538Z"
+    },
+    "aspect-ascendant-chiron-sextile": {
+      "name": "chiron sextile ascendant",
+      "type": "aspect",
+      "planet1": "chiron",
+      "planet2": "ascendant",
+      "aspect": "sextile",
+      "currentWeight": 20,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T02:12:47.956Z"
+    },
+    "aspect-ascendant-jupiter-sextile": {
+      "name": "jupiter sextile ascendant",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "ascendant",
+      "aspect": "sextile",
+      "currentWeight": 35,
+      "adjustment": -20,
+      "updatedAt": "2026-01-21T02:13:28.685Z"
+    },
+    "aspect-ascendant-jupiter-trine": {
+      "name": "jupiter trine ascendant",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "ascendant",
+      "aspect": "trine",
+      "currentWeight": 50,
+      "adjustment": 50,
+      "updatedAt": "2026-01-26T00:00:00.000Z"
+    },
+    "aspect-ascendant-mars-quincunx": {
+      "name": "mars quincunx ascendant",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "ascendant",
+      "aspect": "quincunx",
+      "currentWeight": -5,
+      "adjustment": -3,
+      "updatedAt": "2026-01-21T02:14:19.910Z"
+    },
+    "aspect-ascendant-mercury-trine": {
+      "name": "mercury trine ascendant",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "ascendant",
+      "aspect": "trine",
+      "currentWeight": 40,
+      "adjustment": -28,
+      "updatedAt": "2026-01-21T02:15:11.328Z"
+    },
+    "aspect-ascendant-moon-quincunx": {
+      "name": "moon quincunx ascendant",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "ascendant",
+      "aspect": "quincunx",
+      "currentWeight": 0,
+      "adjustment": -8,
+      "updatedAt": "2026-01-21T02:16:58.227Z"
+    },
+    "aspect-ascendant-moon-square": {
+      "name": "moon square ascendant",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "ascendant",
+      "aspect": "square",
+      "currentWeight": -5,
+      "adjustment": -7,
+      "updatedAt": "2026-01-21T02:17:06.488Z"
+    },
+    "aspect-ascendant-neptune-conjunction": {
+      "name": "neptune conjunction ascendant",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "ascendant",
+      "aspect": "conjunction",
+      "currentWeight": 30,
+      "adjustment": -30,
+      "updatedAt": "2026-01-21T02:17:19.856Z"
+    },
+    "aspect-ascendant-neptune-opposition": {
+      "name": "neptune opposition ascendant",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "ascendant",
+      "aspect": "opposition",
+      "currentWeight": 0,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T02:17:20.786Z"
+    },
+    "aspect-ascendant-neptune-quincunx": {
+      "name": "neptune quincunx ascendant",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "ascendant",
+      "aspect": "quincunx",
+      "currentWeight": -5,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T02:17:23.137Z"
+    },
+    "aspect-ascendant-neptune-sextile": {
+      "name": "neptune sextile ascendant",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "ascendant",
+      "aspect": "sextile",
+      "currentWeight": 25,
+      "adjustment": -20,
+      "updatedAt": "2026-01-21T02:17:25.479Z"
+    },
+    "aspect-ascendant-neptune-trine": {
+      "name": "neptune trine ascendant",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "ascendant",
+      "aspect": "trine",
+      "currentWeight": 35,
+      "adjustment": -27,
+      "updatedAt": "2026-01-21T02:17:29.375Z"
+    },
+    "aspect-ascendant-pluto-conjunction": {
+      "name": "pluto conjunction ascendant",
+      "type": "aspect",
+      "planet1": "pluto",
+      "planet2": "ascendant",
+      "aspect": "conjunction",
+      "currentWeight": -15,
+      "adjustment": 10,
+      "updatedAt": "2026-01-21T02:17:58.137Z"
+    },
+    "aspect-ascendant-pluto-quincunx": {
+      "name": "pluto quincunx ascendant",
+      "type": "aspect",
+      "planet1": "pluto",
+      "planet2": "ascendant",
+      "aspect": "quincunx",
+      "currentWeight": -10,
+      "adjustment": 3,
+      "updatedAt": "2026-01-21T02:18:08.930Z"
+    },
+    "aspect-ascendant-pluto-sextile": {
+      "name": "pluto sextile ascendant",
+      "type": "aspect",
+      "planet1": "pluto",
+      "planet2": "ascendant",
+      "aspect": "sextile",
+      "currentWeight": 25,
+      "adjustment": -15,
+      "updatedAt": "2026-01-21T02:18:31.857Z"
+    },
+    "aspect-ascendant-pluto-square": {
+      "name": "pluto square ascendant",
+      "type": "aspect",
+      "planet1": "pluto",
+      "planet2": "ascendant",
+      "aspect": "square",
+      "currentWeight": -20,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T02:18:34.410Z"
+    },
+    "aspect-ascendant-pluto-trine": {
+      "name": "pluto trine ascendant",
+      "type": "aspect",
+      "planet1": "pluto",
+      "planet2": "ascendant",
+      "aspect": "trine",
+      "currentWeight": 35,
+      "adjustment": -20,
+      "updatedAt": "2026-01-21T02:18:36.627Z"
+    },
+    "aspect-ascendant-saturn-square": {
+      "name": "saturn square ascendant",
+      "type": "aspect",
+      "planet1": "saturn",
+      "planet2": "ascendant",
+      "aspect": "square",
+      "currentWeight": -30,
+      "adjustment": 10,
+      "updatedAt": "2026-01-21T02:19:49.487Z"
+    },
+    "aspect-ascendant-sun-quincunx": {
+      "name": "sun quincunx ascendant",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "ascendant",
+      "aspect": "quincunx",
+      "currentWeight": 0,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T02:20:48.200Z"
+    },
+    "aspect-ascendant-uranus-conjunction": {
+      "name": "uranus conjunction ascendant",
+      "type": "aspect",
+      "planet1": "uranus",
+      "planet2": "ascendant",
+      "aspect": "conjunction",
+      "currentWeight": 25,
+      "adjustment": -25,
+      "updatedAt": "2026-01-21T02:21:18.683Z"
+    },
+    "aspect-ascendant-uranus-quincunx": {
+      "name": "uranus quincunx ascendant",
+      "type": "aspect",
+      "planet1": "uranus",
+      "planet2": "ascendant",
+      "aspect": "quincunx",
+      "currentWeight": -5,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T02:21:21.458Z"
+    },
+    "aspect-ascendant-uranus-sextile": {
+      "name": "uranus sextile ascendant",
+      "type": "aspect",
+      "planet1": "uranus",
+      "planet2": "ascendant",
+      "aspect": "sextile",
+      "currentWeight": 25,
+      "adjustment": -17,
+      "updatedAt": "2026-01-21T02:21:22.387Z"
+    },
+    "aspect-ascendant-uranus-trine": {
+      "name": "uranus trine ascendant",
+      "type": "aspect",
+      "planet1": "uranus",
+      "planet2": "ascendant",
+      "aspect": "trine",
+      "currentWeight": 25,
+      "adjustment": -15,
+      "updatedAt": "2026-01-21T02:21:31.645Z"
+    },
+    "aspect-ascendant-venus-conjunction": {
+      "name": "venus conjunction ascendant",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "ascendant",
+      "aspect": "conjunction",
+      "currentWeight": 70,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T02:21:51.795Z"
+    },
+    "aspect-ascendant-venus-quincunx": {
+      "name": "venus quincunx ascendant",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "ascendant",
+      "aspect": "quincunx",
+      "currentWeight": 5,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T02:22:14.000Z"
+    },
+    "aspect-chiron-chiron-conjunction": {
+      "name": "chiron conjunction chiron",
+      "type": "aspect",
+      "planet1": "chiron",
+      "planet2": "chiron",
+      "aspect": "conjunction",
+      "currentWeight": 40,
+      "adjustment": 25,
+      "updatedAt": "2026-01-21T02:22:44.756Z"
+    },
+    "aspect-chiron-chiron-quincunx": {
+      "name": "chiron quincunx chiron",
+      "type": "aspect",
+      "planet1": "chiron",
+      "planet2": "chiron",
+      "aspect": "quincunx",
+      "currentWeight": 0,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T02:22:54.063Z"
+    },
+    "aspect-chiron-chiron-sextile": {
+      "name": "chiron sextile chiron",
+      "type": "aspect",
+      "planet1": "chiron",
+      "planet2": "chiron",
+      "aspect": "sextile",
+      "currentWeight": 25,
+      "adjustment": -7,
+      "updatedAt": "2026-01-21T02:23:00.011Z"
+    },
+    "aspect-chiron-chiron-square": {
+      "name": "chiron square chiron",
+      "type": "aspect",
+      "planet1": "chiron",
+      "planet2": "chiron",
+      "aspect": "square",
+      "currentWeight": -5,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T02:23:03.226Z"
+    },
+    "aspect-chiron-juno-trine": {
+      "name": "chiron trine juno",
+      "type": "aspect",
+      "planet1": "chiron",
+      "planet2": "juno",
+      "aspect": "trine",
+      "currentWeight": 35,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T02:23:28.368Z"
+    },
+    "aspect-chiron-juno-sextile": {
+      "name": "chiron sextile juno",
+      "type": "aspect",
+      "planet1": "chiron",
+      "planet2": "juno",
+      "aspect": "sextile",
+      "currentWeight": 25,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T02:23:30.173Z"
+    },
+    "aspect-chiron-juno-conjunction": {
+      "name": "chiron conjunction juno",
+      "type": "aspect",
+      "planet1": "chiron",
+      "planet2": "juno",
+      "aspect": "conjunction",
+      "currentWeight": 25,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T02:23:32.176Z"
+    },
+    "aspect-chiron-mars-conjunction": {
+      "name": "mars conjunction chiron",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "chiron",
+      "aspect": "conjunction",
+      "currentWeight": -30,
+      "adjustment": 50,
+      "updatedAt": "2026-01-21T02:24:17.277Z"
+    },
+    "aspect-chiron-mars-opposition": {
+      "name": "mars opposition chiron",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "chiron",
+      "aspect": "opposition",
+      "currentWeight": -30,
+      "adjustment": 20,
+      "updatedAt": "2026-01-21T02:24:22.154Z"
+    },
+    "aspect-chiron-mars-quincunx": {
+      "name": "mars quincunx chiron",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "chiron",
+      "aspect": "quincunx",
+      "currentWeight": -20,
+      "adjustment": 12,
+      "updatedAt": "2026-01-21T02:24:28.520Z"
+    },
+    "aspect-chiron-mars-square": {
+      "name": "mars square chiron",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "chiron",
+      "aspect": "square",
+      "currentWeight": -45,
+      "adjustment": 25,
+      "updatedAt": "2026-01-21T02:24:32.757Z"
+    },
+    "aspect-chiron-moon-opposition": {
+      "name": "moon opposition chiron",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "chiron",
+      "aspect": "opposition",
+      "currentWeight": -20,
+      "adjustment": 10,
+      "updatedAt": "2026-01-21T02:33:14.978Z"
+    },
+    "aspect-chiron-neptune-conjunction": {
+      "name": "neptune conjunction chiron",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "chiron",
+      "aspect": "conjunction",
+      "currentWeight": 25,
+      "adjustment": -20,
+      "updatedAt": "2026-01-21T05:24:00.161Z"
+    },
+    "aspect-chiron-neptune-opposition": {
+      "name": "neptune opposition chiron",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "chiron",
+      "aspect": "opposition",
+      "currentWeight": 0,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T05:24:02.384Z"
+    },
+    "aspect-chiron-neptune-quincunx": {
+      "name": "neptune quincunx chiron",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "chiron",
+      "aspect": "quincunx",
+      "currentWeight": -5,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T05:24:04.911Z"
+    },
+    "aspect-chiron-neptune-sextile": {
+      "name": "neptune sextile chiron",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "chiron",
+      "aspect": "sextile",
+      "currentWeight": 25,
+      "adjustment": -17,
+      "updatedAt": "2026-01-21T05:24:07.616Z"
+    },
+    "aspect-chiron-neptune-trine": {
+      "name": "neptune trine chiron",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "chiron",
+      "aspect": "trine",
+      "currentWeight": 35,
+      "adjustment": -25,
+      "updatedAt": "2026-01-21T05:24:11.221Z"
+    },
+    "aspect-chiron-pluto-conjunction": {
+      "name": "pluto conjunction chiron",
+      "type": "aspect",
+      "planet1": "pluto",
+      "planet2": "chiron",
+      "aspect": "conjunction",
+      "currentWeight": 20,
+      "adjustment": -25,
+      "updatedAt": "2026-01-21T05:24:22.155Z"
+    },
+    "aspect-chiron-pluto-trine": {
+      "name": "pluto trine chiron",
+      "type": "aspect",
+      "planet1": "pluto",
+      "planet2": "chiron",
+      "aspect": "trine",
+      "currentWeight": 30,
+      "adjustment": -18,
+      "updatedAt": "2026-01-21T05:35:27.089Z"
+    },
+    "aspect-chiron-pluto-sextile": {
+      "name": "pluto sextile chiron",
+      "type": "aspect",
+      "planet1": "pluto",
+      "planet2": "chiron",
+      "aspect": "sextile",
+      "currentWeight": 20,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T05:35:31.767Z"
+    },
+    "aspect-chiron-saturn-square": {
+      "name": "saturn square chiron",
+      "type": "aspect",
+      "planet1": "saturn",
+      "planet2": "chiron",
+      "aspect": "square",
+      "currentWeight": -30,
+      "adjustment": 20,
+      "updatedAt": "2026-01-21T05:36:45.844Z"
+    },
+    "aspect-chiron-sun-square": {
+      "name": "sun square chiron",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "chiron",
+      "aspect": "square",
+      "currentWeight": -25,
+      "adjustment": 10,
+      "updatedAt": "2026-01-21T05:37:25.849Z"
+    },
+    "aspect-chiron-uranus-conjunction": {
+      "name": "uranus conjunction chiron",
+      "type": "aspect",
+      "planet1": "uranus",
+      "planet2": "chiron",
+      "aspect": "conjunction",
+      "currentWeight": 20,
+      "adjustment": -20,
+      "updatedAt": "2026-01-21T05:37:35.413Z"
+    },
+    "aspect-chiron-uranus-opposition": {
+      "name": "uranus opposition chiron",
+      "type": "aspect",
+      "planet1": "uranus",
+      "planet2": "chiron",
+      "aspect": "opposition",
+      "currentWeight": -10,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T05:37:37.509Z"
+    },
+    "aspect-chiron-uranus-quincunx": {
+      "name": "uranus quincunx chiron",
+      "type": "aspect",
+      "planet1": "uranus",
+      "planet2": "chiron",
+      "aspect": "quincunx",
+      "currentWeight": -10,
+      "adjustment": 10,
+      "updatedAt": "2026-01-21T05:37:41.284Z"
+    },
+    "aspect-chiron-uranus-sextile": {
+      "name": "uranus sextile chiron",
+      "type": "aspect",
+      "planet1": "uranus",
+      "planet2": "chiron",
+      "aspect": "sextile",
+      "currentWeight": 20,
+      "adjustment": -15,
+      "updatedAt": "2026-01-21T05:37:48.092Z"
+    },
+    "aspect-chiron-uranus-square": {
+      "name": "uranus square chiron",
+      "type": "aspect",
+      "planet1": "uranus",
+      "planet2": "chiron",
+      "aspect": "square",
+      "currentWeight": -20,
+      "adjustment": 10,
+      "updatedAt": "2026-01-21T05:37:51.066Z"
+    },
+    "aspect-chiron-uranus-trine": {
+      "name": "uranus trine chiron",
+      "type": "aspect",
+      "planet1": "uranus",
+      "planet2": "chiron",
+      "aspect": "trine",
+      "currentWeight": 30,
+      "adjustment": -20,
+      "updatedAt": "2026-01-21T05:37:53.773Z"
+    },
+    "aspect-chiron-venus-quincunx": {
+      "name": "venus quincunx chiron",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "chiron",
+      "aspect": "quincunx",
+      "currentWeight": -10,
+      "adjustment": 4,
+      "updatedAt": "2026-01-21T05:38:30.779Z"
+    },
+    "aspect-chiron-venus-opposition": {
+      "name": "venus opposition chiron",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "chiron",
+      "aspect": "opposition",
+      "currentWeight": -10,
+      "adjustment": 6,
+      "updatedAt": "2026-01-21T05:38:38.736Z"
+    },
+    "aspect-juno-juno-conjunction": {
+      "name": "juno conjunction juno",
+      "type": "aspect",
+      "planet1": "juno",
+      "planet2": "juno",
+      "aspect": "conjunction",
+      "currentWeight": 60,
+      "adjustment": -20,
+      "updatedAt": "2026-01-21T05:39:11.010Z"
+    },
+    "aspect-juno-juno-trine": {
+      "name": "juno trine juno",
+      "type": "aspect",
+      "planet1": "juno",
+      "planet2": "juno",
+      "aspect": "trine",
+      "currentWeight": 50,
+      "adjustment": -15,
+      "updatedAt": "2026-01-21T05:39:38.886Z"
+    },
+    "aspect-juno-juno-sextile": {
+      "name": "juno sextile juno",
+      "type": "aspect",
+      "planet1": "juno",
+      "planet2": "juno",
+      "aspect": "sextile",
+      "currentWeight": 35,
+      "adjustment": -15,
+      "updatedAt": "2026-01-21T05:39:36.471Z"
+    },
+    "aspect-juno-juno-opposition": {
+      "name": "juno opposition juno",
+      "type": "aspect",
+      "planet1": "juno",
+      "planet2": "juno",
+      "aspect": "opposition",
+      "currentWeight": 20,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T05:39:44.198Z"
+    },
+    "aspect-juno-juno-quincunx": {
+      "name": "juno quincunx juno",
+      "type": "aspect",
+      "planet1": "juno",
+      "planet2": "juno",
+      "aspect": "quincunx",
+      "currentWeight": 0,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T05:39:46.706Z"
+    },
+    "aspect-juno-venus-trine": {
+      "name": "venus trine juno",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "juno",
+      "aspect": "trine",
+      "currentWeight": 60,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T05:44:16.434Z"
+    },
+    "aspect-juno-venus-sextile": {
+      "name": "venus sextile juno",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "juno",
+      "aspect": "sextile",
+      "currentWeight": 45,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T05:44:19.309Z"
+    },
+    "aspect-juno-venus-conjunction": {
+      "name": "venus conjunction juno",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "juno",
+      "aspect": "conjunction",
+      "currentWeight": 70,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T05:44:27.680Z"
+    },
+    "aspect-jupiter-venus-opposition": {
+      "name": "venus opposition jupiter",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "jupiter",
+      "aspect": "opposition",
+      "currentWeight": 30,
+      "adjustment": -60,
+      "updatedAt": "2026-01-21T05:48:11.574Z"
+    },
+    "aspect-jupiter-venus-sextile": {
+      "name": "venus sextile jupiter",
+      "type": "aspect",
+      "planet1": "venus",
+      "planet2": "jupiter",
+      "aspect": "sextile",
+      "currentWeight": 50,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T05:48:17.578Z"
+    },
+    "aspect-mars-moon-trine": {
+      "name": "moon trine mars",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "mars",
+      "aspect": "trine",
+      "currentWeight": 40,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T05:54:22.968Z"
+    },
+    "aspect-mars-neptune-square": {
+      "name": "mars square neptune",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "neptune",
+      "aspect": "square",
+      "currentWeight": -30,
+      "adjustment": 10,
+      "updatedAt": "2026-01-21T05:58:35.811Z"
+    },
+    "aspect-mars-neptune-trine": {
+      "name": "mars trine neptune",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "neptune",
+      "aspect": "trine",
+      "currentWeight": 30,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T05:58:37.706Z"
+    },
+    "aspect-mars-neptune-opposition": {
+      "name": "mars opposition neptune",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "neptune",
+      "aspect": "opposition",
+      "currentWeight": -20,
+      "adjustment": 10,
+      "updatedAt": "2026-01-21T06:06:54.283Z"
+    },
+    "aspect-mars-neptune-quincunx": {
+      "name": "mars quincunx neptune",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "neptune",
+      "aspect": "quincunx",
+      "currentWeight": -15,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T06:06:57.673Z"
+    },
+    "aspect-mars-northnode-opposition": {
+      "name": "mars opposition northnode",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "northnode",
+      "aspect": "opposition",
+      "currentWeight": 10,
+      "adjustment": -35,
+      "updatedAt": "2026-01-21T06:07:05.500Z"
+    },
+    "aspect-mars-pluto-sextile": {
+      "name": "mars sextile pluto",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "pluto",
+      "aspect": "sextile",
+      "currentWeight": 25,
+      "adjustment": 10,
+      "updatedAt": "2026-01-21T06:08:13.979Z"
+    },
+    "aspect-mars-pluto-square": {
+      "name": "mars square pluto",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "pluto",
+      "aspect": "square",
+      "currentWeight": -40,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T06:08:27.410Z"
+    },
+    "aspect-mars-pluto-trine": {
+      "name": "mars trine pluto",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "pluto",
+      "aspect": "trine",
+      "currentWeight": 25,
+      "adjustment": 20,
+      "updatedAt": "2026-01-21T06:08:35.665Z"
+    },
+    "aspect-mars-saturn-square": {
+      "name": "mars square saturn",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "saturn",
+      "aspect": "square",
+      "currentWeight": -45,
+      "adjustment": 90,
+      "updatedAt": "2026-01-21T06:09:12.925Z"
+    },
+    "aspect-mars-saturn-trine": {
+      "name": "mars trine saturn",
+      "type": "aspect",
+      "planet1": "mars",
+      "planet2": "saturn",
+      "aspect": "trine",
+      "currentWeight": 30,
+      "adjustment": 15,
+      "updatedAt": "2026-01-21T06:09:16.894Z"
+    },
+    "aspect-mercury-mercury-conjunction": {
+      "name": "mercury conjunction mercury",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "mercury",
+      "aspect": "conjunction",
+      "currentWeight": 60,
+      "adjustment": -25,
+      "updatedAt": "2026-01-21T06:09:54.529Z"
+    },
+    "aspect-mercury-moon-conjunction": {
+      "name": "moon conjunction mercury",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "mercury",
+      "aspect": "conjunction",
+      "currentWeight": 50,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T06:10:48.480Z"
+    },
+    "aspect-mercury-moon-sextile": {
+      "name": "moon sextile mercury",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "mercury",
+      "aspect": "sextile",
+      "currentWeight": 35,
+      "adjustment": -13,
+      "updatedAt": "2026-01-21T06:10:53.696Z"
+    },
+    "aspect-mercury-moon-trine": {
+      "name": "moon trine mercury",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "mercury",
+      "aspect": "trine",
+      "currentWeight": 45,
+      "adjustment": -15,
+      "updatedAt": "2026-01-21T06:11:16.201Z"
+    },
+    "aspect-mercury-neptune-conjunction": {
+      "name": "mercury conjunction neptune",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "neptune",
+      "aspect": "conjunction",
+      "currentWeight": 25,
+      "adjustment": -13,
+      "updatedAt": "2026-01-21T06:11:22.171Z"
+    },
+    "aspect-mercury-neptune-opposition": {
+      "name": "mercury opposition neptune",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "neptune",
+      "aspect": "opposition",
+      "currentWeight": -10,
+      "adjustment": -2,
+      "updatedAt": "2026-01-21T06:11:24.538Z"
+    },
+    "aspect-mercury-uranus-conjunction": {
+      "name": "mercury conjunction uranus",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "uranus",
+      "aspect": "conjunction",
+      "currentWeight": 35,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T06:13:15.860Z"
+    },
+    "aspect-mercury-uranus-opposition": {
+      "name": "mercury opposition uranus",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "uranus",
+      "aspect": "opposition",
+      "currentWeight": 0,
+      "adjustment": -8,
+      "updatedAt": "2026-01-21T06:13:23.018Z"
+    },
+    "aspect-mercury-uranus-sextile": {
+      "name": "mercury sextile uranus",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "uranus",
+      "aspect": "sextile",
+      "currentWeight": 30,
+      "adjustment": -8,
+      "updatedAt": "2026-01-21T06:13:26.456Z"
+    },
+    "aspect-mercury-uranus-trine": {
+      "name": "mercury trine uranus",
+      "type": "aspect",
+      "planet1": "mercury",
+      "planet2": "uranus",
+      "aspect": "trine",
+      "currentWeight": 45,
+      "adjustment": -15,
+      "updatedAt": "2026-01-21T06:13:33.608Z"
+    },
+    "aspect-moon-neptune-opposition": {
+      "name": "moon opposition neptune",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "neptune",
+      "aspect": "opposition",
+      "currentWeight": -50,
+      "adjustment": 15,
+      "updatedAt": "2026-01-21T06:13:41.176Z"
+    },
+    "aspect-moon-neptune-square": {
+      "name": "moon square neptune",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "neptune",
+      "aspect": "square",
+      "currentWeight": -20,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T06:14:26.315Z"
+    },
+    "aspect-moon-northnode-conjunction": {
+      "name": "moon conjunction northnode",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "northnode",
+      "aspect": "conjunction",
+      "currentWeight": 60,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T06:14:31.841Z"
+    },
+    "aspect-moon-northnode-square": {
+      "name": "moon square northnode",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "northnode",
+      "aspect": "square",
+      "currentWeight": -30,
+      "adjustment": 12,
+      "updatedAt": "2026-01-21T06:14:41.936Z"
+    },
+    "aspect-moon-pluto-trine": {
+      "name": "moon trine pluto",
+      "type": "aspect",
+      "planet1": "moon",
+      "planet2": "pluto",
+      "aspect": "trine",
+      "currentWeight": 35,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T06:15:13.409Z"
+    },
+    "aspect-neptune-neptune-conjunction": {
+      "name": "neptune conjunction neptune",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "neptune",
+      "aspect": "conjunction",
+      "currentWeight": 40,
+      "adjustment": -35,
+      "updatedAt": "2026-01-21T06:17:21.815Z"
+    },
+    "aspect-neptune-neptune-opposition": {
+      "name": "neptune opposition neptune",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "neptune",
+      "aspect": "opposition",
+      "currentWeight": 10,
+      "adjustment": -18,
+      "updatedAt": "2026-01-21T06:17:26.072Z"
+    },
+    "aspect-neptune-neptune-quincunx": {
+      "name": "neptune quincunx neptune",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "neptune",
+      "aspect": "quincunx",
+      "currentWeight": 0,
+      "adjustment": -5,
+      "updatedAt": "2026-01-21T06:17:29.987Z"
+    },
+    "aspect-neptune-neptune-sextile": {
+      "name": "neptune sextile neptune",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "neptune",
+      "aspect": "sextile",
+      "currentWeight": 25,
+      "adjustment": -22,
+      "updatedAt": "2026-01-21T06:17:32.444Z"
+    },
+    "aspect-neptune-neptune-square": {
+      "name": "neptune square neptune",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "neptune",
+      "aspect": "square",
+      "currentWeight": 0,
+      "adjustment": -12,
+      "updatedAt": "2026-01-21T06:17:34.514Z"
+    },
+    "aspect-neptune-neptune-trine": {
+      "name": "neptune trine neptune",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "neptune",
+      "aspect": "trine",
+      "currentWeight": 5,
+      "adjustment": 5,
+      "updatedAt": "2026-01-26T00:00:00.000Z"
+    },
+    "aspect-neptune-northnode-square": {
+      "name": "neptune square northnode",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "northnode",
+      "aspect": "square",
+      "currentWeight": -5,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T06:23:10.859Z"
+    },
+    "aspect-neptune-northnode-sextile": {
+      "name": "neptune sextile northnode",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "northnode",
+      "aspect": "sextile",
+      "currentWeight": 25,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T06:23:13.506Z"
+    },
+    "aspect-neptune-northnode-trine": {
+      "name": "neptune trine northnode",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "northnode",
+      "aspect": "trine",
+      "currentWeight": 35,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T06:23:17.161Z"
+    },
+    "aspect-neptune-pluto-conjunction": {
+      "name": "neptune conjunction pluto",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "pluto",
+      "aspect": "conjunction",
+      "currentWeight": 25,
+      "adjustment": -22,
+      "updatedAt": "2026-01-21T06:23:21.535Z"
+    },
+    "aspect-neptune-pluto-opposition": {
+      "name": "neptune opposition pluto",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "pluto",
+      "aspect": "opposition",
+      "currentWeight": 5,
+      "adjustment": -10,
+      "updatedAt": "2026-01-21T06:23:23.686Z"
+    },
+    "aspect-neptune-pluto-quincunx": {
+      "name": "neptune quincunx pluto",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "pluto",
+      "aspect": "quincunx",
+      "currentWeight": 0,
+      "adjustment": -3,
+      "updatedAt": "2026-01-21T06:23:26.410Z"
+    },
+    "aspect-neptune-pluto-sextile": {
+      "name": "neptune sextile pluto",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "pluto",
+      "aspect": "sextile",
+      "currentWeight": 20,
+      "adjustment": -17,
+      "updatedAt": "2026-01-21T06:23:28.450Z"
+    },
+    "aspect-neptune-pluto-square": {
+      "name": "neptune square pluto",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "pluto",
+      "aspect": "square",
+      "currentWeight": -5,
+      "adjustment": -3,
+      "updatedAt": "2026-01-21T06:23:31.591Z"
+    },
+    "aspect-neptune-pluto-trine": {
+      "name": "neptune trine pluto",
+      "type": "aspect",
+      "planet1": "neptune",
+      "planet2": "pluto",
+      "aspect": "trine",
+      "currentWeight": 30,
+      "adjustment": -25,
+      "updatedAt": "2026-01-21T06:23:33.698Z"
+    },
+    "aspect-neptune-saturn-conjunction": {
+      "name": "saturn conjunction neptune",
+      "type": "aspect",
+      "planet1": "saturn",
+      "planet2": "neptune",
+      "aspect": "conjunction",
+      "currentWeight": 15,
+      "adjustment": -25,
+      "updatedAt": "2026-01-21T06:23:38.194Z"
+    },
+    "aspect-neptune-sun-sextile": {
+      "name": "sun sextile neptune",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "neptune",
+      "aspect": "sextile",
+      "currentWeight": 25,
+      "adjustment": 7,
+      "updatedAt": "2026-01-21T06:24:31.671Z"
+    },
+    "aspect-neptune-sun-square": {
+      "name": "sun square neptune",
+      "type": "aspect",
+      "planet1": "sun",
+      "planet2": "neptune",
+      "aspect": "square",
+      "currentWeight": -25,
+      "adjustment": 5,
+      "updatedAt": "2026-01-21T06:24:35.819Z"
+    },
+    "aspect-neptune-uranus-conjunction": {
+      "name": "uranus conjunction neptune",
+      "type": "aspect",
+      "planet1": "uranus",
+      "planet2": "neptune",
+      "aspect": "conjunction",
+      "currentWeight": 25,
+      "adjustment": -20,
+      "updatedAt": "2026-01-21T06:24:42.709Z"
+    },
+    "aspect-jupiter-venus-sextile-0-3": {
+      "name": "jupiter sextile venus (tight orb penalty)",
+      "type": "aspect",
+      "planet1": "jupiter",
+      "planet2": "venus",
+      "aspect": "sextile",
+      "orbRange": "0-3°",
+      "currentWeight": 10,
+      "adjustment": -167,
+      "updatedAt": "2026-01-23T00:00:00.000Z"
+    }
+  }
+}

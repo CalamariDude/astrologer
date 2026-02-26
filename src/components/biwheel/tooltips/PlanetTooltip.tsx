@@ -1,0 +1,880 @@
+/**
+ * Planet Tooltip
+ * Shows detailed planet information on hover/click
+ */
+
+import React, { useMemo, useState } from 'react';
+import { PLANETS, COLORS, ASTEROIDS, ARABIC_PARTS } from '../utils/constants';
+import { formatLongitude, calculateSpark } from '../utils/chartMath';
+import type { PlanetData, NatalChart } from '../types';
+import type { SynastryAspect, AspectType } from '../utils/aspectCalculations';
+import {
+  getHouseOverlayInterpretation,
+  getSignHouseOverlayInterpretation,
+  getAspectInterpretation,
+  getSignAspectInterpretation,
+} from '@/lib/interpretationLookup';
+import { getTooltipContainerStyle, isTooltipMobile } from './useTooltipStyle';
+
+// Transit aspect with natal chart indicator
+interface TransitAspect extends SynastryAspect {
+  natalChart: 'A' | 'B' | 'Composite';
+}
+
+interface PlanetTooltipProps {
+  planet: string;
+  chart: 'A' | 'B' | 'Transit';
+  name: string; // Person's name or "Transit"
+  partnerName?: string; // Other person's name
+  data: PlanetData;
+  ownHouse?: number; // Correctly calculated house in own chart (overrides data.house)
+  partnerHouse?: number; // Which house this planet falls in partner's chart
+  aspects: SynastryAspect[];
+  visibleAspects: Set<AspectType>; // Only show aspects that are enabled
+  position: { x: number; y: number };
+  visible: boolean;
+  onClose?: () => void; // If provided, shows close button (pinned mode)
+  // Chart data for getting partner planet signs
+  partnerChart?: NatalChart;
+  // Transit-specific
+  transitDate?: string; // ISO date string for transit date
+  transitAspects?: TransitAspect[]; // Aspects from transit to natal charts
+  nameA?: string; // Person A's name (for transit aspects)
+  nameB?: string; // Person B's name (for transit aspects)
+}
+
+// Threshold for "tight" orb (in degrees)
+const TIGHT_ORB_THRESHOLD = 1;
+
+// Max aspects to show in tooltip (to prevent overflow)
+const MAX_ASPECTS_SHOWN = 6;
+
+// Planet keywords/meanings (for main planets)
+const PLANET_KEYWORDS: Record<string, string> = {
+  sun: 'Identity, ego, vitality, life purpose',
+  moon: 'Emotions, instincts, nurturing, comfort',
+  mercury: 'Communication, thinking, learning',
+  venus: 'Love, beauty, values, attraction',
+  mars: 'Action, desire, drive, courage',
+  jupiter: 'Expansion, luck, wisdom, growth',
+  saturn: 'Structure, discipline, responsibility',
+  uranus: 'Innovation, rebellion, change',
+  neptune: 'Dreams, intuition, spirituality',
+  pluto: 'Transformation, power, rebirth',
+  northnode: 'Life path, destiny, growth',
+  southnode: 'Past patterns, comfort zone',
+  chiron: 'Fractured Structure. Cracks in systems demanding reformation.',
+  lilith: 'Shadow self, independence, taboo desires',
+  juno: 'Terms of Commitment. The requirements that must exist before loyalty.',
+  ceres: 'Provision and Survival. Water, resources, baseline personal continuity.',
+  pallas: 'Pattern Recognition. Weaving design into structure.',
+  vesta: 'Sacred Devotion. Tending continuity through inner fire.',
+  ascendant: 'Rising sign, outward persona, first impressions',
+  midheaven: 'Career, public image, life direction',
+};
+
+// Get description for any celestial body (planet or asteroid)
+const getBodyDescription = (key: string): string | null => {
+  // First check main planets
+  if (PLANET_KEYWORDS[key]) {
+    return PLANET_KEYWORDS[key];
+  }
+  // Then check asteroids
+  const asteroid = ASTEROIDS[key as keyof typeof ASTEROIDS];
+  if (asteroid?.description) {
+    return asteroid.description;
+  }
+  return null;
+};
+
+// Transit color scheme
+const TRANSIT_COLOR = '#228B22';
+
+export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
+  planet,
+  chart,
+  name,
+  partnerName = 'Partner',
+  data,
+  ownHouse,
+  partnerHouse,
+  aspects,
+  visibleAspects,
+  position,
+  visible,
+  onClose,
+  partnerChart,
+  transitDate,
+  transitAspects = [],
+  nameA = 'Person A',
+  nameB = 'Person B',
+}) => {
+  const isTransit = chart === 'Transit';
+  // Track which aspects are expanded
+  const [expandedAspects, setExpandedAspects] = useState<Set<number>>(new Set());
+
+  const toggleAspectExpanded = (idx: number) => {
+    setExpandedAspects((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) {
+        next.delete(idx);
+      } else {
+        next.add(idx);
+      }
+      return next;
+    });
+  };
+  // Get house overlay interpretation if planet falls in partner's house
+  // Try sign-specific first, then fall back to generic
+  const houseInterpretation = useMemo(() => {
+    if (!partnerHouse) return null;
+
+    // Try sign-specific interpretation first (using planet's zodiac sign)
+    if (data.sign) {
+      const signSpecific = getSignHouseOverlayInterpretation(planet, data.sign, partnerHouse);
+      if (signSpecific) {
+        return {
+          title: signSpecific.title,
+          description: signSpecific.description,
+          isPositive: signSpecific.isPositive,
+          isSignSpecific: true,
+          sign: data.sign,
+        };
+      }
+    }
+
+    // Fall back to generic house overlay interpretation
+    const generic = getHouseOverlayInterpretation(planet, partnerHouse);
+    if (generic) {
+      return {
+        title: generic.title,
+        description: generic.description,
+        isPositive: generic.isPositive,
+        isSignSpecific: false,
+        sign: data.sign,
+      };
+    }
+
+    return null;
+  }, [planet, partnerHouse, data.sign]);
+
+  if (!visible) return null;
+
+  // Get planet/asteroid/arabic-part definition
+  const planetDef = PLANETS[planet as keyof typeof PLANETS];
+  const asteroidDef = ASTEROIDS[planet as keyof typeof ASTEROIDS];
+  const arabicPartDef = ARABIC_PARTS[planet as keyof typeof ARABIC_PARTS];
+  const symbol = planetDef?.symbol || asteroidDef?.symbol || arabicPartDef?.symbol || planet.charAt(0).toUpperCase();
+  const planetName = planetDef?.name || asteroidDef?.name || arabicPartDef?.name || planet;
+  const color = isTransit ? TRANSIT_COLOR : chart === 'A' ? COLORS.personA : COLORS.personB;
+
+  // Get aspects for this planet - filter by visible aspects (respects sidebar toggles)
+  // For transit planets, use transitAspects; for natal planets, use synastry aspects
+  const planetAspects = isTransit ? [] : aspects.filter(
+    (asp) =>
+      visibleAspects.has(asp.aspect.type) &&
+      ((chart === 'A' && asp.planetA === planet) ||
+        (chart === 'B' && asp.planetB === planet))
+  );
+
+  // Filter transit aspects for this transit planet
+  const filteredTransitAspects = isTransit
+    ? transitAspects.filter(
+        (asp) => visibleAspects.has(asp.aspect.type) && asp.planetA === planet
+      )
+    : [];
+
+  // Sort by orb tightness
+  const sortedAspects = [...planetAspects].sort(
+    (a, b) => a.aspect.exactOrb - b.aspect.exactOrb
+  );
+
+  const hasExpandedAspects = expandedAspects.size > 0;
+  const tooltipWidth = onClose ? (hasExpandedAspects ? 360 : 320) : 280;
+
+  const containerStyle = getTooltipContainerStyle({
+    position,
+    width: tooltipWidth,
+    height: 500,
+    borderColor: color,
+    backgroundColor: COLORS.background,
+    pinned: !!onClose,
+  });
+
+  return (
+    <div
+      className="planet-tooltip"
+      style={containerStyle}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Mobile drag handle */}
+      {isTooltipMobile() && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+          <div style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: COLORS.gridLine }} />
+        </div>
+      )}
+
+      {/* Close button - only if pinned */}
+      {onClose && (
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 10,
+            background: 'none',
+            border: 'none',
+            color: COLORS.textMuted,
+            cursor: 'pointer',
+            fontSize: 16,
+            padding: 4,
+          }}
+        >
+          ×
+        </button>
+      )}
+
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 8,
+          borderBottom: `1px solid ${COLORS.gridLine}`,
+          paddingBottom: 6,
+        }}
+      >
+        <span style={{ fontSize: 20, color }}>{symbol}</span>
+        <div>
+          <div style={{ color: COLORS.textPrimary, fontWeight: 600 }}>{planetName}</div>
+          <div style={{ color, fontSize: 11 }}>{name}</div>
+        </div>
+      </div>
+
+      {/* Planet/Asteroid description */}
+      {getBodyDescription(planet) && (
+        <div
+          style={{
+            fontSize: 11,
+            color: COLORS.textSecondary,
+            fontStyle: 'italic',
+            marginBottom: 8,
+            lineHeight: 1.4,
+          }}
+        >
+          {getBodyDescription(planet)}
+        </div>
+      )}
+
+      {/* Position badges */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+        {data.sign && (
+          <span style={{
+            fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4,
+            backgroundColor: 'rgba(99,102,241,0.1)', color: 'rgba(99,102,241,0.8)',
+            textTransform: 'uppercase', letterSpacing: '0.3px',
+          }}>
+            {data.sign}
+          </span>
+        )}
+        {(ownHouse || data.house) && (
+          <span style={{
+            fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4,
+            backgroundColor: 'rgba(16,185,129,0.1)', color: 'rgba(16,185,129,0.8)',
+            textTransform: 'uppercase', letterSpacing: '0.3px',
+          }}>
+            House {ownHouse ?? data.house}
+          </span>
+        )}
+        {data.retrograde && (
+          <span style={{
+            fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4,
+            backgroundColor: 'rgba(249,115,22,0.1)', color: '#f97316',
+            textTransform: 'uppercase', letterSpacing: '0.3px',
+          }}>
+            Retrograde
+          </span>
+        )}
+      </div>
+
+      {/* Position info */}
+      <div style={{ fontSize: 12, marginBottom: 8 }}>
+        <div style={{ color: COLORS.textSecondary, marginBottom: 4 }}>
+          {formatLongitude(data.longitude)}
+        </div>
+
+        {data.decan && data.decanSign && (
+          <div style={{ color: COLORS.textMuted, marginBottom: 4 }}>
+            Decan {data.decan} ({data.decanSign})
+          </div>
+        )}
+
+        {data.longitude !== undefined && (() => {
+          const spark = calculateSpark(data.longitude);
+          return (
+            <div style={{ color: COLORS.textMuted, marginBottom: 4 }}>
+              Spark: {spark.sparkSymbol} {spark.sparkSign}
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* Ecliptic Coordinates */}
+      <div style={{
+        borderTop: `1px solid ${COLORS.gridLine}`,
+        paddingTop: 8,
+        marginBottom: 8,
+      }}>
+        <div style={{
+          fontSize: 10, fontWeight: 600, color: COLORS.textMuted,
+          marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px',
+        }}>
+          Ecliptic Coordinates
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '3px 12px', fontSize: 11 }}>
+          <span style={{ color: COLORS.textMuted }}>Longitude</span>
+          <span style={{ color: COLORS.textSecondary, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+            {data.degree !== undefined && data.minute !== undefined
+              ? `${data.degree}° ${data.minute.toString().padStart(2, '0')}'`
+              : `${Math.floor(data.longitude % 30)}° ${Math.floor((data.longitude % 1) * 60).toString().padStart(2, '0')}'`
+            }
+          </span>
+          <span style={{ color: COLORS.textMuted }}>Abs. Longitude</span>
+          <span style={{ color: COLORS.textSecondary, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+            {data.longitude.toFixed(4)}°
+          </span>
+          {data.latitude !== undefined && (
+            <>
+              <span style={{ color: COLORS.textMuted }}>Latitude</span>
+              <span style={{ color: COLORS.textSecondary, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                {data.latitude >= 0 ? '' : '-'}{Math.abs(data.latitude).toFixed(4)}°
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Aspects list */}
+      {sortedAspects.length > 0 && (
+        <div
+          style={{
+            borderTop: `1px solid ${COLORS.gridLine}`,
+            paddingTop: 8,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: COLORS.textSecondary,
+              marginBottom: 6,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+            }}
+          >
+            Aspects to {partnerName} ({sortedAspects.length})
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {sortedAspects.slice(0, MAX_ASPECTS_SHOWN).map((asp, idx) => {
+              // Get the partner planet (the one from the other chart)
+              const partnerPlanet = chart === 'A' ? asp.planetB : asp.planetA;
+              const partnerPlanetDef = PLANETS[partnerPlanet as keyof typeof PLANETS];
+              const partnerAsteroidDef = ASTEROIDS[partnerPlanet as keyof typeof ASTEROIDS];
+              const partnerArabicDef = ARABIC_PARTS[partnerPlanet as keyof typeof ARABIC_PARTS];
+              const partnerSymbol = partnerPlanetDef?.symbol || partnerAsteroidDef?.symbol || partnerArabicDef?.symbol || partnerPlanet.charAt(0).toUpperCase();
+              const partnerPlanetName = partnerPlanetDef?.name || partnerAsteroidDef?.name || partnerArabicDef?.name || partnerPlanet;
+
+              const isTight = asp.aspect.exactOrb < TIGHT_ORB_THRESHOLD;
+              const isExpanded = expandedAspects.has(idx);
+              const canExpand = onClose; // Only allow expand in pinned mode
+
+              // Get interpretation for this aspect
+              const getInterpretation = () => {
+                const aspectType = asp.aspect.type;
+                const thisPlanetSign = data.sign;
+                const partnerPlanetSign = partnerChart?.planets[partnerPlanet]?.sign;
+
+                // Try sign-specific first
+                if (thisPlanetSign && partnerPlanetSign) {
+                  const signSpecific = getSignAspectInterpretation(
+                    planet, thisPlanetSign,
+                    partnerPlanet, partnerPlanetSign,
+                    aspectType
+                  );
+                  if (signSpecific) {
+                    return {
+                      ...signSpecific,
+                      isSignSpecific: true,
+                      signs: `${thisPlanetSign} — ${partnerPlanetSign}`,
+                    };
+                  }
+                }
+
+                // Fall back to generic
+                const generic = getAspectInterpretation(planet, partnerPlanet, aspectType);
+                if (generic) {
+                  return { ...generic, isSignSpecific: false, signs: null };
+                }
+                return null;
+              };
+
+              const interpretation = isExpanded ? getInterpretation() : null;
+
+              return (
+                <div key={idx}>
+                  <div
+                    onClick={canExpand ? () => toggleAspectExpanded(idx) : undefined}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '5px 8px',
+                      backgroundColor: isTight ? 'rgba(168, 85, 247, 0.1)' : 'rgba(0,0,0,0.03)',
+                      borderRadius: isExpanded ? '6px 6px 0 0' : 6,
+                      border: isTight ? '1px solid rgba(168, 85, 247, 0.3)' : '1px solid transparent',
+                      cursor: canExpand ? 'pointer' : 'default',
+                      transition: 'background-color 0.15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (canExpand) e.currentTarget.style.backgroundColor = isTight ? 'rgba(168, 85, 247, 0.15)' : 'rgba(0,0,0,0.06)';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (canExpand) e.currentTarget.style.backgroundColor = isTight ? 'rgba(168, 85, 247, 0.1)' : 'rgba(0,0,0,0.03)';
+                    }}
+                  >
+                    {/* Aspect symbol with white background circle */}
+                    <div
+                      style={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: '50%',
+                        backgroundColor: COLORS.background,
+                        border: `2px solid ${asp.aspect.color}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 16,
+                          fontWeight: 'bold',
+                          color: asp.aspect.color,
+                          lineHeight: 1,
+                        }}
+                      >
+                        {asp.aspect.symbol}
+                      </span>
+                    </div>
+
+                    {/* Aspect name and partner planet */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: asp.aspect.color,
+                          textTransform: 'capitalize',
+                        }}
+                      >
+                        {asp.aspect.name}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: COLORS.textPrimary,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}
+                      >
+                        <span style={{ fontSize: 13 }}>{partnerSymbol}</span>
+                        <span>{partnerPlanetName}</span>
+                      </div>
+                    </div>
+
+                    {/* Orb */}
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: isTight ? '#7c3aed' : COLORS.textMuted,
+                        fontWeight: isTight ? 600 : 400,
+                      }}
+                    >
+                      {asp.aspect.exactOrb.toFixed(1)}°
+                    </span>
+
+                    {/* Tight badge */}
+                    {isTight && (
+                      <span
+                        style={{
+                          fontSize: 8,
+                          fontWeight: 700,
+                          color: '#ffffff',
+                          backgroundColor: '#7c3aed',
+                          padding: '1px 4px',
+                          borderRadius: 3,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.3px',
+                        }}
+                      >
+                        Tight
+                      </span>
+                    )}
+
+                    {/* Expand/collapse indicator */}
+                    {canExpand && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          color: COLORS.textMuted,
+                          transition: 'transform 0.2s',
+                          transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                        }}
+                      >
+                        ▼
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Expanded interpretation */}
+                  {isExpanded && (
+                    <div
+                      style={{
+                        padding: '10px 12px',
+                        backgroundColor: 'rgba(0,0,0,0.02)',
+                        borderRadius: '0 0 6px 6px',
+                        borderTop: `1px solid ${COLORS.gridLine}`,
+                      }}
+                    >
+                      {interpretation ? (
+                        <>
+                          {/* Sign-specific badge */}
+                          {interpretation.isSignSpecific && interpretation.signs && (
+                            <div style={{
+                              display: 'inline-block',
+                              fontSize: 9,
+                              fontWeight: 600,
+                              color: '#7c3aed',
+                              backgroundColor: 'rgba(124, 58, 237, 0.1)',
+                              padding: '2px 6px',
+                              borderRadius: 4,
+                              marginBottom: 6,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px',
+                            }}>
+                              {interpretation.signs}
+                            </div>
+                          )}
+                          <div style={{
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: interpretation.isPositive ? '#22c55e' : '#ef4444',
+                            marginBottom: 4,
+                          }}>
+                            {interpretation.title}
+                          </div>
+                          <div style={{
+                            fontSize: 11,
+                            color: COLORS.textSecondary,
+                            lineHeight: 1.5,
+                          }}>
+                            {interpretation.description}
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{
+                          fontSize: 11,
+                          color: COLORS.textMuted,
+                          fontStyle: 'italic',
+                        }}>
+                          No interpretation available
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Show remaining count if there are more */}
+            {sortedAspects.length > MAX_ASPECTS_SHOWN && (
+              <div
+                style={{
+                  fontSize: 11,
+                  color: COLORS.textMuted,
+                  textAlign: 'center',
+                  paddingTop: 4,
+                  fontStyle: 'italic',
+                }}
+              >
+                +{sortedAspects.length - MAX_ASPECTS_SHOWN} more aspect{sortedAspects.length - MAX_ASPECTS_SHOWN !== 1 ? 's' : ''}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Transit aspects to natal chart(s) */}
+      {isTransit && filteredTransitAspects.length > 0 && (
+        <div
+          style={{
+            borderTop: `1px solid ${COLORS.gridLine}`,
+            paddingTop: 8,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: COLORS.textSecondary,
+              marginBottom: 6,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+            }}
+          >
+            Aspects to Natal ({filteredTransitAspects.length})
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {filteredTransitAspects.slice(0, MAX_ASPECTS_SHOWN).map((asp, idx) => {
+              const natalPlanet = asp.planetB;
+              const natalPlanetDef = PLANETS[natalPlanet as keyof typeof PLANETS];
+              const natalAsteroidDef = ASTEROIDS[natalPlanet as keyof typeof ASTEROIDS];
+              const natalArabicDef = ARABIC_PARTS[natalPlanet as keyof typeof ARABIC_PARTS];
+              const natalSymbol = natalPlanetDef?.symbol || natalAsteroidDef?.symbol || natalArabicDef?.symbol || natalPlanet.charAt(0).toUpperCase();
+              const natalPlanetName = natalPlanetDef?.name || natalAsteroidDef?.name || natalArabicDef?.name || natalPlanet;
+
+              const isTight = asp.aspect.exactOrb < TIGHT_ORB_THRESHOLD;
+
+              // Determine which natal chart this aspect is to
+              const chartLabel = asp.natalChart === 'A' ? nameA : asp.natalChart === 'B' ? nameB : 'Composite';
+              const chartColor = asp.natalChart === 'A' ? COLORS.personA : asp.natalChart === 'B' ? COLORS.personB : COLORS.composite;
+
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '5px 8px',
+                    backgroundColor: isTight ? 'rgba(34, 139, 34, 0.1)' : 'rgba(0,0,0,0.03)',
+                    borderRadius: 6,
+                    border: isTight ? '1px solid rgba(34, 139, 34, 0.3)' : '1px solid transparent',
+                  }}
+                >
+                  {/* Aspect symbol */}
+                  <div
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: '50%',
+                      backgroundColor: COLORS.background,
+                      border: `2px solid ${asp.aspect.color}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 'bold',
+                        color: asp.aspect.color,
+                        lineHeight: 1,
+                      }}
+                    >
+                      {asp.aspect.symbol}
+                    </span>
+                  </div>
+
+                  {/* Aspect info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: asp.aspect.color,
+                        textTransform: 'capitalize',
+                      }}
+                    >
+                      {asp.aspect.name}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: COLORS.textPrimary,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      <span style={{ fontSize: 13, color: chartColor }}>{natalSymbol}</span>
+                      <span>{natalPlanetName}</span>
+                      <span style={{ fontSize: 10, color: chartColor }}>({chartLabel})</span>
+                    </div>
+                  </div>
+
+                  {/* Orb */}
+                  <span
+                    style={{
+                      fontSize: 10,
+                      color: isTight ? TRANSIT_COLOR : COLORS.textMuted,
+                      fontWeight: isTight ? 600 : 400,
+                    }}
+                  >
+                    {asp.aspect.exactOrb.toFixed(1)}°
+                  </span>
+
+                  {/* Tight badge */}
+                  {isTight && (
+                    <span
+                      style={{
+                        fontSize: 8,
+                        fontWeight: 700,
+                        color: '#ffffff',
+                        backgroundColor: TRANSIT_COLOR,
+                        padding: '1px 4px',
+                        borderRadius: 3,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.3px',
+                      }}
+                    >
+                      Tight
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Show remaining count */}
+            {filteredTransitAspects.length > MAX_ASPECTS_SHOWN && (
+              <div
+                style={{
+                  fontSize: 11,
+                  color: COLORS.textMuted,
+                  textAlign: 'center',
+                  paddingTop: 4,
+                  fontStyle: 'italic',
+                }}
+              >
+                +{filteredTransitAspects.length - MAX_ASPECTS_SHOWN} more aspect{filteredTransitAspects.length - MAX_ASPECTS_SHOWN !== 1 ? 's' : ''}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Transit date display */}
+      {isTransit && transitDate && (
+        <div
+          style={{
+            borderTop: `1px solid ${COLORS.gridLine}`,
+            paddingTop: 8,
+            marginTop: 4,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: COLORS.textSecondary,
+              marginBottom: 4,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+            }}
+          >
+            Transit Date
+          </div>
+          <div style={{ color: TRANSIT_COLOR, fontSize: 13, fontWeight: 500 }}>
+            {new Date(transitDate).toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* No aspects message */}
+      {!isTransit && sortedAspects.length === 0 && (
+        <div style={{ color: COLORS.textMuted, fontSize: 11, fontStyle: 'italic' }}>
+          No aspects with visible planets
+        </div>
+      )}
+      {isTransit && filteredTransitAspects.length === 0 && (
+        <div style={{ color: COLORS.textMuted, fontSize: 11, fontStyle: 'italic', marginTop: 8 }}>
+          No aspects to natal planets
+        </div>
+      )}
+
+      {/* House Overlay Interpretation - only for natal planets */}
+      {!isTransit && houseInterpretation && partnerHouse && (
+        <div
+          style={{
+            borderTop: `1px solid ${COLORS.gridLine}`,
+            paddingTop: 10,
+            marginTop: 10,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: COLORS.textSecondary,
+              marginBottom: 6,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+            }}
+          >
+            In {partnerName}'s House {partnerHouse}
+          </div>
+
+          {/* Sign-specific badge */}
+          {houseInterpretation.isSignSpecific && houseInterpretation.sign && (
+            <div style={{
+              display: 'inline-block',
+              fontSize: 9,
+              fontWeight: 600,
+              color: '#7c3aed',
+              backgroundColor: 'rgba(124, 58, 237, 0.1)',
+              padding: '2px 6px',
+              borderRadius: 4,
+              marginBottom: 6,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+            }}>
+              {planetName} in {houseInterpretation.sign}
+            </div>
+          )}
+
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: houseInterpretation.isPositive ? '#22c55e' : '#ef4444',
+              marginBottom: 6,
+            }}
+          >
+            {houseInterpretation.title}
+          </div>
+          <div
+            style={{
+              fontSize: 11,
+              color: COLORS.textSecondary,
+              lineHeight: 1.5,
+            }}
+          >
+            {houseInterpretation.description}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default PlanetTooltip;
