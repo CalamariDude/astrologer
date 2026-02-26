@@ -2315,8 +2315,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
       {/* Tooltips — lazy-loaded on first interaction */}
       <React.Suspense fallback={null}>
-      {/* Planet Tooltip (on hover) */}
-      {state.hoveredPlanet && hoveredPlanetData && state.tooltipPosition && !state.selectedPlanet && (
+      {/* Planet Tooltip (on hover) — disabled on mobile */}
+      {state.hoveredPlanet && hoveredPlanetData && state.tooltipPosition && !state.selectedPlanet && window.innerWidth >= 500 && (
         <PlanetTooltip
           planet={state.hoveredPlanet.planet}
           chart={state.hoveredPlanet.chart}
@@ -2380,8 +2380,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         />
       )}
 
-      {/* Sign Tooltip (on hover) */}
-      {hoveredSign && signTooltipPos && !state.selectedSign && (
+      {/* Sign Tooltip (on hover) — disabled on mobile */}
+      {hoveredSign && signTooltipPos && !state.selectedSign && window.innerWidth >= 500 && (
         <SignTooltip
           sign={hoveredSign}
           position={signTooltipPos}
@@ -2399,8 +2399,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         />
       )}
 
-      {/* House Tooltip */}
-      {hoveredHouse && houseTooltipPos && (
+      {/* House Tooltip (on hover) — disabled on mobile */}
+      {hoveredHouse && houseTooltipPos && window.innerWidth >= 500 && (
         <HouseTooltip
           house={hoveredHouse.house}
           cusp={hoveredHouse.cusp}

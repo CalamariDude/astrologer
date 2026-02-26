@@ -584,20 +584,6 @@ export default function HomePage() {
         />
 
         <FeatureShowcase
-          tag="Interpretations"
-          headline={<>Tap any planet.<br className="hidden sm:block" /> Understand everything.</>}
-          body="Every planet, aspect, and house placement comes with detailed interpretations. Tap any symbol on the chart to see its meaning, aspects, and house placement — all in context."
-          reversed
-          wideVisual
-          visual={
-            <div className="relative group">
-              <div className="absolute -inset-10 bg-gradient-to-br from-amber-500/[0.07] to-rose-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
-              <img src="/tooltips.webp" alt="Planet interpretations and tooltips" loading="lazy" className="w-full h-auto relative drop-shadow-2xl rounded-2xl" />
-            </div>
-          }
-        />
-
-        <FeatureShowcase
           tag="Import"
           headline={<>Already use<br className="hidden sm:block" /> Astro.com?</>}
           body="Paste your profile data from Astro.com and we'll import all your saved charts instantly."
