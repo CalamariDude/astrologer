@@ -24,6 +24,7 @@ export default function PrivacyPage() {
             <p><strong>Account data:</strong> If you create an account, we store your email address and authentication credentials (managed by Supabase Auth).</p>
             <p><strong>Birth data:</strong> Date, time, and location of birth that you enter for chart calculations. This is stored locally in your browser (localStorage/sessionStorage) and, if you save a chart, in your account.</p>
             <p><strong>Usage data:</strong> We track AI reading and relocated chart credit usage counts to enforce tier limits. We do not store the content of AI readings on our servers.</p>
+            <p><strong>Product analytics:</strong> We collect anonymized product usage data (pages visited, features used, clicks, and session recordings) to understand how people use Astrologer and improve the experience. This data is tied to your account if you are signed in.</p>
             <p><strong>Subscription data:</strong> Payment processing is handled by Stripe. We store your subscription status but do not store credit card numbers.</p>
           </section>
 
@@ -33,6 +34,7 @@ export default function PrivacyPage() {
               <li>Calculate and display astrological charts</li>
               <li>Generate AI-powered chart interpretations (birth data is sent to our AI provider for the duration of the request only)</li>
               <li>Manage your subscription and enforce usage limits</li>
+              <li>Analyze product usage patterns to improve features and user experience</li>
               <li>Respond to support requests</li>
             </ul>
           </section>
@@ -46,6 +48,7 @@ export default function PrivacyPage() {
               <li><strong>xAI (Grok)</strong> — AI chart interpretations (birth data is sent per-request, not stored by the provider)</li>
               <li><strong>Mapbox</strong> — Astrocartography map tiles</li>
               <li><strong>Resend</strong> — Transactional emails (support tickets)</li>
+              <li><strong>PostHog</strong> — Product analytics and session replay (for improving the product)</li>
               <li><strong>Fly.io</strong> — Swiss Ephemeris API hosting</li>
             </ul>
           </section>
@@ -71,8 +74,8 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-foreground">9. Cookies</h2>
-            <p>We use essential cookies for authentication. We do not use advertising or tracking cookies.</p>
+            <h2 className="text-lg font-semibold text-foreground">9. Cookies &amp; Analytics</h2>
+            <p>We use essential cookies for authentication. We use PostHog for product analytics and session recordings to understand usage patterns and improve Astrologer. We do not use advertising cookies or sell your data to third parties.</p>
           </section>
 
           <section>

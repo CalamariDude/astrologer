@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@14.14.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
@@ -8,12 +7,38 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+function isTestModeFromHeaders(req: Request): boolean {
+  const origin = req.headers.get("origin") || "";
+  const referer = req.headers.get("referer") || "";
+  const testPatterns = ["localhost", "127.0.0.1", "192.168.", ".local", ":5173", ":3000"];
+  return testPatterns.some(p => origin.includes(p) || referer.includes(p));
+}
+
+// ── Lightweight Stripe helpers using fetch (no SDK → no Deno polyfill issues) ──
+
+async function stripePost(endpoint: string, body: Record<string, string>, apiKey: string) {
+  const res = await fetch(`https://api.stripe.com/v1/${endpoint}`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams(body).toString(),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.error?.message || `Stripe ${endpoint} failed: ${res.status}`);
+  }
+  return data;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
+    // Extract JWT token explicitly (more reliable than relying on global headers)
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "No auth header" }), {
@@ -22,19 +47,23 @@ serve(async (req) => {
       });
     }
 
+    const token = authHeader.replace("Bearer ", "");
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } }
     );
 
+    // Pass token explicitly to getUser for reliability
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      console.error("Auth error:", authError?.message, "token prefix:", token.slice(0, 20));
+      return new Response(JSON.stringify({ error: "Unauthorized", detail: authError?.message }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -42,51 +71,69 @@ serve(async (req) => {
 
     const { plan, success_url, cancel_url } = await req.json();
 
-    const stripe = new Stripe(Deno.env.get("COSMOSIS_STRIPE_SECRET_KEY")!, {
-      apiVersion: "2023-10-16",
-    });
+    // Detect test vs live mode from request origin
+    const useTestMode = isTestModeFromHeaders(req);
+    console.log(`Stripe checkout: user=${user.id}, plan=${plan}, mode=${useTestMode ? 'TEST' : 'LIVE'}`);
+
+    const stripeKey = useTestMode
+      ? Deno.env.get("COSMOSIS_STRIPE_SECRET_KEY_TEST")
+      : Deno.env.get("COSMOSIS_STRIPE_SECRET_KEY");
+
+    if (!stripeKey) {
+      throw new Error(`Missing Stripe secret key for ${useTestMode ? 'test' : 'live'} mode`);
+    }
 
     // Get or create Stripe customer
     const { data: profile } = await supabase
       .from("astrologer_profiles")
-      .select("stripe_customer_id, email")
+      .select("stripe_customer_id, stripe_customer_id_test, email")
       .eq("id", user.id)
       .single();
 
-    let customerId = profile?.stripe_customer_id;
+    // Use separate customer IDs for test vs live
+    let customerId = useTestMode
+      ? profile?.stripe_customer_id_test
+      : profile?.stripe_customer_id;
 
     if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email || profile?.email,
-        metadata: { supabase_user_id: user.id },
-      });
+      const customer = await stripePost("customers", {
+        email: user.email || profile?.email || "",
+        "metadata[supabase_user_id]": user.id,
+      }, stripeKey);
       customerId = customer.id;
 
+      const updateField = useTestMode ? "stripe_customer_id_test" : "stripe_customer_id";
       await supabase
         .from("astrologer_profiles")
-        .update({ stripe_customer_id: customerId })
+        .update({ [updateField]: customerId })
         .eq("id", user.id);
     }
 
-    // Select price based on plan
-    const priceId =
-      plan === "annual"
-        ? Deno.env.get("COSMOSIS_STRIPE_ANNUAL_PRICE_ID")!
-        : Deno.env.get("COSMOSIS_STRIPE_MONTHLY_PRICE_ID")!;
+    // Select price based on plan and mode
+    const priceId = useTestMode
+      ? (plan === "annual"
+          ? Deno.env.get("COSMOSIS_STRIPE_ANNUAL_PRICE_ID_TEST")
+          : Deno.env.get("COSMOSIS_STRIPE_MONTHLY_PRICE_ID_TEST"))
+      : (plan === "annual"
+          ? Deno.env.get("COSMOSIS_STRIPE_ANNUAL_PRICE_ID")
+          : Deno.env.get("COSMOSIS_STRIPE_MONTHLY_PRICE_ID"));
+
+    if (!priceId) {
+      throw new Error(`Missing price ID for ${plan} plan in ${useTestMode ? 'test' : 'live'} mode`);
+    }
 
     // Create checkout session with promo code support
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
+    const session = await stripePost("checkout/sessions", {
+      customer: customerId!,
       mode: "subscription",
-      line_items: [{ price: priceId, quantity: 1 }],
-      allow_promotion_codes: true,
-      subscription_data: {
-        metadata: { supabase_user_id: user.id },
-      },
+      "line_items[0][price]": priceId,
+      "line_items[0][quantity]": "1",
+      allow_promotion_codes: "true",
+      "subscription_data[metadata][supabase_user_id]": user.id,
       success_url: success_url || "https://astrologer.app/subscription/success",
       cancel_url: cancel_url || "https://astrologer.app",
-      metadata: { supabase_user_id: user.id },
-    });
+      "metadata[supabase_user_id]": user.id,
+    }, stripeKey);
 
     return new Response(
       JSON.stringify({ checkout_url: session.url }),

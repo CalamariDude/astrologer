@@ -25,6 +25,7 @@ export interface Planet3D {
   ringColor?: string;
   ringTilt?: number; // radians
   ringSize?: number; // multiplier of planet size for ring radius
+  isTransit?: boolean; // true for transit overlay planets
 }
 
 /** An aspect with 3D endpoint positions and energy parameters */

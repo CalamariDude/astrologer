@@ -137,45 +137,68 @@ export async function emailChart(params: {
   title: string;
   message?: string;
   chartDetails?: string;
+  notes?: string[];
+  chartUrl?: string;
 }): Promise<void> {
-  const { container, to, title, message, chartDetails } = params;
+  const { container, to, title, message, chartDetails, notes, chartUrl } = params;
 
-  // Capture chart as base64
-  const chartBase64 = await captureChartAsBase64(container, 2);
+  // Capture chart as base64 (1x scale to keep email size reasonable)
+  const chartBase64 = await captureChartAsBase64(container, 1);
+  const chartDataUri = `data:image/png;base64,${chartBase64}`;
 
-  // Build HTML email
+  const ctaHref = chartUrl || 'https://astrologer.app';
+  const ctaText = chartUrl ? 'View Chart' : 'Create Your Chart';
+
+  // Build HTML email with inline base64 image
   const html = `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
-<body style="margin:0;padding:0;background:#0a0a0a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;">
-    <tr><td align="center" style="padding:40px 20px;">
-      <table width="600" cellpadding="0" cellspacing="0" style="background:#171717;border-radius:16px;overflow:hidden;">
+<body style="margin:0;padding:0;background:#09090b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#09090b;">
+    <tr><td align="center" style="padding:32px 16px;">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#18181b;border-radius:20px;overflow:hidden;border:1px solid #27272a;">
+        <!-- Logo / Brand -->
+        <tr><td style="padding:28px 32px 0;text-align:center;">
+          <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:#6366f1;font-weight:600;">Astrologer</span>
+        </td></tr>
         <!-- Header -->
-        <tr><td style="padding:32px 32px 16px;text-align:center;">
-          <h1 style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.02em;">${escapeHtml(title)}</h1>
-          ${chartDetails ? `<p style="margin:8px 0 0;font-size:13px;color:#a1a1aa;">${escapeHtml(chartDetails)}</p>` : ''}
+        <tr><td style="padding:16px 32px 8px;text-align:center;">
+          <h1 style="margin:0;font-size:24px;font-weight:700;color:#fafafa;letter-spacing:-0.03em;">${escapeHtml(title)}</h1>
+          ${chartDetails ? `<p style="margin:8px 0 0;font-size:13px;color:#71717a;font-weight:500;">${escapeHtml(chartDetails)}</p>` : ''}
+        </td></tr>
+        <!-- Divider -->
+        <tr><td style="padding:12px 32px 0;">
+          <div style="height:1px;background:linear-gradient(90deg,transparent,#3f3f46,transparent);"></div>
         </td></tr>
         ${message ? `
         <!-- Message -->
-        <tr><td style="padding:0 32px 16px;">
-          <div style="background:#262626;border-radius:12px;padding:16px;font-size:14px;color:#d4d4d8;line-height:1.5;">
-            ${escapeHtml(message)}
+        <tr><td style="padding:16px 32px;">
+          <div style="background:#1e1e22;border:1px solid #27272a;border-radius:12px;padding:16px 20px;font-size:14px;color:#d4d4d8;line-height:1.6;font-style:italic;">
+            &ldquo;${escapeHtml(message)}&rdquo;
           </div>
         </td></tr>
         ` : ''}
-        <!-- Chart Image -->
-        <tr><td style="padding:0 24px 24px;">
-          <img src="cid:chart-image" alt="Astrology Chart" style="width:100%;border-radius:12px;display:block;" />
+        <!-- Chart Image (inline base64) -->
+        <tr><td style="padding:16px 20px 20px;">
+          <div style="border-radius:16px;overflow:hidden;border:1px solid #27272a;">
+            <img src="${chartDataUri}" alt="Astrology Chart" style="width:100%;display:block;" />
+          </div>
         </td></tr>
+        ${notes && notes.length > 0 ? `
+        <!-- Notes -->
+        <tr><td style="padding:0 32px 20px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#52525b;font-weight:600;margin-bottom:12px;">Chart Notes</div>
+          ${notes.map(n => `<div style="background:#1e1e22;border:1px solid #27272a;border-radius:12px;padding:14px 18px;margin-bottom:8px;font-size:13px;color:#a1a1aa;line-height:1.7;border-left:3px solid #6366f1;">${escapeHtml(n)}</div>`).join('')}
+        </td></tr>
+        ` : ''}
         <!-- CTA -->
-        <tr><td style="padding:0 32px 32px;text-align:center;">
-          <a href="https://astrologer.app" style="display:inline-block;padding:12px 32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;text-decoration:none;border-radius:10px;font-size:14px;font-weight:600;">Create Your Chart</a>
+        <tr><td style="padding:4px 32px 28px;text-align:center;">
+          <a href="${ctaHref}" style="display:inline-block;padding:14px 40px;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 50%,#a78bfa 100%);color:#fff;text-decoration:none;border-radius:12px;font-size:15px;font-weight:600;letter-spacing:-0.01em;box-shadow:0 4px 14px rgba(99,102,241,0.4);">${ctaText}</a>
         </td></tr>
         <!-- Footer -->
-        <tr><td style="padding:16px 32px 24px;border-top:1px solid #262626;text-align:center;">
-          <p style="margin:0;font-size:11px;color:#525252;">Sent from <a href="https://astrologer.app" style="color:#6366f1;text-decoration:none;">Astrologer</a></p>
+        <tr><td style="padding:20px 32px;border-top:1px solid #27272a;text-align:center;">
+          <p style="margin:0;font-size:11px;color:#3f3f46;">Sent from <a href="https://astrologer.app" style="color:#6366f1;text-decoration:none;font-weight:500;">Astrologer</a></p>
         </td></tr>
       </table>
     </td></tr>
@@ -183,20 +206,12 @@ export async function emailChart(params: {
 </body>
 </html>`.trim();
 
-  const { data, error } = await supabase.functions.invoke('send-email', {
+  const { data, error } = await supabase.functions.invoke('astrologer-send-email', {
     body: {
       to,
       subject: `${title} — Astrologer Chart`,
       html,
-      from: 'Astrologer <charts@astrologyapp.org>',
-      skipDeletedCheck: true,
-      attachments: [
-        {
-          filename: 'chart.png',
-          content: chartBase64,
-          content_type: 'image/png',
-        },
-      ],
+      from: 'Astrologer <charts@astrologerapp.org>',
     },
   });
 

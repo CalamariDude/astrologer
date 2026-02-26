@@ -35,17 +35,33 @@ function formatOrb(orb: number): string {
   return `${deg}\u00B0${min.toString().padStart(2, '0')}'`;
 }
 
+/** Nature accent colors for event rows */
+const NATURE_ACCENT: Record<string, { border: string; bg: string; text: string }> = {
+  harmonious:  { border: '#3b82f6', bg: 'rgba(59, 130, 246, 0.06)', text: '#60a5fa' },
+  challenging: { border: '#ef4444', bg: 'rgba(239, 68, 68, 0.06)',  text: '#f87171' },
+  neutral:     { border: '#f59e0b', bg: 'rgba(245, 158, 11, 0.06)', text: '#fbbf24' },
+};
+
 function EventRow({ event }: { event: TransitEvent }) {
   const transitSymbol = PLANET_SYMBOLS[event.transitPlanet] || event.transitPlanet;
   const natalSymbol = PLANET_SYMBOLS[event.natalPlanet] || event.natalPlanet;
-  const natureColor = event.aspectNature === 'harmonious' ? 'blue' : event.aspectNature === 'challenging' ? 'red' : 'amber';
+  const accent = NATURE_ACCENT[event.aspectNature] || NATURE_ACCENT.neutral;
+  const strengthPct = Math.max(5, Math.round((1 - event.exactOrb / 10) * 100));
 
   return (
-    <div className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
-      event.isActive
-        ? 'bg-gradient-to-r from-primary/8 to-transparent ring-1 ring-primary/20 shadow-sm'
-        : 'bg-card/50 border border-border/30 hover:bg-muted/30'
-    }`}>
+    <div
+      className={`relative flex items-center gap-3 p-3 rounded-xl transition-all overflow-hidden ${
+        event.isActive
+          ? 'ring-1 shadow-md'
+          : 'border border-border/40 hover:border-border/60 hover:shadow-sm'
+      }`}
+      style={{
+        borderLeft: `3px solid ${accent.border}`,
+        backgroundColor: event.isActive ? accent.bg : undefined,
+        ringColor: event.isActive ? accent.border + '30' : undefined,
+        boxShadow: event.isActive ? `0 0 16px ${accent.border}10, 0 1px 3px rgba(0,0,0,0.08)` : undefined,
+      }}
+    >
       {/* Planet aspect display */}
       <div className="flex items-center gap-1 min-w-[70px]">
         <span className="text-xl" title={event.transitPlanet}>{transitSymbol}</span>
@@ -58,7 +74,7 @@ function EventRow({ event }: { event: TransitEvent }) {
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">{event.transitPlanet} {event.aspectType} {event.natalPlanet}</span>
           {event.isActive && (
-            <Badge className="text-[9px] px-1.5 h-4 bg-primary/90 gap-0.5">
+            <Badge className="text-[9px] px-1.5 h-4 gap-0.5 border-0" style={{ backgroundColor: accent.border, color: '#fff' }}>
               <Zap className="w-2 h-2" />Active
             </Badge>
           )}
@@ -74,8 +90,16 @@ function EventRow({ event }: { event: TransitEvent }) {
         </div>
       </div>
 
-      {/* Orb */}
-      <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap">{formatOrb(event.exactOrb)}</span>
+      {/* Orb + strength bar */}
+      <div className="flex flex-col items-end gap-1 min-w-[52px]">
+        <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap">{formatOrb(event.exactOrb)}</span>
+        <div className="w-10 h-1.5 rounded-full bg-muted/40 overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${strengthPct}%`, backgroundColor: accent.border, opacity: 0.6 }}
+          />
+        </div>
+      </div>
     </div>
   );
 }

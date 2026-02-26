@@ -35,10 +35,10 @@ function Section({
     <div className="space-y-1">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors w-full"
+        className="flex items-center gap-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors w-full"
       >
         {title}
-        {open ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
       </button>
       {open && <div className="space-y-1.5">{children}</div>}
     </div>
@@ -49,8 +49,8 @@ function Section({
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-muted/30 rounded px-2 py-1">
-      <span className="text-muted-foreground block text-[9px]">{label}</span>
-      <span className="font-medium text-[10px] leading-tight block">{value}</span>
+      <span className="text-muted-foreground block text-[11px]">{label}</span>
+      <span className="font-medium text-xs leading-tight block">{value}</span>
     </div>
   );
 }
@@ -115,7 +115,7 @@ export function PlanetInfoPanel({ planet, aspects, onClose }: PlanetInfoPanelPro
                 <h3 className="font-semibold text-sm">{planet.name}</h3>
                 {planet.retrograde && (
                   <span
-                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
                     style={{
                       background: '#c41e3a20',
                       color: '#c41e3a',
@@ -126,7 +126,7 @@ export function PlanetInfoPanel({ planet, aspects, onClose }: PlanetInfoPanelPro
                   </span>
                 )}
                 {nasaData?.classification && (
-                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted/50 text-muted-foreground">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted/50 text-muted-foreground">
                     {nasaData.classification}
                   </span>
                 )}
@@ -148,16 +148,16 @@ export function PlanetInfoPanel({ planet, aspects, onClose }: PlanetInfoPanelPro
         <div className="grid grid-cols-3 gap-2 text-xs">
           {planet.house && (
             <div className="bg-muted/50 rounded-lg p-2 text-center">
-              <span className="text-muted-foreground block text-[10px]">House</span>
+              <span className="text-muted-foreground block text-[11px]">House</span>
               <p className="font-medium">{planet.house}</p>
             </div>
           )}
           <div className="bg-muted/50 rounded-lg p-2 text-center">
-            <span className="text-muted-foreground block text-[10px]">Spark</span>
+            <span className="text-muted-foreground block text-[11px]">Spark</span>
             <p className="font-medium">{spark.sparkSymbol} {spark.sparkSign}</p>
           </div>
           <div className="bg-muted/50 rounded-lg p-2 text-center">
-            <span className="text-muted-foreground block text-[10px]">Category</span>
+            <span className="text-muted-foreground block text-[11px]">Category</span>
             <p className="font-medium capitalize">{planet.category}</p>
           </div>
         </div>
@@ -165,7 +165,7 @@ export function PlanetInfoPanel({ planet, aspects, onClose }: PlanetInfoPanelPro
         {/* ── Retrograde notice ── */}
         {planet.retrograde && (
           <div
-            className="text-[10px] rounded-lg px-2.5 py-1.5 border"
+            className="text-xs rounded-lg px-2.5 py-1.5 border"
             style={{ borderColor: '#c41e3a30', background: '#c41e3a08' }}
           >
             <span style={{ color: '#c41e3a' }} className="font-semibold">Retrograde: </span>
@@ -177,7 +177,7 @@ export function PlanetInfoPanel({ planet, aspects, onClose }: PlanetInfoPanelPro
 
         {/* ── Description ── */}
         {nasaData && (
-          <p className="text-xs text-muted-foreground leading-relaxed">
+          <p className="text-sm text-muted-foreground leading-relaxed">
             {nasaData.description}
           </p>
         )}
@@ -213,13 +213,13 @@ export function PlanetInfoPanel({ planet, aspects, onClose }: PlanetInfoPanelPro
         {hasAtmosphere && (
           <Section title="Atmosphere & Composition" defaultOpen={false}>
             {nasaData.atmosphere && (
-              <div className="text-[10px] text-muted-foreground leading-relaxed">
+              <div className="text-xs text-muted-foreground leading-relaxed">
                 <span className="font-semibold text-foreground/70">Atmosphere: </span>
                 {nasaData.atmosphere}
               </div>
             )}
             {nasaData.composition && (
-              <div className="text-[10px] text-muted-foreground leading-relaxed">
+              <div className="text-xs text-muted-foreground leading-relaxed">
                 <span className="font-semibold text-foreground/70">Composition: </span>
                 {nasaData.composition}
               </div>
@@ -231,19 +231,19 @@ export function PlanetInfoPanel({ planet, aspects, onClose }: PlanetInfoPanelPro
         {hasFeatures && (
           <Section title="Key Features" defaultOpen={false}>
             {nasaData.surfaceFeatures && (
-              <div className="text-[10px] text-muted-foreground leading-relaxed">
+              <div className="text-xs text-muted-foreground leading-relaxed">
                 <span className="font-semibold text-foreground/70">Surface: </span>
                 {nasaData.surfaceFeatures}
               </div>
             )}
             {nasaData.magneticField && (
-              <div className="text-[10px] text-muted-foreground leading-relaxed">
+              <div className="text-xs text-muted-foreground leading-relaxed">
                 <span className="font-semibold text-foreground/70">Magnetic Field: </span>
                 {nasaData.magneticField}
               </div>
             )}
             {nasaData.rings && (
-              <div className="text-[10px] text-muted-foreground leading-relaxed">
+              <div className="text-xs text-muted-foreground leading-relaxed">
                 <span className="font-semibold text-foreground/70">Rings: </span>
                 {nasaData.rings}
               </div>
@@ -255,13 +255,13 @@ export function PlanetInfoPanel({ planet, aspects, onClose }: PlanetInfoPanelPro
         {hasExploration && (
           <Section title="Exploration" defaultOpen={false}>
             {nasaData.discoverer && (
-              <div className="text-[10px] text-muted-foreground">
+              <div className="text-xs text-muted-foreground">
                 <span className="font-semibold text-foreground/70">Discovered: </span>
                 {nasaData.discoverer}
               </div>
             )}
             {nasaData.missions && nasaData.missions.length > 0 && (
-              <div className="text-[10px] text-muted-foreground">
+              <div className="text-xs text-muted-foreground">
                 <span className="font-semibold text-foreground/70 block mb-0.5">Missions:</span>
                 <ul className="space-y-0.5 ml-2">
                   {nasaData.missions.map((m, i) => (
@@ -279,7 +279,7 @@ export function PlanetInfoPanel({ planet, aspects, onClose }: PlanetInfoPanelPro
         {/* ── Mythology ── */}
         {nasaData?.mythology && (
           <Section title="Mythology" defaultOpen={false}>
-            <div className="text-[10px] text-muted-foreground leading-relaxed italic">
+            <div className="text-xs text-muted-foreground leading-relaxed italic">
               {nasaData.mythology}
             </div>
           </Section>
@@ -291,7 +291,7 @@ export function PlanetInfoPanel({ planet, aspects, onClose }: PlanetInfoPanelPro
             <div className="space-y-1.5">
               {nasaData.funFact && (
                 <div
-                  className="text-[10px] rounded-lg px-2.5 py-1.5 border"
+                  className="text-xs rounded-lg px-2.5 py-1.5 border"
                   style={{ borderColor: `${realColor}30`, background: `${realColor}08` }}
                 >
                   <span className="text-muted-foreground">{nasaData.funFact}</span>
@@ -300,7 +300,7 @@ export function PlanetInfoPanel({ planet, aspects, onClose }: PlanetInfoPanelPro
               {nasaData.additionalFacts?.map((fact, i) => (
                 <div
                   key={i}
-                  className="text-[10px] rounded-lg px-2.5 py-1.5 border"
+                  className="text-xs rounded-lg px-2.5 py-1.5 border"
                   style={{ borderColor: `${realColor}15`, background: `${realColor}05` }}
                 >
                   <span className="text-muted-foreground">{fact}</span>
@@ -313,7 +313,7 @@ export function PlanetInfoPanel({ planet, aspects, onClose }: PlanetInfoPanelPro
         {/* ── Astrological Meaning (from biwheel asteroid definitions) ── */}
         {asteroidData?.description && (
           <Section title="Astrological Meaning" defaultOpen={false}>
-            <p className="text-[10px] text-muted-foreground leading-relaxed">
+            <p className="text-xs text-muted-foreground leading-relaxed">
               {asteroidData.description}
             </p>
           </Section>
@@ -324,10 +324,10 @@ export function PlanetInfoPanel({ planet, aspects, onClose }: PlanetInfoPanelPro
           <div className="space-y-1.5">
             <button
               onClick={() => setShowAspects((v) => !v)}
-              className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors w-full"
+              className="flex items-center gap-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors w-full"
             >
               Aspects ({relatedAspects.length})
-              {showAspects ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              {showAspects ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
             {showAspects && (
               <div className="space-y-1">
@@ -339,7 +339,7 @@ export function PlanetInfoPanel({ planet, aspects, onClose }: PlanetInfoPanelPro
                   return (
                     <div
                       key={asp.id}
-                      className="flex items-center gap-2 text-xs p-1.5 rounded-md hover:bg-muted/50 transition-colors"
+                      className="flex items-center gap-2 text-sm p-1.5 rounded-md hover:bg-muted/50 transition-colors"
                     >
                       <div
                         className="w-1 h-6 rounded-full"

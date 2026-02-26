@@ -5,7 +5,7 @@ import { useAuth } from './AuthContext';
 type SubStatus = 'free' | 'trialing' | 'active' | 'past_due' | 'canceled';
 
 const FREE_AI_LIMIT = 3;
-const PAID_AI_LIMIT = 1000;
+const PAID_AI_LIMIT = 300;
 const FREE_RELOCATED_LIMIT = 3;
 
 function getMonthStart(): Date {
@@ -194,7 +194,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     const { data, error } = await supabase.functions.invoke('astrologer-stripe-checkout', {
       body: {
         plan: selectedPlan,
-        success_url: `${window.location.origin}/subscription/success`,
+        success_url: `${window.location.origin}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: window.location.href,
       },
     });

@@ -359,28 +359,24 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
 
 
       {/* B's house cusp lines and numbers (inner ring) */}
-      {showHouses && innerHouseCusps.map((cusp, index) => {
+      {innerHouseCusps.map((cusp, index) => {
         const isAngular = cusp.house === 1 || cusp.house === 4 || cusp.house === 7 || cusp.house === 10;
-        // Get next cusp for arc
-        const nextIndex = (index + 1) % innerHouseCusps.length;
-        const nextCusp = innerHouseCusps[nextIndex];
-        const arcPath = houseRingOuter && houseRingInner && nextCusp
-          ? createHouseArcPath(cx, cy, houseRingInner, houseRingOuter, cusp.cusp, nextCusp.cusp)
-          : '';
 
         return (
           <g key={`B-house-${cusp.house}`}>
-            {/* Cusp divider line */}
-            <line
-              x1={cusp.innerPoint.x}
-              y1={cusp.innerPoint.y}
-              x2={cusp.outerPoint.x}
-              y2={cusp.outerPoint.y}
-              stroke={colorB}
-              strokeWidth={isAngular ? 2.5 : 1.5}
-              strokeOpacity={1}
-            />
-            {/* House number with hover area */}
+            {/* Cusp divider line — only when showHouses is on */}
+            {showHouses && (
+              <line
+                x1={cusp.innerPoint.x}
+                y1={cusp.innerPoint.y}
+                x2={cusp.outerPoint.x}
+                y2={cusp.outerPoint.y}
+                stroke={colorB}
+                strokeWidth={isAngular ? 2.5 : 1.5}
+                strokeOpacity={1}
+              />
+            )}
+            {/* House number with hover area — always visible */}
             {cusp.houseNumberPos && (
               <g
                 style={{ cursor: 'pointer' }}
@@ -439,28 +435,24 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
       )}
 
       {/* A's house cusp lines and numbers (outer ring) - hidden in single-wheel mode */}
-      {showHouses && !hideOuterHouseRing && outerHouseCusps.map((cusp, index) => {
+      {!hideOuterHouseRing && outerHouseCusps.map((cusp, index) => {
         const isAngular = cusp.house === 1 || cusp.house === 4 || cusp.house === 7 || cusp.house === 10;
-        // Get next cusp for arc
-        const nextIndex = (index + 1) % outerHouseCusps.length;
-        const nextCusp = outerHouseCusps[nextIndex];
-        const arcPath = outerHouseRingOuter && outerHouseRingInner && nextCusp
-          ? createHouseArcPath(cx, cy, outerHouseRingInner, outerHouseRingOuter, cusp.cusp, nextCusp.cusp)
-          : '';
 
         return (
           <g key={`A-house-${cusp.house}`}>
-            {/* Cusp divider line */}
-            <line
-              x1={cusp.innerPoint.x}
-              y1={cusp.innerPoint.y}
-              x2={cusp.outerPoint.x}
-              y2={cusp.outerPoint.y}
-              stroke={colorA}
-              strokeWidth={isAngular ? 2 : 1}
-              strokeOpacity={isAngular ? 0.8 : 0.5}
-            />
-            {/* House number with hover area */}
+            {/* Cusp divider line — only when showHouses is on */}
+            {showHouses && (
+              <line
+                x1={cusp.innerPoint.x}
+                y1={cusp.innerPoint.y}
+                x2={cusp.outerPoint.x}
+                y2={cusp.outerPoint.y}
+                stroke={colorA}
+                strokeWidth={isAngular ? 2 : 1}
+                strokeOpacity={isAngular ? 0.8 : 0.5}
+              />
+            )}
+            {/* House number with hover area — always visible */}
             {cusp.houseNumberPos && (
               <g
                 style={{ cursor: 'pointer' }}
@@ -496,7 +488,7 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
       })}
 
       {/* Angle labels for A (outer) - hidden in single-wheel mode */}
-      {showHouses && !hideOuterHouseRing && chart.angles && outerHouseRingInner && (
+      {!hideOuterHouseRing && chart.angles && outerHouseRingInner && (
         <>
           {['AC', 'DC', 'MC', 'IC'].map((label) => {
             const angle = label === 'AC' ? chart.angles!.ascendant :
@@ -523,7 +515,7 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
       )}
 
       {/* Angle labels for B (inner) */}
-      {showHouses && chartB?.angles && houseRingOuter && (
+      {chartB?.angles && houseRingOuter && (
         <>
           {['AC', 'DC', 'MC', 'IC'].map((label) => {
             const angle = label === 'AC' ? chartB.angles!.ascendant :

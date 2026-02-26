@@ -11,7 +11,7 @@ import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import {
   Loader2, RotateCw, Home, Maximize2, Minimize2,
   Play, Pause, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  RotateCcw, Settings, ChevronDown, ChevronUp, X,
+  RotateCcw, Settings, ChevronDown, ChevronUp, X, Clock, CalendarDays,
 } from 'lucide-react';
 import { GalacticScene } from './GalacticScene';
 import { PlanetInfoPanel } from './PlanetInfoPanel';
@@ -229,6 +229,7 @@ function TransitControls({
   onTogglePlay,
   onSetSpeed,
   onReset,
+  onJumpToToday,
 }: {
   dayOffset: number;
   isPlaying: boolean;
@@ -238,6 +239,7 @@ function TransitControls({
   onTogglePlay: () => void;
   onSetSpeed: (speed: number) => void;
   onReset: () => void;
+  onJumpToToday: () => void;
 }) {
   const dateLabel = useMemo(() => {
     if (dayOffset === 0) return 'Natal';
@@ -267,7 +269,7 @@ function TransitControls({
       <button
         onClick={onTogglePlay}
         className={`p-1.5 rounded-md transition-colors ${
-          isPlaying ? 'bg-indigo-500/40 text-indigo-300' : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/90'
+          isPlaying ? 'bg-amber-500/40 text-amber-300' : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/90'
         }`}
         title={isPlaying ? 'Pause' : 'Play'}
       >
@@ -284,7 +286,7 @@ function TransitControls({
       <div className="h-4 w-px bg-white/10 mx-0.5" />
 
       <span className={`text-[11px] min-w-[70px] text-center font-mono ${
-        dayOffset === 0 ? 'text-white/50' : 'text-indigo-300'
+        dayOffset === 0 ? 'text-white/50' : 'text-amber-300'
       }`}>
         {dateLabel}
       </span>
@@ -303,8 +305,17 @@ function TransitControls({
         <option value={365}>1yr/s</option>
       </select>
 
+      <button
+        onClick={onJumpToToday}
+        className={`${btnClass} text-[10px] px-1.5 flex items-center gap-1`}
+        title="Jump to today"
+      >
+        <CalendarDays className="w-3 h-3" />
+        <span>Today</span>
+      </button>
+
       {dayOffset !== 0 && (
-        <button onClick={onReset} className={btnClass} title="Reset to natal">
+        <button onClick={onReset} className={btnClass} title="Reset to natal date">
           <RotateCcw className="w-3 h-3" />
         </button>
       )}
@@ -320,6 +331,8 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
   const [selectedPlanet, setSelectedPlanet] = useState<string | null>(null);
   const [autoRotate, setAutoRotate] = useState(true);
   const [showAspects, setShowAspects] = useState(true);
+  const [showNatalAspects, setShowNatalAspects] = useState(true);
+  const [showTransitAspects, setShowTransitAspects] = useState(true);
   const [showHouses, setShowHouses] = useState(true);
   const [showOrbits, setShowOrbits] = useState(true);
   const [showZodiac, setShowZodiac] = useState(true);
@@ -334,6 +347,7 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Transit state
+  const [transitEnabled, setTransitEnabled] = useState(false);
   const [transitDayOffset, setTransitDayOffset] = useState(0);
   const [transitPlaying, setTransitPlaying] = useState(false);
   const [transitSpeed, setTransitSpeed] = useState(1);
@@ -365,7 +379,7 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
   // Local aspect visibility
   const [localVisibleAspects, setLocalVisibleAspects] = useState<Set<string>>(() => {
     const base = visibleAspects ? new Set(visibleAspects) : new Set<string>();
-    for (const a of ['conjunction', 'sextile', 'square', 'trine', 'opposition']) {
+    for (const a of ['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare']) {
       base.add(a);
     }
     return base;
@@ -381,18 +395,20 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
   useEffect(() => {
     if (visibleAspects) {
       const base = new Set(visibleAspects);
-      for (const a of ['conjunction', 'sextile', 'square', 'trine', 'opposition']) {
+      for (const a of ['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare']) {
         base.add(a);
       }
       setLocalVisibleAspects(base);
     }
   }, [visibleAspects]);
 
-  const { planets3D, aspects } = useGalacticChart(chart, localVisiblePlanets, localVisibleAspects, transitDayOffset);
+  const { planets3D, aspects, transitPlanets3D, transitAspects } = useGalacticChart(chart, localVisiblePlanets, localVisibleAspects, transitDayOffset, transitEnabled);
+  const allPlanets3D = useMemo(() => [...planets3D, ...transitPlanets3D], [planets3D, transitPlanets3D]);
   const aspects3D = useAspectEnergy(aspects, planets3D);
+  const transitAspects3D = useAspectEnergy(transitAspects, allPlanets3D);
 
   const selectedPlanetData = selectedPlanet
-    ? planets3D.find((p) => p.key === selectedPlanet) ?? null
+    ? allPlanets3D.find((p) => p.key === selectedPlanet) ?? null
     : null;
 
   // Transit animation loop
@@ -511,6 +527,28 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
     }
   }, [enabledAsteroidGroups, chart.planets, onFetchAsteroidData]);
 
+  /** Compute days from birth to today */
+  const daysToToday = useMemo(() => {
+    if (!birthDate) return 0;
+    const birth = new Date(birthDate);
+    const now = new Date();
+    return Math.round((now.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24));
+  }, [birthDate]);
+
+  const handleToggleTransit = useCallback(() => {
+    setTransitEnabled(prev => {
+      if (!prev) {
+        // When enabling transits, jump to today
+        setTransitDayOffset(daysToToday || 365);
+      } else {
+        // When disabling, stop playing and reset
+        setTransitPlaying(false);
+        setTransitDayOffset(0);
+      }
+      return !prev;
+    });
+  }, [daysToToday]);
+
   const handleTransitStep = useCallback((days: number) => {
     setTransitDayOffset(prev => prev + days);
   }, []);
@@ -519,6 +557,11 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
     setTransitDayOffset(0);
     setTransitPlaying(false);
   }, []);
+
+  const handleJumpToToday = useCallback(() => {
+    setTransitDayOffset(daysToToday || 365);
+    setTransitPlaying(false);
+  }, [daysToToday]);
 
   const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
@@ -626,24 +669,39 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
             autoRotate={autoRotate}
             onInteractionStart={handleInteractionStart}
             showAspects={showAspects}
+            showNatalAspects={showNatalAspects}
+            showTransitAspects={showTransitAspects}
             showHouses={showHouses}
             showOrbits={showOrbits}
             showZodiac={showZodiac}
             activePreset={activePreset}
             transitDayOffset={transitDayOffset}
+            transitEnabled={transitEnabled}
           />
           <GalacticEffects />
         </Canvas>
       </Suspense>
 
-      {/* Top-left: title */}
-      <div className="absolute top-3 left-3 z-10">
+      {/* Top-left: title + transit toggle */}
+      <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
         <div className="flex items-center gap-2 bg-black/50 backdrop-blur-sm rounded-lg px-3 py-1.5">
-          <div className={`w-2 h-2 rounded-full ${transitDayOffset !== 0 ? 'bg-amber-400' : 'bg-indigo-400'} animate-pulse`} />
+          <div className={`w-2 h-2 rounded-full ${transitEnabled ? 'bg-amber-400' : 'bg-indigo-400'} animate-pulse`} />
           <span className="text-xs font-medium text-white/80">
-            {name} · {transitDayOffset !== 0 ? 'Transit' : 'Galactic View'}
+            {name} · {transitEnabled ? 'Transits' : 'Galactic View'}
           </span>
         </div>
+        <button
+          onClick={handleToggleTransit}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg backdrop-blur-sm text-xs font-medium transition-all ${
+            transitEnabled
+              ? 'bg-amber-500/30 text-amber-300 border border-amber-500/30'
+              : 'bg-black/50 text-white/50 hover:text-white/80 hover:bg-black/70'
+          }`}
+          title={transitEnabled ? 'Disable transits' : 'Enable transits'}
+        >
+          <Clock className="w-3.5 h-3.5" />
+          <span>Transits</span>
+        </button>
       </div>
 
       {/* Top-right: settings toggle + quick buttons */}
@@ -704,10 +762,25 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
             {/* ── Display ── */}
             <PanelSection title="Display" defaultOpen={true}>
               <ToggleRow label="Aspect Lines" checked={showAspects} onChange={setShowAspects} color="#818cf8" />
+              {showAspects && (
+                <div className="ml-4 space-y-0">
+                  <ToggleRow label="Natal Aspects" checked={showNatalAspects} onChange={setShowNatalAspects} color="#818cf8" />
+                  {transitEnabled && (
+                    <ToggleRow label="Transit → Natal" checked={showTransitAspects} onChange={setShowTransitAspects} color="#f59e0b" />
+                  )}
+                </div>
+              )}
               <ToggleRow label="Houses" checked={showHouses} onChange={setShowHouses} color="#818cf8" />
               <ToggleRow label="Orbit Paths" checked={showOrbits} onChange={setShowOrbits} color="#818cf8" />
               <ToggleRow label="Zodiac Ring" checked={showZodiac} onChange={setShowZodiac} color="#818cf8" />
               <ToggleRow label="Auto-Rotate" checked={autoRotate} onChange={setAutoRotate} color="#818cf8" />
+              <ToggleRow
+                label={`Transits${transitEnabled ? ` (${transitPlanets3D.length})` : ''}`}
+                checked={transitEnabled}
+                onChange={() => handleToggleTransit()}
+                color="#f59e0b"
+                symbol="T"
+              />
             </PanelSection>
 
             <div className="border-t border-white/5" />
@@ -863,19 +936,22 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
         </div>
       )}
 
-      {/* Bottom: Transit controls + camera presets */}
+      {/* Bottom: Transit controls (when enabled) + camera presets */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
-        {/* Transit time slider */}
-        <TransitControls
-          dayOffset={transitDayOffset}
-          isPlaying={transitPlaying}
-          speed={transitSpeed}
-          birthDate={birthDate}
-          onStep={handleTransitStep}
-          onTogglePlay={() => setTransitPlaying(v => !v)}
-          onSetSpeed={setTransitSpeed}
-          onReset={handleTransitReset}
-        />
+        {/* Transit time controls — only when transit mode is active */}
+        {transitEnabled && (
+          <TransitControls
+            dayOffset={transitDayOffset}
+            isPlaying={transitPlaying}
+            speed={transitSpeed}
+            birthDate={birthDate}
+            onStep={handleTransitStep}
+            onTogglePlay={() => setTransitPlaying(v => !v)}
+            onSetSpeed={setTransitSpeed}
+            onReset={handleTransitReset}
+            onJumpToToday={handleJumpToToday}
+          />
+        )}
 
         {/* Camera presets */}
         <div className="flex items-center gap-1">
@@ -900,7 +976,7 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
       {selectedPlanetData && (
         <PlanetInfoPanel
           planet={selectedPlanetData}
-          aspects={aspects3D}
+          aspects={[...aspects3D, ...transitAspects3D]}
           onClose={() => setSelectedPlanet(null)}
         />
       )}

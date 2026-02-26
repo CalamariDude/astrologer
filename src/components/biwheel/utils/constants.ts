@@ -291,7 +291,7 @@ export const ASPECTS = {
     orb: 3,
     color: '#228b22', // green
     nature: 'challenging',
-    major: false,
+    major: true,
   },
   semisextile: {
     name: 'Semi-sextile',
@@ -300,7 +300,7 @@ export const ASPECTS = {
     orb: 2,
     color: '#228b22', // green
     nature: 'neutral',
-    major: false,
+    major: true,
   },
   semisquare: {
     name: 'Semi-square',
@@ -309,7 +309,7 @@ export const ASPECTS = {
     orb: 2,
     color: '#c41e3a', // red
     nature: 'challenging',
-    major: false,
+    major: true,
   },
   sesquiquadrate: {
     name: 'Sesquiquadrate',

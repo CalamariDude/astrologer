@@ -2,14 +2,17 @@
  * useGalacticChart
  * Transforms natal chart data into 3D positions.
  * Each planet orbits at its own realistic radius with elliptical orbits.
- * Supports transit offset for time-travel animation.
+ *
+ * Transit mode: natal planets stay FIXED at birth positions.
+ * Transit planets are computed separately on outer orbits using mean daily motion.
+ * Transit-to-natal aspects are computed via synastry calculation.
  */
 
 import { useMemo } from 'react';
 import * as THREE from 'three';
 import { PLANETS, ZODIAC_SIGNS, getPlanetOrb, ASTEROIDS, ARABIC_PARTS, ARABIC_PART_KEYS } from '../../biwheel/utils/constants';
-import { calculateNatalAspects, type SynastryAspect } from '../../biwheel/utils/aspectCalculations';
-import { LAYOUT, SIGN_COLORS_3D, PLANET_RINGS, PLANET_ORBIT_RADII, DEFAULT_ORBIT_RADIUS, ASTEROID_ORBIT_ZONES, PLANET_ORBITAL_ELEMENTS } from '../constants';
+import { calculateNatalAspects, calculateSynastryAspects, type SynastryAspect } from '../../biwheel/utils/aspectCalculations';
+import { LAYOUT, SIGN_COLORS_3D, PLANET_RINGS, PLANET_ORBIT_RADII, DEFAULT_ORBIT_RADIUS, ASTEROID_ORBIT_ZONES, PLANET_ORBITAL_ELEMENTS, TRANSIT_ORBIT_RADIUS, TRANSIT_ORBIT_SPREAD, TRANSIT_PLANET_KEYS } from '../constants';
 import type { Planet3D, HouseSector3D, ZodiacSegment3D, GalacticNatalChart } from '../types';
 
 /** Get the semi-major axis (visualization radius) for a planet */
@@ -81,30 +84,13 @@ export function useGalacticChart(
   visiblePlanets?: Set<string>,
   visibleAspects?: Set<string>,
   transitDayOffset?: number,
+  transitEnabled?: boolean,
 ) {
-  // Build transit-adjusted chart when offset is active
-  const effectiveChart = useMemo(() => {
-    if (!transitDayOffset || transitDayOffset === 0) return chart;
-
-    const transitPlanets: typeof chart.planets = {};
-    for (const [key, data] of Object.entries(chart.planets)) {
-      const orbital = PLANET_ORBITAL_ELEMENTS[key];
-      const motion = orbital?.meanDailyMotion ?? 0;
-      const transitLong = ((data.longitude + motion * transitDayOffset) % 360 + 360) % 360;
-      transitPlanets[key] = {
-        ...data,
-        longitude: transitLong,
-        sign: ZODIAC_SIGNS[Math.floor(transitLong / 30)]?.name,
-      };
-    }
-
-    return { ...chart, planets: transitPlanets };
-  }, [chart, transitDayOffset]);
-
+  // ── Natal planets (ALWAYS fixed at birth positions) ──
   const planets3D = useMemo<Planet3D[]>(() => {
     const result: Planet3D[] = [];
 
-    for (const [key, data] of Object.entries(effectiveChart.planets)) {
+    for (const [key, data] of Object.entries(chart.planets)) {
       if (visiblePlanets && !visiblePlanets.has(key)) continue;
       if (data.longitude === undefined) continue;
 
@@ -144,15 +130,100 @@ export function useGalacticChart(
     }
 
     return result;
-  }, [effectiveChart.planets, visiblePlanets]);
+  }, [chart.planets, visiblePlanets]);
 
+  // ── Natal-to-natal aspects ──
   const aspects = useMemo<SynastryAspect[]>(() => {
     return calculateNatalAspects(
-      effectiveChart.planets,
+      chart.planets,
       visiblePlanets,
       visibleAspects ? new Set(visibleAspects) as any : undefined,
     );
-  }, [effectiveChart.planets, visiblePlanets, visibleAspects]);
+  }, [chart.planets, visiblePlanets, visibleAspects]);
+
+  // ── Transit planet positions (separate overlay layer) ──
+  const transitPlanets3D = useMemo<Planet3D[]>(() => {
+    if (!transitEnabled || !transitDayOffset) return [];
+
+    const result: Planet3D[] = [];
+
+    for (const [key, data] of Object.entries(chart.planets)) {
+      if (!TRANSIT_PLANET_KEYS.has(key)) continue;
+      if (visiblePlanets && !visiblePlanets.has(key)) continue;
+      if (data.longitude === undefined) continue;
+
+      const orbital = PLANET_ORBITAL_ELEMENTS[key];
+      const motion = orbital?.meanDailyMotion ?? 0;
+      const transitLong = ((data.longitude + motion * transitDayOffset) % 360 + 360) % 360;
+
+      const info = getPlanetInfo(key);
+      const semiMajor = TRANSIT_ORBIT_RADIUS + (TRANSIT_ORBIT_SPREAD[key] ?? 0);
+      const eccentricity = 0; // Circular orbit for transit ring
+      const perihelionLong = 0;
+
+      const position = longitudeToPosition(transitLong, semiMajor, eccentricity, perihelionLong);
+
+      result.push({
+        key: `transit_${key}`,
+        name: info.name,
+        symbol: info.symbol,
+        position,
+        longitude: transitLong,
+        latitude: 0,
+        color: info.color,
+        size: getPlanetSize(info.category) * 0.65,
+        category: info.category,
+        sign: ZODIAC_SIGNS[Math.floor(transitLong / 30)]?.name ?? '',
+        house: undefined,
+        retrograde: false,
+        orb: getPlanetOrb(key),
+        isTransit: true,
+      });
+    }
+
+    return result;
+  }, [chart.planets, transitDayOffset, transitEnabled, visiblePlanets]);
+
+  // ── Transit-to-natal aspects ──
+  const transitAspects = useMemo<SynastryAspect[]>(() => {
+    if (!transitEnabled || !transitDayOffset) return [];
+
+    // Build transit planet record with normal keys for proper orb calculation
+    const transitRecord: Record<string, { longitude: number }> = {};
+    for (const [key, data] of Object.entries(chart.planets)) {
+      if (!TRANSIT_PLANET_KEYS.has(key)) continue;
+      if (visiblePlanets && !visiblePlanets.has(key)) continue;
+      if (data.longitude === undefined) continue;
+
+      const orbital = PLANET_ORBITAL_ELEMENTS[key];
+      const motion = orbital?.meanDailyMotion ?? 0;
+      transitRecord[key] = {
+        longitude: ((data.longitude + motion * transitDayOffset) % 360 + 360) % 360,
+      };
+    }
+
+    // Natal record (only visible planets)
+    const natalRecord: Record<string, { longitude: number }> = {};
+    for (const [key, data] of Object.entries(chart.planets)) {
+      if (!TRANSIT_PLANET_KEYS.has(key)) continue;
+      if (visiblePlanets && !visiblePlanets.has(key)) continue;
+      if (data.longitude === undefined) continue;
+      natalRecord[key] = { longitude: data.longitude };
+    }
+
+    const raw = calculateSynastryAspects(
+      transitRecord,
+      natalRecord,
+      undefined, // all planets already filtered
+      visibleAspects ? new Set(visibleAspects) as any : undefined,
+    );
+
+    // Remap planetA keys to transit_ prefix so position lookup works
+    return raw.map(asp => ({
+      ...asp,
+      planetA: `transit_${asp.planetA}`,
+    }));
+  }, [chart.planets, transitDayOffset, transitEnabled, visiblePlanets, visibleAspects]);
 
   const houseSectors = useMemo<HouseSector3D[]>(() => {
     if (!chart.houses) return [];
@@ -227,6 +298,8 @@ export function useGalacticChart(
   return {
     planets3D,
     aspects,
+    transitPlanets3D,
+    transitAspects,
     houseSectors,
     zodiacSegments,
     ascendant,

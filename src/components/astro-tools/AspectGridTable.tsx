@@ -4,7 +4,7 @@
  * Features: pattern cards, heatmap toggle, applying/separating arrows
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -71,40 +71,178 @@ function isApplying(planetA: string, planetB: string): boolean | null {
   return speedA < speedB;
 }
 
-/** Classify aspect by orb tightness and application */
-type AspectClass = 'exactitude' | 'applying' | 'true' | 'forced' | 'fringe' | 'separating';
+/** Orb tightness classification (independent of direction) */
+type OrbTightness = 'exact' | 'tight' | 'moderate' | 'wide' | 'fringe';
 
-interface AspectClassInfo {
+interface TightnessInfo {
   label: string;
   abbrev: string;
   color: string;
   bgClass: string;
 }
 
-const ASPECT_CLASS_INFO: Record<AspectClass, AspectClassInfo> = {
-  exactitude: { label: 'Exactitude', abbrev: 'EX', color: '#8b5cf6', bgClass: 'bg-violet-500/15 text-violet-600 dark:text-violet-400 ring-1 ring-violet-500/30' },
+const TIGHTNESS_INFO: Record<OrbTightness, TightnessInfo> = {
+  exact:    { label: 'Exact',    abbrev: 'EX', color: '#8b5cf6', bgClass: 'bg-violet-500/15 text-violet-600 dark:text-violet-400 ring-1 ring-violet-500/30' },
+  tight:    { label: 'Tight',    abbrev: 'TI', color: '#3b82f6', bgClass: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/30' },
+  moderate: { label: 'Moderate', abbrev: 'MO', color: '#22c55e', bgClass: 'bg-green-500/15 text-green-600 dark:text-green-400 ring-1 ring-green-500/30' },
+  wide:     { label: 'Wide',     abbrev: 'WI', color: '#f59e0b', bgClass: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/30' },
+  fringe:   { label: 'Fringe',   abbrev: 'FR', color: '#9ca3af', bgClass: 'bg-gray-500/15 text-gray-500 dark:text-gray-400 ring-1 ring-gray-500/30' },
+};
+
+/** Direction classification */
+interface DirectionInfo {
+  label: string;
+  abbrev: string;
+  color: string;
+  bgClass: string;
+}
+
+const DIRECTION_INFO: Record<'applying' | 'separating', DirectionInfo> = {
   applying:   { label: 'Applying',   abbrev: 'AP', color: '#22c55e', bgClass: 'bg-green-500/15 text-green-600 dark:text-green-400 ring-1 ring-green-500/30' },
-  true:       { label: 'True',       abbrev: 'TR', color: '#3b82f6', bgClass: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/30' },
-  forced:     { label: 'Forced',     abbrev: 'FO', color: '#f59e0b', bgClass: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/30' },
-  fringe:     { label: 'Fringe',     abbrev: 'FR', color: '#9ca3af', bgClass: 'bg-gray-500/15 text-gray-500 dark:text-gray-400 ring-1 ring-gray-500/30' },
   separating: { label: 'Separating', abbrev: 'SE', color: '#ef4444', bgClass: 'bg-red-500/15 text-red-600 dark:text-red-400 ring-1 ring-red-500/30' },
 };
 
-function classifyAspect(orb: number, applying: boolean | null, maxOrb: number): AspectClass {
-  // Exactitude: within 0.5 degrees of exact
-  if (orb <= 0.5) return 'exactitude';
-  // True: tight orb (within 30% of max orb) — strong and well-formed
-  if (orb <= maxOrb * 0.3) {
-    return applying === true ? 'applying' : applying === false ? 'separating' : 'true';
-  }
-  // Standard: within 60% of max orb
-  if (orb <= maxOrb * 0.6) {
-    return applying === true ? 'applying' : applying === false ? 'separating' : 'true';
-  }
-  // Forced: wider orb, 60-80% of max
-  if (orb <= maxOrb * 0.8) return 'forced';
-  // Fringe: at the outer edge (80-100% of max)
+function classifyTightness(orb: number, maxOrb: number): OrbTightness {
+  if (orb <= 0.5) return 'exact';
+  if (orb <= maxOrb * 0.3) return 'tight';
+  if (orb <= maxOrb * 0.6) return 'moderate';
+  if (orb <= maxOrb * 0.8) return 'wide';
   return 'fringe';
+}
+
+// ── Element / Modality Balance ───────────────────────────────────────
+
+type Element = 'fire' | 'earth' | 'air' | 'water';
+type Modality = 'cardinal' | 'fixed' | 'mutable';
+
+const SIGN_QUALITIES: { element: Element; modality: Modality }[] = [
+  { element: 'fire', modality: 'cardinal' },   // Aries
+  { element: 'earth', modality: 'fixed' },      // Taurus
+  { element: 'air', modality: 'mutable' },      // Gemini
+  { element: 'water', modality: 'cardinal' },   // Cancer
+  { element: 'fire', modality: 'fixed' },       // Leo
+  { element: 'earth', modality: 'mutable' },    // Virgo
+  { element: 'air', modality: 'cardinal' },     // Libra
+  { element: 'water', modality: 'fixed' },      // Scorpio
+  { element: 'fire', modality: 'mutable' },     // Sagittarius
+  { element: 'earth', modality: 'cardinal' },   // Capricorn
+  { element: 'air', modality: 'fixed' },        // Aquarius
+  { element: 'water', modality: 'mutable' },    // Pisces
+];
+
+const ELEMENTS: Element[] = ['fire', 'earth', 'air', 'water'];
+const MODALITIES: Modality[] = ['cardinal', 'fixed', 'mutable'];
+
+const ELEMENT_DISPLAY: Record<Element, { label: string; short: string; color: string }> = {
+  fire:  { label: 'Fire',  short: 'Fi', color: '#ef4444' },
+  earth: { label: 'Earth', short: 'Ea', color: '#22c55e' },
+  air:   { label: 'Air',   short: 'Ai', color: '#eab308' },
+  water: { label: 'Water', short: 'Wa', color: '#3b82f6' },
+};
+
+const MODALITY_DISPLAY: Record<Modality, { label: string; short: string }> = {
+  cardinal: { label: 'Cardinal', short: 'Car' },
+  fixed:    { label: 'Fixed',    short: 'Fix' },
+  mutable:  { label: 'Mutable',  short: 'Mut' },
+};
+
+function computeBalance(planets: Record<string, any>, planetKeys: string[]) {
+  const grid: Record<Element, Record<Modality, string[]>> = {
+    fire: { cardinal: [], fixed: [], mutable: [] },
+    earth: { cardinal: [], fixed: [], mutable: [] },
+    air: { cardinal: [], fixed: [], mutable: [] },
+    water: { cardinal: [], fixed: [], mutable: [] },
+  };
+
+  for (const key of planetKeys) {
+    const p = planets[key];
+    if (!p || p.longitude === undefined) continue;
+    const signIdx = Math.floor(p.longitude / 30) % 12;
+    const { element, modality } = SIGN_QUALITIES[signIdx];
+    grid[element][modality].push(key);
+  }
+
+  return grid;
+}
+
+const BALANCE_START = 5; // Row index where balance table starts (Jupiter)
+
+function BalanceTable({ chart, planetKeys, chartLabel }: { chart: NatalChart; planetKeys: string[]; chartLabel?: string }) {
+  const balance = useMemo(() => computeBalance(chart.planets, planetKeys), [chart.planets, planetKeys]);
+
+  const elTotals: Record<Element, number> = { fire: 0, earth: 0, air: 0, water: 0 };
+  const modTotals: Record<Modality, number> = { cardinal: 0, fixed: 0, mutable: 0 };
+
+  for (const el of ELEMENTS) {
+    for (const mod of MODALITIES) {
+      const count = balance[el][mod].length;
+      elTotals[el] += count;
+      modTotals[mod] += count;
+    }
+  }
+
+  return (
+    <div className="inline-flex flex-col items-center gap-1.5 bg-card/90 rounded-lg border border-border/50 p-2.5 shadow-sm">
+      {chartLabel && <span className="text-[9px] md:text-[10px] font-semibold text-muted-foreground">{chartLabel}</span>}
+      <table className="border-collapse">
+        <thead>
+          <tr>
+            <th className="p-0 w-7" />
+            {MODALITIES.map(mod => (
+              <th key={mod} className="px-1.5 py-1 text-[8px] md:text-[10px] text-muted-foreground font-semibold border-b border-border/30">
+                {MODALITY_DISPLAY[mod].short}
+              </th>
+            ))}
+            <th className="px-1.5 py-1 text-[8px] md:text-[10px] text-muted-foreground font-bold border-b border-border/30 border-l border-border/20">&Sigma;</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ELEMENTS.map(el => {
+            const d = ELEMENT_DISPLAY[el];
+            return (
+              <tr key={el}>
+                <td className="px-1 py-0.5 text-[9px] md:text-[11px] font-bold border-r border-border/20" style={{ color: d.color }}>
+                  {d.short}
+                </td>
+                {MODALITIES.map(mod => {
+                  const planets = balance[el][mod];
+                  const count = planets.length;
+                  const title = planets.map(p => PLANETS[p as keyof typeof PLANETS]?.name || p).join(', ');
+                  return (
+                    <td key={mod} className="p-0.5">
+                      <div
+                        className="w-7 h-6 md:w-9 md:h-7 rounded flex items-center justify-center text-[10px] md:text-xs font-bold transition-colors"
+                        style={{
+                          backgroundColor: count > 0 ? d.color + '20' : undefined,
+                          color: count > 0 ? d.color : 'var(--muted-foreground)',
+                          border: count > 0 ? `1.5px solid ${d.color}40` : '1px dashed var(--border)',
+                        }}
+                        title={title || 'None'}
+                      >
+                        {count || '\u2013'}
+                      </div>
+                    </td>
+                  );
+                })}
+                <td className="px-1.5 py-0.5 text-[10px] md:text-[11px] font-bold text-center border-l border-border/20" style={{ color: d.color }}>
+                  {elTotals[el]}
+                </td>
+              </tr>
+            );
+          })}
+          <tr className="border-t border-border/30">
+            <td className="px-1 py-0.5 text-[9px] md:text-[10px] text-muted-foreground font-bold border-r border-border/20">&Sigma;</td>
+            {MODALITIES.map(mod => (
+              <td key={mod} className="px-1.5 py-0.5 text-[10px] md:text-[11px] font-bold text-center text-muted-foreground">
+                {modTotals[mod]}
+              </td>
+            ))}
+            <td />
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function PatternCard({ pattern }: { pattern: AspectPattern }) {
@@ -193,8 +331,11 @@ function AspectCell({ aspect, planetA, planetB, viewMode, isSynastry }: {
   const style = getCellStyle(aspect.nature, aspect.strength);
   const interpretation = isSynastry ? getSynastryInterpretation(planetA, planetB, aspect.type) : null;
   const applying = isApplying(planetA, planetB);
-  const aspectClass = classifyAspect(aspect.exactOrb, applying, aspect.orb);
-  const classInfo = ASPECT_CLASS_INFO[aspectClass];
+  const tightness = classifyTightness(aspect.exactOrb, aspect.orb);
+  const tightnessInfo = TIGHTNESS_INFO[tightness];
+  const direction = applying === true ? 'applying' : applying === false ? 'separating' : null;
+  const directionInfo = direction ? DIRECTION_INFO[direction] : null;
+  const strengthPct = Math.round(aspect.strength * 100);
 
   return (
     <td className={`${CELL_CLASS} p-0.5`}>
@@ -206,13 +347,26 @@ function AspectCell({ aspect, planetA, planetB, viewMode, isSynastry }: {
           >
             <span className="text-base md:text-xl leading-none" style={{ color: aspect.color }}>{aspect.symbol}</span>
             <span className="text-[8px] md:text-[10px] leading-none text-muted-foreground mt-0.5">{formatOrb(aspect.exactOrb)}</span>
-            {/* Classification badge */}
+            {/* Tightness badge — top right */}
             <span
               className="absolute top-0 right-0 text-[7px] md:text-[8px] leading-none font-bold px-0.5 rounded-bl"
-              style={{ color: classInfo.color, backgroundColor: classInfo.color + '15' }}
+              style={{ color: tightnessInfo.color, backgroundColor: tightnessInfo.color + '15' }}
             >
-              {classInfo.abbrev}
+              {tightnessInfo.abbrev}
             </span>
+            {/* Direction badge — top left */}
+            {directionInfo && (
+              <span
+                className="absolute top-0 left-0 text-[7px] md:text-[8px] leading-none font-bold px-0.5 rounded-br"
+                style={{ color: directionInfo.color, backgroundColor: directionInfo.color + '15' }}
+              >
+                {directionInfo.abbrev}
+              </span>
+            )}
+            {/* Tightness bar — bottom */}
+            <div className="absolute bottom-0 left-0 right-0 h-[2px] md:h-[3px] rounded-b-md overflow-hidden" style={{ backgroundColor: tightnessInfo.color + '15' }}>
+              <div className="h-full rounded-b-md" style={{ width: `${strengthPct}%`, backgroundColor: aspect.color, opacity: 0.6 }} />
+            </div>
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-72 md:w-80 p-0 overflow-hidden" side="top">
@@ -230,19 +384,27 @@ function AspectCell({ aspect, planetA, planetB, viewMode, isSynastry }: {
                 {PLANETS[planetB as keyof typeof PLANETS]?.symbol} {PLANETS[planetB as keyof typeof PLANETS]?.name}
               </span>
             </div>
-            <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground flex-wrap">
               <span>Orb: {formatOrb(aspect.exactOrb)}</span>
               <span>&bull;</span>
-              <span>Strength: {Math.round(aspect.strength * 100)}%</span>
+              <span>Strength: {strengthPct}%</span>
               <span>&bull;</span>
-              <span className={`font-medium px-1.5 py-0.5 rounded-md text-[10px] ${classInfo.bgClass}`}>
-                {classInfo.label}
+              <span className={`font-medium px-1.5 py-0.5 rounded-md text-[10px] ${tightnessInfo.bgClass}`}>
+                {tightnessInfo.label}
               </span>
+              {directionInfo && (
+                <>
+                  <span>&bull;</span>
+                  <span className={`font-medium px-1.5 py-0.5 rounded-md text-[10px] ${directionInfo.bgClass}`}>
+                    {directionInfo.label}
+                  </span>
+                </>
+              )}
             </div>
             {/* Strength bar */}
             <div className="h-1.5 rounded-full bg-muted overflow-hidden">
               <div className="h-full rounded-full transition-all" style={{
-                width: `${aspect.strength * 100}%`,
+                width: `${strengthPct}%`,
                 backgroundColor: aspect.color,
               }} />
             </div>
@@ -301,7 +463,7 @@ export function AspectGridTable({ chartA, chartB, nameA, nameB }: AspectGridTabl
   // Count aspects
   const counts = useMemo(() => {
     let harmonious = 0, challenging = 0, neutral = 0;
-    const allowedAspects = showMinor ? undefined : new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition'] as const);
+    const allowedAspects = showMinor ? undefined : new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare'] as const);
 
     for (let r = 0; r < rowPlanets.length; r++) {
       for (let c = 0; c < colPlanets.length; c++) {
@@ -322,7 +484,7 @@ export function AspectGridTable({ chartA, chartB, nameA, nameB }: AspectGridTabl
 
   // Theme breakdown
   const themeCounts = useMemo(() => {
-    const allowedAspects = showMinor ? undefined : new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition'] as const);
+    const allowedAspects = showMinor ? undefined : new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare'] as const);
     const result: Record<string, number> = {};
     for (const key of Object.keys(LIFE_THEMES)) result[key] = 0;
 
@@ -405,78 +567,174 @@ export function AspectGridTable({ chartA, chartB, nameA, nameB }: AspectGridTabl
         </div>
       )}
 
-      {/* Grid */}
-      <div className="overflow-x-auto rounded-xl border bg-card/50">
+      {/* Aspect Grid */}
+      <div className={`overflow-x-auto w-fit max-w-full ${isSynastry ? 'rounded-xl border bg-card/50' : ''}`}>
         <table className="border-collapse">
-          <thead>
-            <tr>
-              <th className={`${CELL_CLASS} sticky left-0 z-10 bg-muted/80 backdrop-blur-sm`} />
-              {colPlanets.map(planet => {
-                const info = PLANETS[planet as keyof typeof PLANETS];
-                return (
-                  <th key={planet} className={`${CELL_CLASS} text-center bg-muted/40`}>
-                    <div className="flex flex-col items-center gap-0">
-                      <span className="text-lg md:text-2xl" style={{ color: info?.color }}>{info?.symbol}</span>
-                      <span className="text-[10px] md:text-xs text-muted-foreground leading-none">{info?.name?.slice(0, 3)}</span>
-                    </div>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {rowPlanets.map((rowPlanet, rowIdx) => {
-              const rowInfo = PLANETS[rowPlanet as keyof typeof PLANETS];
-              return (
-                <tr key={rowPlanet}>
-                  <td className={`${CELL_CLASS} text-center sticky left-0 z-10 bg-muted/80 backdrop-blur-sm`}>
-                    <div className="flex flex-col items-center gap-0">
-                      <span className="text-lg md:text-2xl" style={{ color: rowInfo?.color }}>{rowInfo?.symbol}</span>
-                      <span className="text-[10px] md:text-xs text-muted-foreground leading-none">{rowInfo?.name?.slice(0, 3)}</span>
-                    </div>
-                  </td>
-                  {colPlanets.map((colPlanet, colIdx) => {
-                    // Upper triangle only — skip diagonal and below
-                    if (colIdx <= rowIdx) {
-                      return <td key={colPlanet} className={`${CELL_CLASS} bg-muted/10`} />;
-                    }
-
-                    const longA = planetsA[rowPlanet]?.longitude;
-                    const longB = planetsB[colPlanet]?.longitude;
-                    if (longA === undefined || longB === undefined) {
-                      return <td key={colPlanet} className="w-20 h-14" />;
-                    }
-
-                    const allowedAspects = showMinor ? undefined : new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition'] as const);
-                    const aspect = detectAspect(longA, longB, allowedAspects as any, rowPlanet, colPlanet);
-
+          {isSynastry ? (
+            <>
+              {/* Synastry: Full grid with top headers */}
+              <thead>
+                <tr>
+                  <th className={`${CELL_CLASS} sticky left-0 z-10 bg-muted/80 backdrop-blur-sm`} />
+                  {colPlanets.map((planet) => {
+                    const info = PLANETS[planet as keyof typeof PLANETS];
                     return (
-                      <AspectCell
-                        key={colPlanet}
-                        aspect={aspect}
-                        planetA={rowPlanet}
-                        planetB={colPlanet}
-                        viewMode={viewMode}
-                        isSynastry={isSynastry}
-                      />
+                      <th key={planet} className={`${CELL_CLASS} text-center bg-muted/40`}>
+                        <div className="flex flex-col items-center gap-0">
+                          <span className="text-lg md:text-2xl" style={{ color: info?.color }}>{info?.symbol}</span>
+                          <span className="text-[10px] md:text-xs text-muted-foreground leading-none">{info?.name?.slice(0, 3)}</span>
+                        </div>
+                      </th>
                     );
                   })}
                 </tr>
-              );
-            })}
-          </tbody>
+              </thead>
+              <tbody>
+                {rowPlanets.map((rowPlanet) => {
+                  const rowInfo = PLANETS[rowPlanet as keyof typeof PLANETS];
+                  return (
+                    <tr key={rowPlanet}>
+                      <td className={`${CELL_CLASS} text-center sticky left-0 z-10 bg-muted/80 backdrop-blur-sm`}>
+                        <div className="flex flex-col items-center gap-0">
+                          <span className="text-lg md:text-2xl" style={{ color: rowInfo?.color }}>{rowInfo?.symbol}</span>
+                          <span className="text-[10px] md:text-xs text-muted-foreground leading-none">{rowInfo?.name?.slice(0, 3)}</span>
+                        </div>
+                      </td>
+                      {colPlanets.map((colPlanet) => {
+                        const longA = planetsA[rowPlanet]?.longitude;
+                        const longB = planetsB[colPlanet]?.longitude;
+                        if (longA === undefined || longB === undefined) {
+                          return <td key={colPlanet} className={CELL_CLASS} />;
+                        }
+                        const allowedAspects = showMinor ? undefined : new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare'] as const);
+                        const aspect = detectAspect(longA, longB, allowedAspects as any, rowPlanet, colPlanet);
+                        return (
+                          <AspectCell key={colPlanet} aspect={aspect} planetA={rowPlanet} planetB={colPlanet} viewMode={viewMode} isSynastry={true} />
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </>
+          ) : (
+            /* Natal: Upper-right triangle — balance table embedded in empty lower-left */
+            <>
+              <thead>
+                <tr>
+                  <th className={CELL_CLASS} />
+                  {colPlanets.map((planet, colIdx) => {
+                    if (colIdx === 0) return <th key={planet} className={CELL_CLASS} />;
+                    const info = PLANETS[planet as keyof typeof PLANETS];
+                    return (
+                      <th key={planet} className={`${CELL_CLASS} text-center bg-muted/40`}>
+                        <div className="flex flex-col items-center gap-0">
+                          <span className="text-lg md:text-2xl" style={{ color: info?.color }}>{info?.symbol}</span>
+                          <span className="text-[10px] md:text-xs text-muted-foreground leading-none">{info?.name?.slice(0, 3)}</span>
+                        </div>
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const showBalanceInGrid = rowPlanets.length > BALANCE_START + 2;
+                  const balanceRowSpan = rowPlanets.length - 1 - BALANCE_START;
+
+                  return rowPlanets.map((rowPlanet, rowIdx) => {
+                    if (rowIdx === rowPlanets.length - 1) return null;
+                    const rowInfo = PLANETS[rowPlanet as keyof typeof PLANETS];
+
+                    // Determine spacer cell for the lower-left empty area
+                    let spacerCell: React.ReactNode;
+                    if (showBalanceInGrid && rowIdx === BALANCE_START) {
+                      // Start the balance table cell spanning the empty triangle area
+                      spacerCell = (
+                        <td
+                          key="__balance__"
+                          colSpan={BALANCE_START + 1}
+                          rowSpan={balanceRowSpan}
+                          className="align-top p-2"
+                        >
+                          <BalanceTable chart={chartA} planetKeys={rowPlanets} />
+                        </td>
+                      );
+                    } else if (showBalanceInGrid && rowIdx > BALANCE_START) {
+                      // Extra spacer for columns beyond the balance cell
+                      const extra = rowIdx - BALANCE_START;
+                      spacerCell = extra > 0 ? <td key="__spacer__" colSpan={extra} /> : null;
+                    } else {
+                      // Normal transparent spacer (rows before balance, or grid too small)
+                      spacerCell = <td key="__spacer__" colSpan={rowIdx + 1} />;
+                    }
+
+                    return (
+                      <tr key={rowPlanet}>
+                        {/* Row label */}
+                        <td className={`${CELL_CLASS} text-center bg-muted/40`}>
+                          <div className="flex flex-col items-center gap-0">
+                            <span className="text-lg md:text-2xl" style={{ color: rowInfo?.color }}>{rowInfo?.symbol}</span>
+                            <span className="text-[10px] md:text-xs text-muted-foreground leading-none">{rowInfo?.name?.slice(0, 3)}</span>
+                          </div>
+                        </td>
+
+                        {spacerCell}
+
+                        {/* Upper-right aspect cells */}
+                        {colPlanets.map((colPlanet, colIdx) => {
+                          if (colIdx <= rowIdx) return null;
+                          const longA = planetsA[rowPlanet]?.longitude;
+                          const longB = planetsB[colPlanet]?.longitude;
+                          if (longA === undefined || longB === undefined) {
+                            return <td key={colPlanet} className={CELL_CLASS} />;
+                          }
+                          const allowedAspects = showMinor ? undefined : new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare'] as const);
+                          const aspect = detectAspect(longA, longB, allowedAspects as any, rowPlanet, colPlanet);
+                          return (
+                            <AspectCell key={colPlanet} aspect={aspect} planetA={rowPlanet} planetB={colPlanet} viewMode={viewMode} isSynastry={false} />
+                          );
+                        })}
+                      </tr>
+                    );
+                  });
+                })()}
+              </tbody>
+            </>
+          )}
         </table>
       </div>
 
-      {/* Aspect Classification Legend */}
-      <div className="flex flex-wrap items-center gap-1.5 md:gap-2 text-xs text-muted-foreground px-1">
-        <span className="font-medium text-foreground/70 mr-1 text-[11px] md:text-xs">Classification:</span>
-        {(Object.entries(ASPECT_CLASS_INFO) as [AspectClass, AspectClassInfo][]).map(([key, info]) => (
-          <div key={key} className={`flex items-center gap-0.5 md:gap-1 px-1.5 md:px-2 py-0.5 rounded-md ${info.bgClass}`}>
-            <span className="font-bold text-[9px] md:text-[10px]">{info.abbrev}</span>
-            <span className="text-[10px] md:text-xs hidden sm:inline">{info.label}</span>
-          </div>
-        ))}
+      {/* Balance Table(s) for synastry — below the grid */}
+      {isSynastry && (
+        <div className="flex flex-wrap gap-3 justify-center">
+          <BalanceTable chart={chartA} planetKeys={rowPlanets} chartLabel={nameA} />
+          {chartB && (
+            <BalanceTable chart={chartB} planetKeys={colPlanets} chartLabel={nameB} />
+          )}
+        </div>
+      )}
+
+      {/* Classification Legend */}
+      <div className="flex flex-col gap-1.5 px-1">
+        <div className="flex flex-wrap items-center gap-1.5 md:gap-2 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground/70 mr-1 text-[11px] md:text-xs">Tightness:</span>
+          {(Object.entries(TIGHTNESS_INFO) as [OrbTightness, TightnessInfo][]).map(([key, info]) => (
+            <div key={key} className={`flex items-center gap-0.5 md:gap-1 px-1.5 md:px-2 py-0.5 rounded-md ${info.bgClass}`}>
+              <span className="font-bold text-[9px] md:text-[10px]">{info.abbrev}</span>
+              <span className="text-[10px] md:text-xs hidden sm:inline">{info.label}</span>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 md:gap-2 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground/70 mr-1 text-[11px] md:text-xs">Direction:</span>
+          {(Object.entries(DIRECTION_INFO) as [string, DirectionInfo][]).map(([key, info]) => (
+            <div key={key} className={`flex items-center gap-0.5 md:gap-1 px-1.5 md:px-2 py-0.5 rounded-md ${info.bgClass}`}>
+              <span className="font-bold text-[9px] md:text-[10px]">{info.abbrev}</span>
+              <span className="text-[10px] md:text-xs hidden sm:inline">{info.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

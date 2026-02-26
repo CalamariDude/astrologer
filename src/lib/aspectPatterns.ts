@@ -60,7 +60,7 @@ function buildAspectMap(
   const availA = GRID_PLANETS.filter(p => planetsA[p]?.longitude !== undefined);
   const availB = GRID_PLANETS.filter(p => planetsB[p]?.longitude !== undefined);
 
-  const majorOnly = new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition'] as const);
+  const majorOnly = new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare'] as const);
   const withMinor = includeMinor ? undefined : majorOnly;
 
   const addToMap = (target: Map<string, Set<string>>, p1: string, p2: string) => {

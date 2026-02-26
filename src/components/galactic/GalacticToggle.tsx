@@ -26,6 +26,7 @@ export function GalacticToggle({ active, onToggle }: GalacticToggleProps) {
     >
       <Orbit className="w-3.5 h-3.5" />
       {active ? '2D Chart' : 'Galactic Mode'}
+      {!active && <span className="px-1 py-0.5 text-[8px] font-bold uppercase bg-indigo-500/20 text-indigo-400 rounded">Beta</span>}
     </button>
   );
 }

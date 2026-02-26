@@ -11,9 +11,11 @@ import { PLANETS, ZODIAC_SIGNS, COLORS, ASTEROIDS, getElementColor } from '../ut
 import { longitudeToXY } from '../utils/chartMath';
 import type { ChartDimensions, TransitPlanet, PlacedPlanet, PlanetData } from '../types';
 
-// Transit color scheme - forest green
-const TRANSIT_COLOR = '#228B22';
-const TRANSIT_COLOR_LIGHT = '#32CD32';
+// Transit color scheme - premium teal/emerald
+const TRANSIT_COLOR = '#0d9488';
+const TRANSIT_COLOR_LIGHT = '#14b8a6';
+const TRANSIT_COLOR_ACCENT = '#2dd4bf';
+const TRANSIT_COLOR_GLOW = '#99f6e4';
 
 // Element colors resolved at render time via getElementColor()
 
@@ -294,48 +296,118 @@ export const TransitRing: React.FC<TransitRingProps> = ({
     return symbol.length >= 3;
   };
 
+  // Midpoint radius for the ring background band
+  const ringMid = transitDegreeRing && transitRingOuter
+    ? (transitDegreeRing + transitRingOuter) / 2
+    : undefined;
+  const ringHalfWidth = transitDegreeRing && transitRingOuter
+    ? (transitRingOuter - transitDegreeRing) / 2 + 4
+    : undefined;
+
   return (
     <g className="transit-ring">
-      {/* Outer border circle for transit ring */}
+      {/* SVG Defs: glow filter + ring gradient */}
+      <defs>
+        <filter id="transit-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+          <feColorMatrix in="blur" type="matrix" values={`0 0 0 0 0.05  0 0 0 0 0.58  0 0 0 0 0.53  0 0 0 0.5 0`} result="glow" />
+          <feMerge>
+            <feMergeNode in="glow" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        <filter id="transit-glow-strong" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur" />
+          <feColorMatrix in="blur" type="matrix" values={`0 0 0 0 0.05  0 0 0 0 0.58  0 0 0 0 0.53  0 0 0 0.7 0`} result="glow" />
+          <feMerge>
+            <feMergeNode in="glow" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        {transitRingOuter && transitDegreeRing && (
+          <radialGradient id="transit-ring-fill" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor={TRANSIT_COLOR} stopOpacity={0} />
+            <stop offset={`${((transitDegreeRing - 8) / transitRingOuter * 100).toFixed(1)}%`} stopColor={TRANSIT_COLOR} stopOpacity={0} />
+            <stop offset={`${(transitDegreeRing / transitRingOuter * 100).toFixed(1)}%`} stopColor={TRANSIT_COLOR} stopOpacity={0.04} />
+            <stop offset={`${(transitRingOuter / transitRingOuter * 100).toFixed(1)}%`} stopColor={TRANSIT_COLOR} stopOpacity={0.06} />
+          </radialGradient>
+        )}
+      </defs>
+
+      {/* Subtle background band for the transit ring area */}
       {transitRingOuter && (
         <circle
           cx={cx}
           cy={cy}
           r={transitRingOuter}
-          fill="none"
-          stroke={TRANSIT_COLOR}
-          strokeWidth={1.5}
-          strokeOpacity={0.6}
+          fill="url(#transit-ring-fill)"
+          stroke="none"
         />
       )}
 
-      {/* Inner separator between transit ring and A's house ring */}
+      {/* Outer border — soft glow ring */}
+      {transitRingOuter && (
+        <>
+          <circle
+            cx={cx}
+            cy={cy}
+            r={transitRingOuter}
+            fill="none"
+            stroke={TRANSIT_COLOR_GLOW}
+            strokeWidth={3}
+            strokeOpacity={0.12}
+          />
+          <circle
+            cx={cx}
+            cy={cy}
+            r={transitRingOuter}
+            fill="none"
+            stroke={TRANSIT_COLOR_LIGHT}
+            strokeWidth={1}
+            strokeOpacity={0.5}
+          />
+        </>
+      )}
+
+      {/* Inner separator — elegant double line */}
       {outerHouseRingOuter && (
-        <circle
-          cx={cx}
-          cy={cy}
-          r={outerHouseRingOuter + 3}
-          fill="none"
-          stroke={TRANSIT_COLOR}
-          strokeWidth={1}
-          strokeOpacity={0.4}
-          strokeDasharray="4 4"
-        />
+        <>
+          <circle
+            cx={cx}
+            cy={cy}
+            r={outerHouseRingOuter + 2}
+            fill="none"
+            stroke={TRANSIT_COLOR_LIGHT}
+            strokeWidth={0.75}
+            strokeOpacity={0.35}
+          />
+          <circle
+            cx={cx}
+            cy={cy}
+            r={outerHouseRingOuter + 5}
+            fill="none"
+            stroke={TRANSIT_COLOR}
+            strokeWidth={0.5}
+            strokeOpacity={0.2}
+            strokeDasharray="2 6"
+          />
+        </>
       )}
 
-      {/* Degree pointer lines for transit planets — from display position to true longitude at outer edge */}
+      {/* Degree pointer lines — tapered with gradient opacity */}
       {placedPlanets.map((planet) => {
         if (!transitRingOuter) return null;
         const from = longitudeToXY(planet.displayLongitude, cx, cy, transitPlanetRing, rotationOffset);
         const to = longitudeToXY(planet.longitude, cx, cy, transitRingOuter, rotationOffset);
+        const highlighted = isHighlighted(planet.key);
         return (
           <line
             key={`ptr-T-${planet.key}`}
             x1={from.x} y1={from.y}
             x2={to.x} y2={to.y}
-            stroke={TRANSIT_COLOR}
-            strokeWidth={1}
-            strokeOpacity={0.6}
+            stroke={highlighted ? TRANSIT_COLOR_ACCENT : TRANSIT_COLOR_LIGHT}
+            strokeWidth={highlighted ? 1.5 : 0.75}
+            strokeOpacity={highlighted ? 0.8 : 0.4}
           />
         );
       })}
@@ -360,17 +432,32 @@ export const TransitRing: React.FC<TransitRingProps> = ({
             className="transit-planet-marker"
             style={{
               cursor: 'pointer',
-              opacity: dimmed ? 0.3 : 1,
-              transition: `opacity 0.15s ease-out`,
+              opacity: dimmed ? 0.25 : 1,
+              transition: `opacity 0.2s ease-out`,
+              filter: highlighted ? 'url(#transit-glow-strong)' : undefined,
             }}
             onMouseEnter={(e) => onPlanetHover({ planet: planet.key, chart: 'Transit' }, e)}
             onMouseLeave={() => onPlanetHover(null)}
             onClick={(e) => { e.stopPropagation(); onPlanetClick?.(planet.key, 'Transit', e); }}
           >
+            {/* Backdrop circle behind planet symbol */}
+            <circle
+              r={highlighted ? 20 : 16}
+              fill={TRANSIT_COLOR}
+              fillOpacity={highlighted ? 0.12 : 0.06}
+              stroke={TRANSIT_COLOR_ACCENT}
+              strokeWidth={highlighted ? 1 : 0}
+              strokeOpacity={0.4}
+              style={{
+                transform: `translate(${planetPos.x}px, ${planetPos.y}px)`,
+                transition: `transform ${TRANSIT_DURATION} ${TRANSIT_EASE}, r 0.15s ease-out`,
+              }}
+            />
+
             {/* Degree (innermost) */}
             {degreePos && (
               <text
-                fill={TRANSIT_COLOR}
+                fill={TRANSIT_COLOR_LIGHT}
                 fontSize={degreeSize}
                 fontFamily="Arial, sans-serif"
                 fontWeight="bold"
@@ -408,11 +495,12 @@ export const TransitRing: React.FC<TransitRingProps> = ({
             {/* Minutes */}
             {minutePos && (
               <text
-                fill={TRANSIT_COLOR}
+                fill={TRANSIT_COLOR_LIGHT}
                 fontSize={minuteSize}
                 fontFamily="Arial, sans-serif"
                 textAnchor="middle"
                 dominantBaseline="central"
+                fillOpacity={0.8}
                 style={{
                   userSelect: 'none',
                   transform: `translate(${minutePos.x}px, ${minutePos.y}px)`,
@@ -423,9 +511,9 @@ export const TransitRing: React.FC<TransitRingProps> = ({
               </text>
             )}
 
-            {/* Planet symbol (outermost) - green color for transits */}
+            {/* Planet symbol (outermost) — premium teal with glow on hover */}
             <text
-              fill={TRANSIT_COLOR}
+              fill={highlighted ? TRANSIT_COLOR_ACCENT : TRANSIT_COLOR_LIGHT}
               fontSize={highlighted ? (isTextLabel(planet.key) ? textLabelSize : planetSize) * highlightScale : (isTextLabel(planet.key) ? textLabelSize : planetSize)}
               fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
               fontWeight="900"
@@ -434,10 +522,8 @@ export const TransitRing: React.FC<TransitRingProps> = ({
               style={{
                 userSelect: 'none',
                 transform: `translate(${planetPos.x}px, ${planetPos.y}px)`,
-                transition: `transform ${TRANSIT_DURATION} ${TRANSIT_EASE}, font-size 0.15s ease-out`,
+                transition: `transform ${TRANSIT_DURATION} ${TRANSIT_EASE}, font-size 0.15s ease-out, fill 0.15s ease-out`,
               }}
-              stroke={TRANSIT_COLOR}
-              strokeWidth={0.5}
             >
               {getPlanetSymbol(planet.key)}
             </text>
@@ -445,15 +531,15 @@ export const TransitRing: React.FC<TransitRingProps> = ({
             {/* Retrograde indicator */}
             {showRetrogrades && planet.data.retrograde && (
               <text
-                fill="#c41e3a"
-                fontSize={10}
+                fill="#ef4444"
+                fontSize={11}
                 fontFamily="Arial, sans-serif"
                 fontWeight="bold"
                 textAnchor="middle"
                 dominantBaseline="central"
                 style={{
                   userSelect: 'none',
-                  transform: `translate(${planetPos.x + 16}px, ${planetPos.y - 12}px)`,
+                  transform: `translate(${planetPos.x + 16}px, ${planetPos.y - 14}px)`,
                   transition: `transform ${TRANSIT_DURATION} ${TRANSIT_EASE}`,
                 }}
               >
@@ -464,16 +550,19 @@ export const TransitRing: React.FC<TransitRingProps> = ({
         );
       })}
 
-      {/* Transit label */}
+      {/* Transit label — refined typography */}
       <text
         x={cx}
-        y={cy - (transitRingOuter || 0) - 10}
-        fill={TRANSIT_COLOR}
-        fontSize={12}
-        fontFamily="Arial, sans-serif"
-        fontWeight="bold"
+        y={cy - (transitRingOuter || 0) - 12}
+        fill={TRANSIT_COLOR_LIGHT}
+        fontSize={11}
+        fontFamily="'Inter', 'SF Pro Display', Arial, sans-serif"
+        fontWeight="600"
         textAnchor="middle"
+        letterSpacing="0.2em"
+        fillOpacity={0.7}
         style={{ userSelect: 'none' }}
+        filter="url(#transit-glow)"
       >
         TRANSITS
       </text>

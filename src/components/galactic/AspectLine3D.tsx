@@ -58,6 +58,8 @@ export function AspectLine3D({ aspect, visible, dimmed = false, declinationAspec
   const particlesRef = useRef<THREE.Points>(null);
   const arrowRef = useRef<THREE.Mesh>(null);
   const glowLineRef = useRef<THREE.Line>(null);
+  const symbolRef = useRef<any>(null);
+  const orbRef = useRef<any>(null);
   const opacityRef = useRef(0);
 
   const { energy, positionA, positionB } = aspect;
@@ -222,6 +224,11 @@ export function AspectLine3D({ aspect, visible, dimmed = false, declinationAspec
       arrowMat.opacity = baseLineOpacity * 0.7 * fadeIn * dimFactor;
     }
 
+    // Text label opacity — hide when dimmed
+    const textOpacity = fadeIn * dimFactor;
+    if (symbolRef.current) symbolRef.current.fillOpacity = textOpacity;
+    if (orbRef.current) orbRef.current.fillOpacity = 0.6 * textOpacity;
+
     // Animate particles along curve
     if (particlesRef.current) {
       const positions = particleGeo.attributes.position as THREE.BufferAttribute;
@@ -292,6 +299,7 @@ export function AspectLine3D({ aspect, visible, dimmed = false, declinationAspec
       <Billboard position={apexPosition} follow lockX={false} lockY={false} lockZ={false}>
         {/* Aspect symbol */}
         <Text
+          ref={symbolRef}
           fontSize={0.18}
           color={energy.color}
           anchorX="center"
@@ -303,6 +311,7 @@ export function AspectLine3D({ aspect, visible, dimmed = false, declinationAspec
         </Text>
         {/* Orb degree below */}
         <Text
+          ref={orbRef}
           position={[0, -0.22, 0]}
           fontSize={0.09}
           color={energy.color}

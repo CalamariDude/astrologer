@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useSearchParams, Link } from 'react-router-dom';
-import { Loader2, MapPin, Plus, X, Pencil, ClipboardPaste, FolderOpen, LogIn, User, Calendar, Clock, Search, Sparkles, Grid3X3, RotateCcw, Gauge, Table2, TrendingUp, CalendarClock, ArrowUpDown, StickyNote, Download, CreditCard, LogOut, ChevronDown } from 'lucide-react';
+import { Loader2, MapPin, Plus, X, Pencil, ClipboardPaste, FolderOpen, LogIn, User, Calendar, Clock, Search, Sparkles, Grid3X3, RotateCcw, Gauge, Table2, TrendingUp, CalendarClock, ArrowUpDown, StickyNote, Download, CreditCard, LogOut, ChevronDown, Shield } from 'lucide-react';
 import { SaveChartButton } from '@/components/charts/SaveChartButton';
 import { getSavedCharts, type SavedChart } from '@/components/charts/SaveChartButton';
 import { toast } from 'sonner';
@@ -402,33 +402,47 @@ export default function ChartPage() {
   const [showAuth, setShowAuth] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [pageTheme, setPageTheme] = useState(() => localStorage.getItem('astrologer_theme') || 'classic');
+  const [themeReady, setThemeReady] = useState(!user); // ready immediately if not logged in
   const [activeTab, setActiveTab] = useState('aspect-grid');
   const [showGalactic, setShowGalactic] = useState(false);
   const [saveAfterGenerate, setSaveAfterGenerate] = useState(false);
   const webglSupported = useWebGLSupport();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    supabase.from('astrologer_profiles').select('is_admin').eq('id', user.id).single()
+      .then(({ data }) => setIsAdmin(data?.is_admin ?? false));
+  }, [user]);
 
   // Shared visibility state — synced from 2D chart, passed one-way to galactic mode
   const [sharedVisiblePlanets, setSharedVisiblePlanets] = useState<Set<string>>(
     new Set(['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'northnode', 'southnode', 'ascendant', 'midheaven'])
   );
   const [sharedVisibleAspects, setSharedVisibleAspects] = useState<Set<string>>(
-    new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition'])
+    new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare'])
   );
   const themeVars = useMemo(() => getThemeCSSVariables(pageTheme) as React.CSSProperties, [pageTheme]);
 
-  // Load theme from user profile on login
+  // Load theme from user profile on login — DB is source of truth when logged in
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setThemeReady(true);
+      return;
+    }
+    setThemeReady(false);
     supabase.from('astrologer_profiles').select('theme').eq('id', user.id).single()
       .then(({ data }) => {
-        if (data?.theme && data.theme !== pageTheme) {
+        if (data?.theme) {
           setPageTheme(data.theme);
           localStorage.setItem('astrologer_theme', data.theme);
         }
-      });
+        setThemeReady(true);
+      })
+      .catch(() => setThemeReady(true));
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Save theme to profile when changed
+  // Save theme to both localStorage and profile (keeps them in sync)
   const handleThemeChange = useCallback((t: string) => {
     setPageTheme(t);
     localStorage.setItem('astrologer_theme', t);
@@ -812,7 +826,7 @@ export default function ChartPage() {
   // ─── Render ─────────────────────────────────────────────────
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${hasChart && isThemeDark(pageTheme) ? 'dark' : ''}`} style={hasChart ? themeVars : undefined}>
+    <div className={`min-h-screen transition-colors duration-300 ${hasChart && themeReady && isThemeDark(pageTheme) ? 'dark' : ''}`} style={hasChart && themeReady ? themeVars : undefined}>
 
       {/* ── Header Bar ──────────────────────────────────────── */}
       <div className="border-b bg-background">
@@ -881,6 +895,17 @@ export default function ChartPage() {
                       <Sparkles className="w-4 h-4 mr-2" />
                       Upgrade to Pro
                     </DropdownMenuItem>
+                  )}
+                  {isAdmin && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin">
+                          <Shield className="w-4 h-4 mr-2" />
+                          Admin
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => signOut()}>
@@ -1002,13 +1027,13 @@ export default function ChartPage() {
                 </div>
               )}
               <div className="shrink-0 ml-auto">
-                {webglSupported && !hasSynastry && (
+                {webglSupported && (
                   <GalacticToggle active={showGalactic} onToggle={() => setShowGalactic(v => !v)} />
                 )}
               </div>
             </div>
 
-            {showGalactic && webglSupported && !hasSynastry ? (
+            {showGalactic && webglSupported ? (
               <React.Suspense fallback={
                 <div className="h-[650px] flex items-center justify-center bg-[#050510] rounded-lg">
                   <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
@@ -1039,6 +1064,7 @@ export default function ChartPage() {
                 onFetchProgressed={handleFetchProgressed}
                 onFetchRelocated={handleFetchRelocated}
                 onFetchAsteroidData={handleFetchAsteroidData}
+                initialTheme={themeReady ? pageTheme : undefined}
                 onThemeChange={handleThemeChange}
                 originalLocation={originalLocationA}
                 locationB={originalLocationB}
@@ -1054,6 +1080,7 @@ export default function ChartPage() {
                   lng: personA.lng!,
                   location: personAData.location,
                 } : undefined}
+                chartNotesKey={`${personAData.date}-${personAData.time}-${personAData.lat}`}
               />
             )}
           </div>

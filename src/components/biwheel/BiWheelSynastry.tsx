@@ -87,8 +87,9 @@ const VIEWBOX_SIZE = 1400;
  */
 function calculateDimensions(size: number, showTransits: boolean = false, _showProgressed: boolean = false, showDecans: boolean = true): ChartDimensions {
   // Increase margin when showing transits to make room for outer ring
+  // Transit ring adds ~128px beyond outerRadius + ~34px for planet symbol overflow and label
   // Progressed no longer needs extra margin (planets are integrated into the main wheel)
-  const transitExtraMargin = showTransits ? 75 : 0;
+  const transitExtraMargin = showTransits ? 130 : 0;
   const margin = CHART_DIMENSIONS.margin + 10 + transitExtraMargin;
   const outerRadius = (size - margin * 2) / 2;
   const cx = size / 2;
@@ -203,7 +204,7 @@ function calculateDimensions(size: number, showTransits: boolean = false, _showP
  * 6. Transit ring (when enabled) - outermost
  */
 function calculateSingleWheelDimensions(size: number, showTransits: boolean = false, _showProgressed: boolean = false, showDecans: boolean = true): ChartDimensions {
-  const transitExtraMargin = showTransits ? 75 : 0;
+  const transitExtraMargin = showTransits ? 130 : 0;
   const margin = CHART_DIMENSIONS.margin + 10 + transitExtraMargin;
   const outerRadius = (size - margin * 2) / 2;
   const cx = size / 2;
@@ -349,6 +350,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   birthDateA,
   birthTimeA,
   // Mode change callbacks
+  initialTheme,
   onThemeChange,
   onChartModeChange,
   onShowTransitsChange,
@@ -417,13 +419,22 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   // Rotation state - rotate chart so Person A's Ascendant is at 9 o'clock (left side, traditional East)
   const [rotateToAscendant, setRotateToAscendant] = useState(savedDefaults ? savedDefaults.rotateToAscendant : true);
 
-  // Theme state - apply before render so all children read updated COLORS
-  const [chartTheme, setChartTheme] = useState<ThemeName>(savedDefaults ? savedDefaults.chartTheme as ThemeName : 'classic');
+  // Theme state - prefer parent prop (DB source of truth), fall back to saved defaults, then 'classic'
+  const [chartTheme, setChartTheme] = useState<ThemeName>(
+    (initialTheme as ThemeName) || (savedDefaults ? savedDefaults.chartTheme as ThemeName : 'classic')
+  );
   useMemo(() => {
     applyTheme(chartTheme);
     setCurrentThemeName(chartTheme);
     onThemeChange?.(chartTheme);
   }, [chartTheme]);
+
+  // Sync when parent theme changes (e.g. after DB load resolves)
+  useEffect(() => {
+    if (initialTheme && initialTheme !== chartTheme) {
+      setChartTheme(initialTheme as ThemeName);
+    }
+  }, [initialTheme]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Zoom state - viewBox manipulation for zooming into chart areas
   const [zoomMode, setZoomMode] = useState(false);
@@ -1804,6 +1815,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             const y = Math.max(0, Math.min(VIEWBOX_SIZE - zoomH, svgY - zoomH / 2));
             setZoomViewBox({ x, y, w: zoomW, h: zoomH });
             setZoomMode(false);
+            setPanMode(true);
             e.stopPropagation();
             return;
           }
@@ -2197,6 +2209,14 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             </g>
           );
         })()}
+
+        {/* Software signature — top-left corner */}
+        <text x={22} y={36} fill={COLORS.textSecondary} fontSize={30} fontWeight={200} fontFamily="'Inter', system-ui, sans-serif" letterSpacing="0.12em" opacity={0.7} style={{ textTransform: 'uppercase' as const }}>
+          ASTROLOGER
+        </text>
+        <text x={22} y={54} fill={COLORS.textSecondary} fontSize={14} fontWeight={300} fontFamily="'Inter', system-ui, sans-serif" letterSpacing="0.08em" opacity={0.5}>
+          astrologerapp.org
+        </text>
       </svg>
 
       {/* Zoom controls overlay */}

@@ -163,7 +163,7 @@ export function getTimeLordNatalCondition(
 
   // Find aspects this planet makes to other natal planets
   const ASPECT_PLANETS = [...PLANET_GROUPS.core, ...PLANET_GROUPS.outer] as string[];
-  const majorOnly = new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition'] as const);
+  const majorOnly = new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare'] as const);
 
   const aspects: TimeLordCondition['aspects'] = [];
   for (const otherKey of ASPECT_PLANETS) {

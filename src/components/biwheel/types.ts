@@ -181,6 +181,8 @@ export interface BiWheelSynastryProps {
   birthDateA?: string;
   birthTimeA?: string;
   // Mode change callbacks (for parent sync)
+  /** Current theme from parent (DB source of truth). When set, overrides local saved defaults. */
+  initialTheme?: string;
   onThemeChange?: (theme: string) => void;
   onChartModeChange?: (mode: ChartMode) => void;
   onShowTransitsChange?: (show: boolean) => void;

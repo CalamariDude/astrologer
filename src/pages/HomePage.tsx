@@ -274,8 +274,9 @@ function GalacticSectionText() {
   const fade = useFadeIn(0);
   return (
     <div ref={fade.ref} style={fade.style} className={`text-center max-w-2xl ${fade.className}`}>
-      <div className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.25em] mb-5 text-indigo-400/80">
+      <div className="inline-flex items-center gap-2 text-[11px] sm:text-xs font-bold uppercase tracking-[0.25em] mb-5 text-indigo-400/80">
         Galactic Mode
+        <span className="px-1.5 py-0.5 text-[9px] font-bold bg-indigo-500/25 text-indigo-300 rounded border border-indigo-500/30">Beta</span>
       </div>
       <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05]">
         <span className="bg-gradient-to-r from-indigo-200 via-purple-200 to-pink-200 bg-clip-text text-transparent">

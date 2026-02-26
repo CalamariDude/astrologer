@@ -2,6 +2,9 @@
  * GalacticScene
  * Orrery-style scene: planets at realistic elliptical orbits with orbit rings.
  * Clicking a planet = focus mode (only that planet's aspects shown, others dimmed).
+ *
+ * Transit layer: when transits are enabled, transit planets appear on outer orbits
+ * with transit-to-natal aspect lines rendered distinctly.
  */
 
 import { useMemo, useCallback } from 'react';
@@ -29,11 +32,14 @@ interface GalacticSceneProps {
   autoRotate: boolean;
   onInteractionStart: () => void;
   showAspects: boolean;
+  showNatalAspects?: boolean;
+  showTransitAspects?: boolean;
   showHouses: boolean;
   showOrbits: boolean;
   showZodiac: boolean;
   activePreset: CameraPreset | null;
   transitDayOffset?: number;
+  transitEnabled?: boolean;
 }
 
 /** Elliptical orbit path using real Keplerian elements */
@@ -81,24 +87,37 @@ export function GalacticScene({
   autoRotate,
   onInteractionStart,
   showAspects,
+  showNatalAspects = true,
+  showTransitAspects = true,
   showHouses,
   showOrbits,
   showZodiac,
   activePreset,
   transitDayOffset,
+  transitEnabled,
 }: GalacticSceneProps) {
   const {
     planets3D,
     aspects,
+    transitPlanets3D,
+    transitAspects,
     houseSectors,
     zodiacSegments,
     ascendant,
     midheaven,
     orbitPaths,
-  } = useGalacticChart(chart, visiblePlanets, visibleAspects, transitDayOffset);
+  } = useGalacticChart(chart, visiblePlanets, visibleAspects, transitDayOffset, transitEnabled);
 
-  // Pass planets3D so aspects use actual orbital positions
+  // Combine natal + transit planets for position lookup in aspect energy
+  const allPlanets3D = useMemo(
+    () => [...planets3D, ...transitPlanets3D],
+    [planets3D, transitPlanets3D],
+  );
+
+  // Natal aspects use natal positions only
   const aspects3D = useAspectEnergy(aspects, planets3D);
+  // Transit-to-natal aspects need combined position map
+  const transitAspects3D = useAspectEnergy(transitAspects, allPlanets3D);
 
   // Compute declination map for parallel/contraparallel detection
   const declinations = useMemo(() => {
@@ -123,8 +142,8 @@ export function GalacticScene({
 
   const focusPlanet = useMemo<Planet3D | null>(() => {
     if (!selectedPlanet) return null;
-    return planets3D.find((p) => p.key === selectedPlanet) ?? null;
-  }, [selectedPlanet, planets3D]);
+    return allPlanets3D.find((p) => p.key === selectedPlanet) ?? null;
+  }, [selectedPlanet, allPlanets3D]);
 
   const handleSelectPlanet = useCallback((key: string) => {
     onSelectPlanet(selectedPlanet === key ? null : key);
@@ -134,13 +153,20 @@ export function GalacticScene({
   const focusedAspectIds = useMemo<Set<string> | null>(() => {
     if (!selectedPlanet) return null;
     const ids = new Set<string>();
+    // Check natal aspects
     for (const asp of aspects3D) {
       if (asp.planetA === selectedPlanet || asp.planetB === selectedPlanet) {
         ids.add(asp.id);
       }
     }
+    // Check transit aspects
+    for (const asp of transitAspects3D) {
+      if (asp.planetA === selectedPlanet || asp.planetB === selectedPlanet) {
+        ids.add(asp.id);
+      }
+    }
     return ids;
-  }, [selectedPlanet, aspects3D]);
+  }, [selectedPlanet, aspects3D, transitAspects3D]);
 
   return (
     <>
@@ -194,8 +220,8 @@ export function GalacticScene({
         />
       )}
 
-      {/* Aspect Lines — when a planet is selected, dim non-related aspects */}
-      {showAspects && aspects3D.map((asp) => {
+      {/* Natal Aspect Lines */}
+      {showAspects && showNatalAspects && aspects3D.map((asp) => {
         const isFocused = focusedAspectIds ? focusedAspectIds.has(asp.id) : true;
         return (
           <AspectLine3D
@@ -208,7 +234,20 @@ export function GalacticScene({
         );
       })}
 
-      {/* Planets */}
+      {/* Transit-to-Natal Aspect Lines */}
+      {showAspects && showTransitAspects && transitAspects3D.map((asp) => {
+        const isFocused = focusedAspectIds ? focusedAspectIds.has(asp.id) : true;
+        return (
+          <AspectLine3D
+            key={asp.id}
+            aspect={asp}
+            visible={focusedAspectIds ? isFocused : true}
+            dimmed={focusedAspectIds ? !isFocused : false}
+          />
+        );
+      })}
+
+      {/* Natal Planets */}
       {planets3D.map((planet, i) => (
         <PlanetNode3D
           key={planet.key}
@@ -220,8 +259,20 @@ export function GalacticScene({
         />
       ))}
 
-      {/* Energy flow overlay — shown when a planet is selected */}
-      {focusPlanet && houseSectors.length > 0 && (
+      {/* Transit Planets */}
+      {transitPlanets3D.map((planet, i) => (
+        <PlanetNode3D
+          key={planet.key}
+          planet={planet}
+          selected={selectedPlanet === planet.key}
+          onSelect={handleSelectPlanet}
+          animationDelay={0}
+          dimmed={!!selectedPlanet && selectedPlanet !== planet.key}
+        />
+      ))}
+
+      {/* Energy flow overlay — shown when a natal planet is selected */}
+      {focusPlanet && !focusPlanet.isTransit && houseSectors.length > 0 && (
         <EnergyFlowOverlay3D
           selectedPlanet={focusPlanet}
           allPlanets={planets3D}

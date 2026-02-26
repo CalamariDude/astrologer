@@ -27,6 +27,8 @@ interface BiWheelMobileWrapperProps extends Omit<BiWheelSynastryProps, 'size' | 
   onVisibleAspectsChange?: (aspects: Set<string>) => void;
   /** Birth data for generating shareable links */
   shareBirthData?: { name: string; date: string; time: string; lat: number; lng: number; location: string };
+  /** localStorage key for chart notes (enables "share notes" checkbox in email modal) */
+  chartNotesKey?: string;
 }
 
 // Breakpoint for mobile detection
@@ -47,6 +49,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   onVisiblePlanetsChange,
   onVisibleAspectsChange,
   shareBirthData,
+  chartNotesKey,
   ...biWheelProps
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -63,6 +66,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   const [emailTo, setEmailTo] = useState('');
   const [emailMessage, setEmailMessage] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [shareNotes, setShareNotes] = useState(true);
 
   // Zoom and pan state
   const [scale, setScale] = useState(1);
@@ -92,7 +96,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   );
   const [visibleAspects, setVisibleAspects] = useState<Set<string>>(
     biWheelProps.initialVisibleAspects
-      || (savedDefaults?.visibleAspects ? new Set(savedDefaults.visibleAspects) : new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition']))
+      || (savedDefaults?.visibleAspects ? new Set(savedDefaults.visibleAspects) : new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare']))
   );
   const [showHouses, setShowHouses] = useState(biWheelProps.initialShowHouses ?? savedDefaults?.showHouses ?? true);
   const [showDegreeMarkers, setShowDegreeMarkers] = useState(biWheelProps.initialShowDegreeMarkers ?? savedDefaults?.showDegreeMarkers ?? true);
@@ -333,12 +337,44 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
       const nameA = biWheelProps.nameA || 'Person A';
       const nameB = biWheelProps.nameB;
       const title = nameB && nameB !== nameA ? `${nameA} & ${nameB}` : nameA;
+
+      // Read notes from localStorage if sharing is enabled
+      let notes: string[] | undefined;
+      if (shareNotes && chartNotesKey) {
+        try {
+          const raw = localStorage.getItem('astrologer_chart_notes');
+          if (raw) {
+            const allNotes = JSON.parse(raw);
+            const chartNotes = allNotes[chartNotesKey];
+            if (Array.isArray(chartNotes) && chartNotes.length > 0) {
+              notes = chartNotes.map((n: { text: string }) => n.text);
+            }
+          }
+        } catch { /* ignore parse errors */ }
+      }
+
+      // Build shareable chart URL if birth data available
+      let chartUrl: string | undefined;
+      if (shareBirthData) {
+        const params = new URLSearchParams({
+          name: shareBirthData.name,
+          date: shareBirthData.date,
+          time: shareBirthData.time,
+          lat: String(shareBirthData.lat),
+          lng: String(shareBirthData.lng),
+          loc: shareBirthData.location,
+        });
+        chartUrl = `${window.location.origin}/chart?${params.toString()}`;
+      }
+
       await emailChart({
         container: chartContainerRef.current,
         to: emailTo.trim(),
         title,
         message: emailMessage.trim() || undefined,
         chartDetails: nameB && nameB !== nameA ? 'Synastry Chart' : 'Natal Chart',
+        notes,
+        chartUrl,
       });
       toast.success(`Chart sent to ${emailTo}`);
       setShowEmailModal(false);
@@ -349,7 +385,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     } finally {
       setSendingEmail(false);
     }
-  }, [chartContainerRef, emailTo, emailMessage, biWheelProps.nameA, biWheelProps.nameB]);
+  }, [chartContainerRef, emailTo, emailMessage, biWheelProps.nameA, biWheelProps.nameB, shareNotes, chartNotesKey, shareBirthData]);
 
   // Toggle handlers for the drawer
   const togglePlanet = useCallback((planet: string) => {
@@ -468,10 +504,11 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
             <div className="relative">
               <button
                 onClick={() => { setShowShareMenu(v => !v); setShowExportMenu(false); }}
-                className="p-1.5 md:p-2 rounded-lg bg-muted hover:bg-muted/70 transition-colors"
+                className="flex items-center gap-1 px-2 py-1.5 md:px-2.5 md:py-2 rounded-lg bg-muted hover:bg-muted/70 transition-colors"
                 title="Share chart"
               >
                 <Share2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                <span className="text-[10px] md:text-xs">Share</span>
               </button>
               {showShareMenu && (
                 <>
@@ -501,10 +538,11 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
               <button
                 onClick={() => { setShowExportMenu(v => !v); setShowShareMenu(false); }}
                 disabled={exporting}
-                className="p-1.5 md:p-2 rounded-lg bg-muted hover:bg-muted/70 transition-colors"
+                className="flex items-center gap-1 px-2 py-1.5 md:px-2.5 md:py-2 rounded-lg bg-muted hover:bg-muted/70 transition-colors"
                 title="Download chart"
               >
                 <Download className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                <span className="text-[10px] md:text-xs">Download</span>
               </button>
               {showExportMenu && (
                 <>
@@ -689,6 +727,17 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                     />
                   </div>
                 </div>
+                {chartNotesKey && (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={shareNotes}
+                      onChange={(e) => setShareNotes(e.target.checked)}
+                      className="rounded border-border"
+                    />
+                    <span className="text-xs text-muted-foreground">Share notes from this chart</span>
+                  </label>
+                )}
                 <div className="flex gap-2 justify-end">
                   <button
                     onClick={() => { setShowEmailModal(false); setEmailTo(''); setEmailMessage(''); }}

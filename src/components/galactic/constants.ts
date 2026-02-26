@@ -56,6 +56,33 @@ export const PLANET_ORBIT_RADII: Record<string, number> = {
 /** Default radius for unlisted planets/asteroids */
 export const DEFAULT_ORBIT_RADIUS = 8.0;
 
+/** Base orbit radius for all transit planets (placed outside all natal orbits) */
+export const TRANSIT_ORBIT_RADIUS = 10.0;
+
+/** Small per-planet spread so transit planets don't stack on one ring */
+export const TRANSIT_ORBIT_SPREAD: Record<string, number> = {
+  sun: 0,
+  moon: 0.3,
+  mercury: 0.6,
+  venus: 0.9,
+  mars: 1.2,
+  jupiter: 1.5,
+  saturn: 1.8,
+  uranus: 2.1,
+  neptune: 2.4,
+  pluto: 2.7,
+};
+
+/** @deprecated kept for reference — replaced by TRANSIT_ORBIT_RADIUS */
+export const TRANSIT_ORBIT_OFFSET = 1.0;
+
+/** Planets to show in the transit overlay (core + outer — no asteroids) */
+export const TRANSIT_PLANET_KEYS = new Set([
+  'sun', 'moon', 'mercury', 'venus', 'mars',
+  'jupiter', 'saturn', 'uranus', 'neptune', 'pluto',
+  'chiron', 'northnode', 'southnode', 'lilith',
+]);
+
 /**
  * Orbital zones for asteroid groups — [minRadius, maxRadius].
  * Asteroids are distributed within their zone based on longitude hash.

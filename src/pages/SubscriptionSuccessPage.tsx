@@ -1,23 +1,46 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useEffect, useState, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle, Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { supabase } from '@/lib/supabase';
 
 export default function SubscriptionSuccessPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const sessionId = searchParams.get('session_id');
   const { isPaid, refresh } = useSubscription();
   const [pollCount, setPollCount] = useState(0);
+  const verifiedRef = useRef(false);
 
-  // Poll for subscription status update (webhook may be delayed)
+  // On mount: verify the Stripe session directly (don't wait for webhook)
+  useEffect(() => {
+    if (!sessionId || verifiedRef.current || isPaid) return;
+    verifiedRef.current = true;
+
+    (async () => {
+      try {
+        const { error } = await supabase.functions.invoke('astrologer-stripe-verify', {
+          body: { session_id: sessionId },
+        });
+        if (error) console.error('Verify error:', error);
+        // Refresh profile to pick up the update
+        await refresh();
+      } catch (err) {
+        console.error('Verify failed:', err);
+      }
+    })();
+  }, [sessionId, isPaid, refresh]);
+
+  // Fallback: poll for webhook-driven update
   useEffect(() => {
     if (isPaid) return;
-    if (pollCount > 10) return; // Stop after ~10 seconds
+    if (pollCount > 15) return;
 
     const timer = setTimeout(async () => {
       await refresh();
       setPollCount((c) => c + 1);
-    }, 1000);
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, [isPaid, pollCount, refresh]);
@@ -37,11 +60,24 @@ export default function SubscriptionSuccessPage() {
               </p>
             </div>
             <div className="flex flex-col gap-2">
-              <Button onClick={() => navigate('/')} className="w-full">
+              <Button onClick={() => navigate('/chart')} className="w-full">
                 <Sparkles className="w-4 h-4 mr-2" />
                 Start Exploring
               </Button>
             </div>
+          </>
+        ) : pollCount > 15 ? (
+          <>
+            <div>
+              <h1 className="text-xl font-bold">Almost there...</h1>
+              <p className="text-sm text-muted-foreground mt-2">
+                Your payment was received. It may take a minute to activate.
+                Try refreshing the page.
+              </p>
+            </div>
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              Refresh
+            </Button>
           </>
         ) : (
           <>

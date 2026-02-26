@@ -701,14 +701,18 @@ export function PlanetNode3D({ planet, selected, onSelect, animationDelay = 0, d
   const scaleRef = useRef(animationDelay === 0 ? 1 : 0);
   const startTimeRef = useRef<number | null>(null);
 
+  const isTransit = planet.isTransit ?? false;
+  // Transit planets use the base planet key for color lookup
+  const colorKey = isTransit ? planet.key.replace('transit_', '') : planet.key;
+
   // Use realistic 3D color, falling back to chart color
-  const realColor = PLANET_COLORS_3D[planet.key] ?? planet.color;
+  const realColor = PLANET_COLORS_3D[colorKey] ?? planet.color;
   const planetColor3D = useMemo(() => new THREE.Color(realColor), [realColor]);
 
-  const surfaceTexture = useMemo(() => makePlanetTexture(planet.key), [planet.key]);
+  const surfaceTexture = useMemo(() => makePlanetTexture(colorKey), [colorKey]);
   const ringTexture = useMemo(
-    () => planet.hasRing ? makeRingTexture(planet.key) : null,
-    [planet.key, planet.hasRing],
+    () => planet.hasRing ? makeRingTexture(colorKey) : null,
+    [colorKey, planet.hasRing],
   );
 
   // Ring geometry with radial UVs so banded texture maps concentrically
@@ -809,10 +813,12 @@ export function PlanetNode3D({ planet, selected, onSelect, animationDelay = 0, d
     }
   });
 
-  // Glow size — bigger like landing page
-  const glowSize = planet.size * 6;
+  // Glow size — bigger like landing page; transit planets have slightly smaller glow
+  const glowSize = planet.size * (isTransit ? 5 : 6);
   const isActive = hovered || selected;
   const dimFactor = dimmed ? 0.3 : 1;
+  // Transit planets are slightly more transparent
+  const transitFactor = isTransit ? 0.8 : 1;
 
   const isAsteroid = planet.category === 'asteroid';
   const isPoint = planet.category === 'point';
@@ -862,7 +868,7 @@ export function PlanetNode3D({ planet, selected, onSelect, animationDelay = 0, d
         <spriteMaterial
           map={glowTexture}
           transparent
-          opacity={(isActive ? 0.7 : 0.5) * dimFactor}
+          opacity={(isActive ? 0.7 : 0.5) * dimFactor * transitFactor}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
@@ -874,11 +880,25 @@ export function PlanetNode3D({ planet, selected, onSelect, animationDelay = 0, d
           <spriteMaterial
             map={auraTexture}
             transparent
-            opacity={(isActive ? 0.55 : 0.35) * dimFactor}
+            opacity={(isActive ? 0.55 : 0.35) * dimFactor * transitFactor}
             blending={THREE.AdditiveBlending}
             depthWrite={false}
           />
         </sprite>
+      )}
+
+      {/* Transit indicator ring — amber dashed ring around transit planets */}
+      {isTransit && (
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[planet.size * 1.6, 0.02, 8, 48]} />
+          <meshBasicMaterial
+            color="#f59e0b"
+            transparent
+            opacity={0.6 * dimFactor}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+          />
+        </mesh>
       )}
 
       {/* Selection ring */}
@@ -910,15 +930,15 @@ export function PlanetNode3D({ planet, selected, onSelect, animationDelay = 0, d
       {!hovered && (isAsteroid ? selected : true) && (
         <Billboard position={[0, labelY, 0]}>
           <Text
-            fontSize={isPoint ? 0.28 : isAsteroid ? 0.22 : 0.3}
-            color={realColor}
+            fontSize={isTransit ? 0.24 : isPoint ? 0.28 : isAsteroid ? 0.22 : 0.3}
+            color={isTransit ? '#f59e0b' : realColor}
             anchorX="center"
             anchorY="middle"
             outlineWidth={0.025}
             outlineColor="#000000"
-            fillOpacity={(isActive ? 1 : 0.85) * dimFactor}
+            fillOpacity={(isActive ? 1 : 0.85) * dimFactor * transitFactor}
           >
-            {planet.symbol} {planet.name}{planet.retrograde ? ' ℞' : ''}
+            {isTransit ? 'T:' : ''}{planet.symbol} {planet.name}{planet.retrograde ? ' ℞' : ''}
           </Text>
         </Billboard>
       )}
@@ -927,13 +947,13 @@ export function PlanetNode3D({ planet, selected, onSelect, animationDelay = 0, d
       {!hovered && (isAsteroid ? selected : true) && (
         <Billboard position={[0, labelY - (isSmall ? 0.3 : 0.4), 0]}>
           <Text
-            fontSize={isSmall ? 0.18 : 0.22}
-            color="#ffffff"
+            fontSize={isTransit ? 0.18 : isSmall ? 0.18 : 0.22}
+            color={isTransit ? '#fbbf24' : '#ffffff'}
             anchorX="center"
             anchorY="middle"
             outlineWidth={0.02}
             outlineColor="#000000"
-            fillOpacity={(isActive ? 0.9 : 0.6) * dimFactor}
+            fillOpacity={(isActive ? 0.9 : 0.6) * dimFactor * transitFactor}
           >
             {degreeText} {sparkSymbol}{planet.retrograde ? ' ℞' : ''}
           </Text>
@@ -949,16 +969,23 @@ export function PlanetNode3D({ planet, selected, onSelect, animationDelay = 0, d
           zIndexRange={[50, 0]}
         >
           <div style={{
-            background: 'rgba(10, 8, 20, 0.92)',
+            background: isTransit ? 'rgba(20, 15, 5, 0.92)' : 'rgba(10, 8, 20, 0.92)',
             backdropFilter: 'blur(12px)',
-            border: `1px solid ${realColor}40`,
+            border: `1px solid ${isTransit ? '#f59e0b40' : `${realColor}40`}`,
             borderRadius: 10,
             padding: '8px 12px',
             maxWidth: 200,
             whiteSpace: 'normal',
-            boxShadow: `0 0 20px ${realColor}20, 0 4px 12px rgba(0,0,0,0.4)`,
+            boxShadow: isTransit
+              ? '0 0 20px rgba(245,158,11,0.15), 0 4px 12px rgba(0,0,0,0.4)'
+              : `0 0 20px ${realColor}20, 0 4px 12px rgba(0,0,0,0.4)`,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+              {isTransit && (
+                <span style={{ fontSize: 9, fontWeight: 700, color: '#f59e0b', background: '#f59e0b20', padding: '1px 4px', borderRadius: 3, letterSpacing: '0.05em' }}>
+                  TRANSIT
+                </span>
+              )}
               <span style={{ fontSize: 16, color: realColor }}>{planet.symbol}</span>
               <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', letterSpacing: '0.02em' }}>
                 {planet.name}
@@ -970,7 +997,7 @@ export function PlanetNode3D({ planet, selected, onSelect, animationDelay = 0, d
               {planet.house ? ` · House ${planet.house}` : ''}
               <br />
               <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>
-                {planet.category} · orb {planet.orb}°
+                {isTransit ? 'transit' : planet.category} · orb {planet.orb}°
               </span>
             </div>
           </div>

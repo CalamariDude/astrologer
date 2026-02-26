@@ -5,7 +5,7 @@
  * Features: expandable map, astrocartography lines with labels, planet toggles
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -152,16 +152,16 @@ function MapClickHandler({
 }
 
 // Component to center map on location and handle resize
-function MapCenterController({ location, expanded }: { location: { lat: number; lng: number } | null; expanded: boolean }) {
+function MapCenterController({ location, expanded, maximized }: { location: { lat: number; lng: number } | null; expanded: boolean; maximized: boolean }) {
   const map = useMap();
 
-  // Invalidate size when map is first displayed or expanded/collapsed
+  // Invalidate size when map is first displayed, expanded, or maximized
   useEffect(() => {
     const timer = setTimeout(() => {
       map.invalidateSize();
     }, 100);
     return () => clearTimeout(timer);
-  }, [map, expanded]);
+  }, [map, expanded, maximized]);
 
   useEffect(() => {
     if (location) {
@@ -206,14 +206,26 @@ export const InlineLocationPicker: React.FC<InlineLocationPickerProps> = ({
   const [showLines, setShowLines] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
   const [expanded, setExpanded] = useState(false);
+  const [maximized, setMaximized] = useState(false);
   const [selectedPlanets, setSelectedPlanets] = useState<Set<string>>(
     new Set(['Sun', 'Moon', 'Venus', 'Mars'])
   );
   const [selectedLineTypes, setSelectedLineTypes] = useState<Set<string>>(
     new Set(['MC', 'IC', 'ASC', 'DSC'])
   );
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const mapHeight = expanded ? 600 : 280;
+  const mapHeight = maximized ? 'calc(100vh - 110px)' : expanded ? 600 : 280;
+
+  // Close maximized on Escape key
+  useEffect(() => {
+    if (!maximized) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMaximized(false);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [maximized]);
 
   // Fetch astrocartography lines (request all planets including outer/minor)
   useEffect(() => {
@@ -322,7 +334,12 @@ export const InlineLocationPicker: React.FC<InlineLocationPickerProps> = ({
   }, [astroLines]);
 
   return (
-    <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-900">
+    <div
+      ref={containerRef}
+      className={`rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-900 ${
+        maximized ? 'fixed inset-0 z-[9999] rounded-none border-0 flex flex-col' : ''
+      }`}
+    >
       {/* Map Controls Header */}
       <div className="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2">
@@ -349,11 +366,24 @@ export const InlineLocationPicker: React.FC<InlineLocationPickerProps> = ({
           </button>
         </div>
         <div className="flex items-center gap-2">
+          {!maximized && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+            >
+              {expanded ? 'Collapse' : 'Expand'}
+            </button>
+          )}
           <button
-            onClick={() => setExpanded(!expanded)}
-            className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+            onClick={() => setMaximized(!maximized)}
+            className={`px-2 py-1 text-xs rounded ${
+              maximized
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+            }`}
+            title={maximized ? 'Exit fullscreen (Esc)' : 'Fullscreen map'}
           >
-            {expanded ? 'Collapse' : 'Expand'}
+            {maximized ? 'Exit Fullscreen' : 'Fullscreen'}
           </button>
           {currentLocation && (
             <button
@@ -438,11 +468,11 @@ export const InlineLocationPicker: React.FC<InlineLocationPickerProps> = ({
       )}
 
       {/* Map Container */}
-      <div style={{ height: `${mapHeight}px`, position: 'relative', transition: 'height 0.3s ease' }}>
+      <div style={{ height: typeof mapHeight === 'number' ? `${mapHeight}px` : mapHeight, position: 'relative', transition: 'height 0.3s ease', flex: maximized ? 1 : undefined }}>
         <MapContainer
           key={`${mapCenter.lat}-${mapCenter.lng}-${mapStyle}`}
           center={[mapCenter.lat, mapCenter.lng]}
-          zoom={expanded ? 3 : 4}
+          zoom={maximized ? 3 : expanded ? 3 : 4}
           style={{ height: '100%', width: '100%' }}
           zoomControl={true}
         >
@@ -453,7 +483,7 @@ export const InlineLocationPicker: React.FC<InlineLocationPickerProps> = ({
             zoomOffset={-1}
           />
           <MapClickHandler onLocationSelect={handleLocationSelect} />
-          <MapCenterController location={currentLocation} expanded={expanded} />
+          <MapCenterController location={currentLocation} expanded={expanded} maximized={maximized} />
 
           {/* Original birth location marker (blue) */}
           {originalLocation && (
