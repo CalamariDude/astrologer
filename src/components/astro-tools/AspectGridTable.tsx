@@ -558,15 +558,6 @@ export function AspectGridTable({ chartA, chartB, nameA, nameB }: AspectGridTabl
         </div>
       )}
 
-      {/* Pattern Cards */}
-      {patterns.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {patterns.map((pattern, i) => (
-            <PatternCard key={i} pattern={pattern} />
-          ))}
-        </div>
-      )}
-
       {/* Aspect Grid */}
       <div className={`overflow-x-auto w-fit max-w-full ${isSynastry ? 'rounded-xl border bg-card/50' : ''}`}>
         <table className="border-collapse">
@@ -704,6 +695,15 @@ export function AspectGridTable({ chartA, chartB, nameA, nameB }: AspectGridTabl
           )}
         </table>
       </div>
+
+      {/* Pattern Cards */}
+      {patterns.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {patterns.map((pattern, i) => (
+            <PatternCard key={i} pattern={pattern} />
+          ))}
+        </div>
+      )}
 
       {/* Balance Table(s) for synastry — below the grid */}
       {isSynastry && (

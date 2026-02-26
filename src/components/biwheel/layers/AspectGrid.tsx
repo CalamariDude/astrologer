@@ -26,6 +26,8 @@ import {
 } from '../utils/aspectCalculations';
 import type { ChartDimensions, AspectLine, PlanetDisplayPositions, ChartMode } from '../types';
 
+const isMobile = typeof window !== 'undefined' && window.innerWidth < 500;
+
 interface AspectGridProps {
   dimensions: ChartDimensions;
   aspects: SynastryAspect[];
@@ -354,8 +356,8 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
                   onMouseLeave={() => onAspectHover?.(null)}
                 />
 
-                {/* Energy flow particles — A→B */}
-                {line.opacity > 0.25 && (
+                {/* Energy flow particles — A→B (disabled on mobile) */}
+                {!isMobile && line.opacity > 0.25 && (
                   <circle r={1.5 + strength} fill={line.color} opacity={line.opacity * 0.8}>
                     <animateMotion
                       dur={`${flowDuration}s`}
@@ -366,7 +368,7 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
                 )}
 
                 {/* Second flow particle — B→A (only for bidirectional/harmonious) */}
-                {flowType === 'bidirectional' && line.opacity > 0.25 && (
+                {!isMobile && flowType === 'bidirectional' && line.opacity > 0.25 && (
                   <circle r={1.5 + strength} fill={line.color} opacity={line.opacity * 0.8}>
                     <animateMotion
                       dur={`${flowDuration}s`}
@@ -380,7 +382,7 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
                 )}
 
                 {/* One-way flow arrow indicator for challenging aspects */}
-                {flowType === 'one-way' && line.opacity > 0.35 && (() => {
+                {!isMobile && flowType === 'one-way' && line.opacity > 0.35 && (() => {
                   // Arrow at ~70% along the path (toward B)
                   const arrowT = 0.72;
                   const arrowTip = bezierPoint(line.startPoint, ctrl, line.endPoint, arrowT);
