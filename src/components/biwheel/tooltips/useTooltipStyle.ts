@@ -27,22 +27,22 @@ export function getTooltipContainerStyle(opts: TooltipStyleOptions): React.CSSPr
   if (isMobile) {
     return {
       position: 'fixed',
-      left: 0,
-      right: 0,
+      left: 4,
+      right: 4,
       bottom: 0,
       top: 'auto',
       backgroundColor: opts.backgroundColor,
-      border: `1.5px solid ${opts.borderColor}`,
+      border: `1px solid ${opts.borderColor}`,
       borderBottom: 'none',
-      borderRadius: '10px 10px 0 0',
-      padding: '10px 12px 16px',
+      borderRadius: '8px 8px 0 0',
+      padding: '6px 8px 10px',
       zIndex: 1000,
-      maxHeight: '35vh',
+      maxHeight: '18vh',
       overflowY: 'auto',
-      boxShadow: '0 -4px 20px rgba(0,0,0,0.2)',
+      boxShadow: '0 -2px 12px rgba(0,0,0,0.15)',
       pointerEvents: 'auto',
       WebkitOverflowScrolling: 'touch',
-      fontSize: '11px',
+      fontSize: '9px',
     };
   }
 

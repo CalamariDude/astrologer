@@ -214,8 +214,8 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
     >
       {/* Mobile drag handle */}
       {isTooltipMobile() && (
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: COLORS.gridLine }} />
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4 }}>
+          <div style={{ width: 28, height: 3, borderRadius: 2, backgroundColor: COLORS.gridLine }} />
         </div>
       )}
 
@@ -257,14 +257,14 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
         </div>
       </div>
 
-      {/* Planet/Asteroid description */}
-      {getBodyDescription(planet) && (
+      {/* Planet/Asteroid description — hidden on mobile */}
+      {!mobile && getBodyDescription(planet) && (
         <div
           style={{
-            fontSize: mobile ? 10 : 11,
+            fontSize: 11,
             color: COLORS.textSecondary,
             fontStyle: 'italic',
-            marginBottom: mobile ? 5 : 8,
+            marginBottom: 8,
             lineHeight: 1.4,
           }}
         >
@@ -273,10 +273,10 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
       )}
 
       {/* Position badges */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: mobile ? 3 : 4, marginBottom: mobile ? 5 : 8 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: mobile ? 2 : 4, marginBottom: mobile ? 3 : 8 }}>
         {data.sign && (
           <span style={{
-            fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4,
+            fontSize: mobile ? 8 : 10, fontWeight: 600, padding: mobile ? '1px 5px' : '2px 8px', borderRadius: mobile ? 3 : 4,
             backgroundColor: 'rgba(99,102,241,0.1)', color: 'rgba(99,102,241,0.8)',
             textTransform: 'uppercase', letterSpacing: '0.3px',
           }}>
@@ -285,7 +285,7 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
         )}
         {(ownHouse || data.house) && (
           <span style={{
-            fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4,
+            fontSize: mobile ? 8 : 10, fontWeight: 600, padding: mobile ? '1px 5px' : '2px 8px', borderRadius: mobile ? 3 : 4,
             backgroundColor: 'rgba(16,185,129,0.1)', color: 'rgba(16,185,129,0.8)',
             textTransform: 'uppercase', letterSpacing: '0.3px',
           }}>
@@ -294,7 +294,7 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
         )}
         {data.retrograde && (
           <span style={{
-            fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4,
+            fontSize: mobile ? 8 : 10, fontWeight: 600, padding: mobile ? '1px 5px' : '2px 8px', borderRadius: mobile ? 3 : 4,
             backgroundColor: 'rgba(249,115,22,0.1)', color: '#f97316',
             textTransform: 'uppercase', letterSpacing: '0.3px',
           }}>
@@ -303,27 +303,29 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
         )}
       </div>
 
-      {/* Position info */}
-      <div style={{ fontSize: 12, marginBottom: 8 }}>
-        <div style={{ color: COLORS.textSecondary, marginBottom: 4 }}>
-          {formatLongitude(data.longitude)}
-        </div>
-
-        {!isMobileView() && data.decan && data.decanSign && (
-          <div style={{ color: COLORS.textMuted, marginBottom: 4 }}>
-            Decan {data.decan} ({data.decanSign})
+      {/* Position info — hidden on mobile */}
+      {!mobile && (
+        <div style={{ fontSize: 12, marginBottom: 8 }}>
+          <div style={{ color: COLORS.textSecondary, marginBottom: 4 }}>
+            {formatLongitude(data.longitude)}
           </div>
-        )}
 
-        {!isMobileView() && data.longitude !== undefined && (() => {
-          const spark = calculateSpark(data.longitude);
-          return (
+          {data.decan && data.decanSign && (
             <div style={{ color: COLORS.textMuted, marginBottom: 4 }}>
-              Spark: {spark.sparkSymbol} {spark.sparkSign}
+              Decan {data.decan} ({data.decanSign})
             </div>
-          );
-        })()}
-      </div>
+          )}
+
+          {data.longitude !== undefined && (() => {
+            const spark = calculateSpark(data.longitude);
+            return (
+              <div style={{ color: COLORS.textMuted, marginBottom: 4 }}>
+                Spark: {spark.sparkSymbol} {spark.sparkSign}
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {/* Ecliptic Coordinates — hidden on mobile to save space */}
       {!isMobileView() && (

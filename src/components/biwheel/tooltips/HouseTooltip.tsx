@@ -77,8 +77,8 @@ export const HouseTooltip: React.FC<HouseTooltipProps> = ({
     >
       {/* Mobile drag handle */}
       {isTooltipMobile() && (
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: COLORS.gridLine }} />
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4 }}>
+          <div style={{ width: 28, height: 3, borderRadius: 2, backgroundColor: COLORS.gridLine }} />
         </div>
       )}
 

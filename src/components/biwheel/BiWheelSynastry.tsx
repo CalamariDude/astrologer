@@ -1776,8 +1776,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       }}
       onClick={() => setState((prev) => ({
         ...prev,
-        // Don't clear selectedAspect here - only X button should dismiss it
         selectedPlanet: null,
+        selectedAspect: null,
         selectedSign: null,
       }))}
     >
