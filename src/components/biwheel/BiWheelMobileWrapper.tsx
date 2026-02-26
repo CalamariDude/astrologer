@@ -586,6 +586,12 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   return (
     <div ref={containerRef} className="w-full">
       <div>
+        {/* DEBUG: visible relocated state banner */}
+        {isMobile && (
+          <div style={{ padding: '4px 8px', fontSize: 10, background: '#ff0', color: '#000', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+            relocatedPerson: {String(relocatedPerson)} | relocatedLocation: {relocatedLocation ? `${relocatedLocation.lat.toFixed(2)},${relocatedLocation.lng.toFixed(2)} (${relocatedLocation.name})` : 'null'} | showLocationPicker: {String(showLocationPicker)} | hasOnFetchRelocated: {String(!!biWheelProps.onFetchRelocated)} | enableRelocated: {String(biWheelProps.enableRelocated)} | user: {String(!!user)} | isPaid: {String(isPaid)}
+          </div>
+        )}
         {/* Control bar */}
         <div className="flex items-center justify-end w-full mb-1 md:mb-2 px-1 md:px-2">
           <div className="flex items-center gap-1 md:gap-2">
