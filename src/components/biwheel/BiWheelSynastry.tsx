@@ -420,7 +420,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     progressedLoading: false,
     // Relocated state
     showRelocated: !!initialRelocatedPerson,
-    relocatedLocation: null,
+    relocatedLocation: externalRelocatedLocation || null,
     relocatedData: null,
     relocatedDataOther: null,
     relocatedLoading: false,
