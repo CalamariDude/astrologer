@@ -903,7 +903,7 @@ export default function ChartPage() {
       {/* ── Header Bar ──────────────────────────────────────── */}
       <div className="border-b bg-background">
         <div className="container flex items-center gap-2 md:gap-3 py-2 px-2 md:px-6">
-          <Link to="/" className="text-sm md:text-base font-bold tracking-tight shrink-0">Astrologer</Link>
+          <Link to="/" className="text-sm md:text-base font-extralight tracking-[0.12em] uppercase shrink-0" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>Astrologer</Link>
           <div className="flex-1" />
 
           {user ? (

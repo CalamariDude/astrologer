@@ -365,8 +365,8 @@ export default function HomePage() {
         }}
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <Link to="/" className="text-lg font-bold tracking-tight transition-colors duration-500"
-            style={{ color: inDarkZone ? '#fff' : '#0a0a0a' }}>Astrologer</Link>
+          <Link to="/" className="text-lg font-extralight tracking-[0.12em] uppercase transition-colors duration-500"
+            style={{ fontFamily: "'Inter', system-ui, sans-serif", color: inDarkZone ? '#fff' : '#0a0a0a' }}>Astrologer</Link>
 
           <div className="hidden md:flex items-center gap-6">
             <a href="#features" className="text-sm hover:opacity-80 transition-colors duration-500"
