@@ -16,6 +16,7 @@ import { StarField3D } from './StarField3D';
 import { AsteroidBelt3D } from './AsteroidBelt3D';
 import { CameraController } from './CameraController';
 import { TRANSITION } from './constants';
+import { calculateDeclination } from '@/lib/declination';
 import * as THREE from 'three';
 import type { GalacticNatalChart, Planet3D, CameraPreset } from './types';
 
@@ -94,6 +95,27 @@ export function GalacticScene({
 
   // Pass planets3D so aspects use actual orbital positions
   const aspects3D = useAspectEnergy(aspects, planets3D);
+
+  // Compute declination map for parallel/contraparallel detection
+  const declinations = useMemo(() => {
+    const result: Record<string, number> = {};
+    for (const [key, data] of Object.entries(chart.planets)) {
+      if (data?.longitude !== undefined) {
+        result[key] = calculateDeclination(data.longitude, data.latitude ?? 0);
+      }
+    }
+    return result;
+  }, [chart.planets]);
+
+  // Helper to check declination aspect between two planets
+  const getDecAspect = useCallback((pA: string, pB: string): 'parallel' | 'contraparallel' | null => {
+    const dA = declinations[pA];
+    const dB = declinations[pB];
+    if (dA === undefined || dB === undefined) return null;
+    if (Math.abs(dA - dB) <= 1.2) return 'parallel';
+    if (Math.abs(dA + dB) <= 1.2) return 'contraparallel';
+    return null;
+  }, [declinations]);
 
   const focusPlanet = useMemo<Planet3D | null>(() => {
     if (!selectedPlanet) return null;
@@ -177,6 +199,7 @@ export function GalacticScene({
             aspect={asp}
             visible={focusedAspectIds ? isFocused : true}
             dimmed={focusedAspectIds ? !isFocused : false}
+            declinationAspect={getDecAspect(asp.planetA, asp.planetB)}
           />
         );
       })}
