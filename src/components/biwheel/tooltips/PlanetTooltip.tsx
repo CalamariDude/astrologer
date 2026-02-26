@@ -244,16 +244,16 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
-          marginBottom: 8,
+          gap: mobile ? 6 : 8,
+          marginBottom: mobile ? 5 : 8,
           borderBottom: `1px solid ${COLORS.gridLine}`,
-          paddingBottom: 6,
+          paddingBottom: mobile ? 4 : 6,
         }}
       >
-        <span style={{ fontSize: 20, color }}>{symbol}</span>
+        <span style={{ fontSize: mobile ? 16 : 20, color }}>{symbol}</span>
         <div>
-          <div style={{ color: COLORS.textPrimary, fontWeight: 600 }}>{planetName}</div>
-          <div style={{ color, fontSize: 11 }}>{name}</div>
+          <div style={{ color: COLORS.textPrimary, fontWeight: 600, fontSize: mobile ? 12 : 14 }}>{planetName}</div>
+          <div style={{ color, fontSize: mobile ? 10 : 11 }}>{name}</div>
         </div>
       </div>
 
@@ -261,10 +261,10 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
       {getBodyDescription(planet) && (
         <div
           style={{
-            fontSize: 11,
+            fontSize: mobile ? 10 : 11,
             color: COLORS.textSecondary,
             fontStyle: 'italic',
-            marginBottom: 8,
+            marginBottom: mobile ? 5 : 8,
             lineHeight: 1.4,
           }}
         >
@@ -273,7 +273,7 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
       )}
 
       {/* Position badges */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: mobile ? 3 : 4, marginBottom: mobile ? 5 : 8 }}>
         {data.sign && (
           <span style={{
             fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4,

@@ -6,7 +6,7 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { BiWheelSynastry } from './BiWheelSynastry';
 import { TogglePanelContent } from './controls/TogglePanelContent';
-import type { BiWheelSynastryProps, AsteroidGroup } from './types';
+import type { BiWheelSynastryProps, AsteroidGroup, ChartMode } from './types';
 import { ASTEROID_GROUPS } from './types';
 import { ASTEROIDS, ASTEROID_GROUP_INFO } from './utils/constants';
 import { Drawer } from 'vaul';
@@ -104,6 +104,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   const [enabledAsteroidGroups, setEnabledAsteroidGroups] = useState<Set<AsteroidGroup>>(
     savedDefaults?.enabledAsteroidGroups ? new Set(savedDefaults.enabledAsteroidGroups) : new Set()
   );
+  const [chartMode, setChartMode] = useState<ChartMode>(biWheelProps.initialChartMode || 'synastry');
 
   // Sync visibility changes up to parent (for galactic mode linking)
   useEffect(() => {
@@ -484,8 +485,8 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   // Generate a key that changes when control state changes
   // This forces BiWheelSynastry to re-mount with new initial values
   const chartKey = useMemo(() => {
-    return `${Array.from(visiblePlanets).sort().join(',')}-${Array.from(visibleAspects).sort().join(',')}-${showHouses}-${showDegreeMarkers}-${Array.from(enabledAsteroidGroups).sort().join(',')}`;
-  }, [visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups]);
+    return `${chartMode}-${Array.from(visiblePlanets).sort().join(',')}-${Array.from(visibleAspects).sort().join(',')}-${showHouses}-${showDegreeMarkers}-${Array.from(enabledAsteroidGroups).sort().join(',')}`;
+  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups]);
 
   return (
     <div ref={containerRef} className="w-full">
@@ -606,6 +607,8 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
               initialVisibleAspects={visibleAspects as Set<any>}
               initialShowHouses={showHouses}
               initialShowDegreeMarkers={showDegreeMarkers}
+              initialChartMode={chartMode}
+              onChartModeChange={(mode) => { setChartMode(mode); biWheelProps.onChartModeChange?.(mode); }}
             />
           ) : (
             <div
@@ -690,6 +693,10 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                   nameA={biWheelProps.nameA}
                   nameB={biWheelProps.nameB}
                   isMobile={true}
+                  chartMode={chartMode}
+                  onSetChartMode={(mode: ChartMode) => { setChartMode(mode); biWheelProps.onChartModeChange?.(mode); }}
+                  enableComposite={biWheelProps.enableComposite}
+                  enableTransits={biWheelProps.enableTransits}
                   enableAsteroids={true}
                   enabledAsteroidGroups={enabledAsteroidGroups}
                   onToggleAsteroidGroup={toggleAsteroidGroup}

@@ -32,16 +32,17 @@ export function getTooltipContainerStyle(opts: TooltipStyleOptions): React.CSSPr
       bottom: 0,
       top: 'auto',
       backgroundColor: opts.backgroundColor,
-      border: `2px solid ${opts.borderColor}`,
+      border: `1.5px solid ${opts.borderColor}`,
       borderBottom: 'none',
-      borderRadius: '12px 12px 0 0',
-      padding: '16px 16px 24px',
+      borderRadius: '10px 10px 0 0',
+      padding: '10px 12px 16px',
       zIndex: 1000,
-      maxHeight: '40vh',
+      maxHeight: '35vh',
       overflowY: 'auto',
       boxShadow: '0 -4px 20px rgba(0,0,0,0.2)',
       pointerEvents: 'auto',
       WebkitOverflowScrolling: 'touch',
+      fontSize: '11px',
     };
   }
 
