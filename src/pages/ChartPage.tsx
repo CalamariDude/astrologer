@@ -866,10 +866,12 @@ export default function ChartPage() {
     }
     const src = person === 'A' ? personAData : personBData;
     if (!src?.lat) throw new Error(`Person ${person} birth info not available`);
-    const body: Record<string, unknown> = { birth_date: src.date, birth_time: src.time || '12:00', original_lat: src.lat, original_lng: src.lng, original_name: src.location || 'Birth Location', relocated_lat: newLat, relocated_lng: newLng };
+    // A relocated chart is a natal chart recalculated at the new location
+    // (same birth date/time, different lat/lng → same planets, different houses)
+    const body: Record<string, unknown> = { birth_date: src.date, birth_time: src.time || '12:00', lat: newLat, lng: newLng };
     if (asteroids) body.asteroids = asteroids;
-    const data = await swissEphemeris.relocated(body);
-    return { original_location: data.original_location || { lat: src.lat, lng: src.lng!, name: src.location || 'Birth Location' }, relocated_location: data.relocated_location || { lat: newLat, lng: newLng, name: 'Relocated Location' }, relocated_planets: data.relocated_planets || [], houses: data.houses || { cusps: [], ascendant: 0, mc: 0 }, ascendantSign: data.ascendantSign || '' };
+    const data = await swissEphemeris.natal(body);
+    return { original_location: { lat: src.lat, lng: src.lng!, name: src.location || 'Birth Location' }, relocated_location: { lat: newLat, lng: newLng, name: 'Relocated Location' }, relocated_planets: data.planets || [], houses: data.houses || { cusps: [], ascendant: 0, mc: 0 }, ascendantSign: data.ascendantSign || '' };
   }, [personAData, personBData, relocatedRemaining, useRelocatedCredit]);
 
   const handleFetchAsteroidData = useCallback(async (asteroids: string[]): Promise<{ chartA: Record<string, any>; chartB: Record<string, any> }> => {

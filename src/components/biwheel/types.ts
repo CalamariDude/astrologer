@@ -200,6 +200,7 @@ export interface BiWheelSynastryProps {
   onRelocatedLoadingChange?: (loading: boolean) => void;
   onShowTransitsChange?: (show: boolean) => void;
   onTransitDateChange?: (date: string) => void;
+  onTransitTimeChange?: (time: string) => void;
   onTransitLoadingChange?: (loading: boolean) => void;
   onAsteroidsChange?: (asteroids: AsteroidsParam) => void;
   // Asteroids data fetch callback - called when asteroid groups are enabled to fetch positions

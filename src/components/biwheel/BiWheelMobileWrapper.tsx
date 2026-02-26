@@ -538,7 +538,6 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   }, []);
 
   const handleSetRelocatedPerson = useCallback((person: 'A' | 'B' | 'both' | null) => {
-    console.log('[MobileWrapper] handleSetRelocatedPerson called:', person, { currentLocation: relocatedLocation, user: !!user, isPaid });
     setRelocatedPerson(person);
     if (person) {
       // Clear progressed when enabling relocated
@@ -547,11 +546,8 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
       // On mobile, don't auto-set to birth location (produces identical chart, wastes credit).
       // Instead, auto-open the location picker so the user picks a real location.
       if (!relocatedLocation) {
-        console.log('[MobileWrapper] No location set, checking auth/paid gates...');
-        // Only open picker if no location is already set
-        if (!user) { console.log('[MobileWrapper] No user, showing auth modal'); setShowAuthModal(true); return; }
-        if (!isPaid) { console.log('[MobileWrapper] Not paid, showing upgrade modal'); setShowUpgradeModal(true); return; }
-        console.log('[MobileWrapper] Opening location picker...');
+        if (!user) { setShowAuthModal(true); return; }
+        if (!isPaid) { setShowUpgradeModal(true); return; }
         setDrawerOpen(false);
         setTimeout(() => setShowLocationPicker(true), 300); // Delay so drawer closes first
       }
@@ -569,8 +565,6 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   }, [user, isPaid]);
 
   const handleLocationConfirm = useCallback((location: LocationData) => {
-    console.log('[MobileWrapper] handleLocationConfirm called:', location);
-    console.log('[MobileWrapper] Current relocatedPerson:', relocatedPerson);
     setRelocatedLocation(location);
     setShowLocationPicker(false);
   }, [relocatedPerson]);
@@ -579,19 +573,12 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   // This forces BiWheelSynastry to re-mount with new initial values
   const chartKey = useMemo(() => {
     const locKey = relocatedLocation ? `${relocatedLocation.lat},${relocatedLocation.lng}` : 'none';
-    console.log('[MobileWrapper] chartKey recomputed. relocatedPerson:', relocatedPerson, 'locKey:', locKey, 'relocatedLocation:', relocatedLocation);
     return `${chartMode}-${Array.from(visiblePlanets).sort().join(',')}-${Array.from(visibleAspects).sort().join(',')}-${showHouses}-${showDegreeMarkers}-${Array.from(enabledAsteroidGroups).sort().join(',')}-${showTransits}-${transitDate}-${transitTime}-${progressedPerson}-${progressedDate}-${showSolarArc}-${relocatedPerson}-${locKey}-${chartTheme}`;
   }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups, showTransits, transitDate, transitTime, progressedPerson, progressedDate, showSolarArc, relocatedPerson, relocatedLocation, chartTheme]);
 
   return (
     <div ref={containerRef} className="w-full">
       <div>
-        {/* DEBUG: visible relocated state banner */}
-        {isMobile && (
-          <div style={{ padding: '4px 8px', fontSize: 10, background: '#ff0', color: '#000', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-            relocatedPerson: {String(relocatedPerson)} | relocatedLocation: {relocatedLocation ? `${relocatedLocation.lat.toFixed(2)},${relocatedLocation.lng.toFixed(2)} (${relocatedLocation.name})` : 'null'} | showLocationPicker: {String(showLocationPicker)} | hasOnFetchRelocated: {String(!!biWheelProps.onFetchRelocated)} | enableRelocated: {String(biWheelProps.enableRelocated)} | user: {String(!!user)} | isPaid: {String(isPaid)}
-          </div>
-        )}
         {/* Control bar */}
         <div className="flex items-center justify-end w-full mb-1 md:mb-2 px-1 md:px-2">
           <div className="flex items-center gap-1 md:gap-2">
@@ -696,7 +683,6 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
             onMouseLeave: handleMouseLeave,
           } : {})}
         >
-          {(() => { if (isMobile) console.log('[MobileWrapper] Rendering mobile BiWheelSynastry. externalRelocatedLocation:', relocatedLocation, 'externalRelocatedPerson:', relocatedPerson, 'hasOnFetchRelocated:', !!biWheelProps.onFetchRelocated); return null; })()}
           {isMobile ? (
             /* Mobile: no custom zoom transform — native pinch-to-zoom works on the SVG */
             <BiWheelSynastry

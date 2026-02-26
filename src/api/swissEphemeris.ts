@@ -59,9 +59,6 @@ export const swissEphemeris = {
 
   /** Calculate secondary progressions */
   progressed: (body: Record<string, unknown>) => apiCall('/progressed', body),
-
-  /** Calculate relocated chart */
-  relocated: (body: Record<string, unknown>) => apiCall('/relocated', body),
 };
 
 export default swissEphemeris;

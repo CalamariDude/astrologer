@@ -37,9 +37,11 @@ interface TogglePanelContentProps {
   enableTransits?: boolean;
   showTransits?: boolean;
   transitDate?: string;
+  transitTime?: string;
   transitLoading?: boolean;
   onSetShowTransits?: (show: boolean) => void;
   onSetTransitDate?: (date: string) => void;
+  onSetTransitTime?: (time: string) => void;
   // Chart mode controls
   enableComposite?: boolean;
   chartMode?: ChartMode;
@@ -341,9 +343,11 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
   enableTransits = false,
   showTransits = false,
   transitDate = '',
+  transitTime = '',
   transitLoading = false,
   onSetShowTransits,
   onSetTransitDate,
+  onSetTransitTime,
   // Chart mode controls
   enableComposite = false,
   chartMode = 'synastry',
@@ -492,6 +496,37 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
                       colorScheme: COLORS.background.charAt(1) < '8' ? 'dark' : 'light',
                     }}
                   />
+                  {/* Time picker */}
+                  {onSetTransitTime && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+                      <input
+                        type="time"
+                        value={transitTime}
+                        onChange={(e) => onSetTransitTime(e.target.value)}
+                        style={{
+                          flex: 1,
+                          padding: isMobile ? '10px 12px' : '4px 6px',
+                          fontSize: isMobile ? 14 : 11,
+                          border: `1px solid ${COLORS.gridLineFaint}`,
+                          borderRadius: 6,
+                          background: COLORS.backgroundAlt2,
+                          color: COLORS.textPrimary,
+                          colorScheme: COLORS.background.charAt(1) < '8' ? 'dark' : 'light',
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          const n = new Date();
+                          onSetTransitTime(n.toTimeString().slice(0, 5));
+                        }}
+                        style={{
+                          ...buttonStyle,
+                        }}
+                      >
+                        Now
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

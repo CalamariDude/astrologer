@@ -525,21 +525,9 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   // Relocated person state - which person(s) relocated chart to show
   const [relocatedPerson, setRelocatedPerson] = useState<'A' | 'B' | 'both' | null>(initialRelocatedPerson ?? null);
 
-  // Debug relocated state
-  console.log('[BiWheel] Render. relocatedPerson:', relocatedPerson, 'showRelocated:', state.showRelocated, 'relocatedLocation:', state.relocatedLocation, 'externalRelocatedLocation:', externalRelocatedLocation, 'externalRelocatedPerson:', externalRelocatedPerson, 'hasOnFetchRelocated:', !!onFetchRelocated);
-
   // Sync external relocated location/person from parent (e.g., map selection)
   useEffect(() => {
-    console.log('[BiWheel] External relocated sync effect:', {
-      externalRelocatedLocation,
-      externalRelocatedPerson,
-      currentRelocatedPerson: relocatedPerson,
-      currentShowRelocated: state.showRelocated,
-      currentRelocatedLocation: state.relocatedLocation
-    });
-
     if (externalRelocatedLocation && externalRelocatedPerson) {
-      console.log('[BiWheel] Setting relocated state from external:', externalRelocatedPerson, externalRelocatedLocation);
       setRelocatedPerson(externalRelocatedPerson);
       setState(prev => ({
         ...prev,
@@ -554,8 +542,6 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
                             ? null : prev.relocatedDataOther,
       }));
     } else if (externalRelocatedLocation === null && externalRelocatedPerson === null) {
-      // Clear relocated if parent explicitly clears it
-      console.log('[BiWheel] Clearing relocated state');
       setRelocatedPerson(null);
       setState(prev => ({
         ...prev,
@@ -774,61 +760,33 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
   // Fetch progressed chart when progressedPerson is set or progressedDate changes
   useEffect(() => {
-    console.log('[Progressed] Fetch effect triggered:', {
-      progressedPerson,
-      showProgressed: state.showProgressed,
-      progressedDate: state.progressedDate,
-      hasCallback: !!onFetchProgressed,
-    });
-
     if (!progressedPerson || !state.showProgressed) {
-      console.log('[Progressed] Conditions not met for fetch:', {
-        progressedPerson,
-        showProgressed: state.showProgressed
-      });
-      // Clear progressed data when disabled
       if (state.progressedData || state.progressedDataOther) {
         setState(prev => ({ ...prev, progressedData: null, progressedDataOther: null }));
       }
       return;
     }
 
-    if (!onFetchProgressed) {
-      console.warn('[Progressed] Callback not provided, cannot fetch');
-      return;
-    }
+    if (!onFetchProgressed) return;
 
     const fetchData = async () => {
-      // When 'both', use A as primary so relocatedData=A, relocatedDataOther=B
       const primaryPerson = progressedPerson === 'both' ? 'A' : progressedPerson;
       const otherPerson = primaryPerson === 'A' ? 'B' : 'A';
-      console.log('[Progressed] Starting fetch for person:', primaryPerson, '(mode:', progressedPerson, ') date:', state.progressedDate);
       setState(prev => ({ ...prev, progressedLoading: true }));
       onProgressedLoadingChange?.(true);
       try {
-        // Fetch progressed chart for the primary person
         const data = await onFetchProgressed(primaryPerson, state.progressedDate, computedAsteroids);
-        console.log('[Progressed] Data received:', {
-          planetsCount: data?.progressed_planets?.length,
-          ascendant: data?.ascendantSign,
-          hasHouses: !!data?.houses,
-        });
-        // Set primary data immediately so the wheel updates right away
         setState(prev => ({ ...prev, progressedData: data, progressedLoading: false }));
         onProgressedLoadingChange?.(false);
 
-        // Then fetch the other person's progressed data for house ring consistency
         try {
           const otherData = await onFetchProgressed(otherPerson, state.progressedDate, computedAsteroids);
-          console.log('[Progressed] Other person data received:', {
-            otherAscendant: otherData?.houses?.ascendant,
-          });
           setState(prev => ({ ...prev, progressedDataOther: otherData }));
-        } catch (otherError) {
-          console.warn('[Progressed] Failed to fetch other person data (non-critical):', otherError);
+        } catch {
+          // Other person fetch is non-critical
         }
       } catch (error) {
-        console.error('[Progressed] Failed to fetch:', error);
+        console.error('Progressed chart fetch failed:', error);
         setState(prev => ({ ...prev, progressedLoading: false, progressedData: null, progressedDataOther: null }));
         onProgressedLoadingChange?.(false);
       }
@@ -839,58 +797,33 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
   // Fetch relocated chart when relocatedPerson is set or relocatedLocation changes
   useEffect(() => {
-    console.log('[Relocated] Fetch effect triggered:', {
-      relocatedPerson,
-      showRelocated: state.showRelocated,
-      relocatedLocation: state.relocatedLocation,
-      hasCallback: !!onFetchRelocated,
-    });
-
     if (!relocatedPerson || !state.showRelocated || !state.relocatedLocation) {
-      console.log('[Relocated] Conditions not met for fetch, clearing data if exists');
-      // Clear relocated data when disabled
       if (state.relocatedData || state.relocatedDataOther) {
         setState(prev => ({ ...prev, relocatedData: null, relocatedDataOther: null }));
       }
       return;
     }
 
-    if (!onFetchRelocated) {
-      console.warn('[Relocated] Callback not provided, cannot fetch');
-      return;
-    }
+    if (!onFetchRelocated) return;
 
     const fetchData = async () => {
-      // When 'both', use A as primary so relocatedData=A, relocatedDataOther=B
       const primaryPerson = relocatedPerson === 'both' ? 'A' : relocatedPerson;
       const otherPerson = primaryPerson === 'A' ? 'B' : 'A';
-      console.log('[Relocated] Starting fetch for person:', primaryPerson, '(mode:', relocatedPerson, ') location:', state.relocatedLocation);
       setState(prev => ({ ...prev, relocatedLoading: true }));
       onRelocatedLoadingChange?.(true);
       try {
-        // Fetch primary person's relocated data first
         const data = await onFetchRelocated(primaryPerson, state.relocatedLocation!.lat, state.relocatedLocation!.lng, computedAsteroids);
-        console.log('[Relocated] Primary data received:', {
-          planetsCount: data?.relocated_planets?.length,
-          ascendant: data?.houses?.ascendant,
-          hasHouses: !!data?.houses,
-        });
-        // Set primary data immediately so the wheel updates right away
         setState(prev => ({ ...prev, relocatedData: data, relocatedLoading: false }));
         onRelocatedLoadingChange?.(false);
 
-        // Then fetch the other person's relocated data for house ring consistency
         try {
           const otherData = await onFetchRelocated(otherPerson, state.relocatedLocation!.lat, state.relocatedLocation!.lng, computedAsteroids);
-          console.log('[Relocated] Other person data received:', {
-            otherAscendant: otherData?.houses?.ascendant,
-          });
           setState(prev => ({ ...prev, relocatedDataOther: otherData }));
-        } catch (otherError) {
-          console.warn('[Relocated] Failed to fetch other person data (non-critical):', otherError);
+        } catch {
+          // Other person fetch is non-critical
         }
       } catch (error) {
-        console.error('[Relocated] Failed to fetch:', error);
+        console.error('Relocated chart fetch failed:', error);
         setState(prev => ({ ...prev, relocatedLoading: false, relocatedData: null, relocatedDataOther: null }));
         onRelocatedLoadingChange?.(false);
       }
@@ -1310,23 +1243,6 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   const displayChartB = swapped ? effectiveChartA : effectiveChartB;
   const displayNameA = swapped ? nameB : nameA;
   const displayNameB = swapped ? nameA : nameB;
-
-  // Debug: Log relocated state whenever it changes
-  useEffect(() => {
-    console.log('[BiWheel DEBUG] Relocated state:', {
-      showRelocated: state.showRelocated,
-      relocatedPerson,
-      hasRelocatedData: !!state.relocatedData,
-      hasRelocatedDataOther: !!state.relocatedDataOther,
-      relocatedDataHouses: state.relocatedData?.houses,
-      relocatedDataOtherHouses: state.relocatedDataOther?.houses,
-      effectiveChartA_ascendant: effectiveChartA.angles?.ascendant,
-      effectiveChartA_midheaven: effectiveChartA.angles?.midheaven,
-      effectiveChartB_ascendant: effectiveChartB.angles?.ascendant,
-      effectiveChartB_midheaven: effectiveChartB.angles?.midheaven,
-      rotationOffset,
-    });
-  }, [state.showRelocated, relocatedPerson, state.relocatedData, state.relocatedDataOther, effectiveChartA, effectiveChartB, rotationOffset]);
 
   // Merge composite planets with angles
   const compositeWithAngles = useMemo(() => {
