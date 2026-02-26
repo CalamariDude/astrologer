@@ -2291,35 +2291,38 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       </div>}
 
       {/* Swap A/B button overlay */}
-      {state.chartMode === 'synastry' && (
-        <button
-          onClick={(e) => { e.stopPropagation(); setSwapped(s => !s); }}
-          style={{
-            position: 'absolute',
-            bottom: 12,
-            left: 12,
-            height: 32,
-            paddingLeft: 10,
-            paddingRight: 10,
-            borderRadius: 8,
-            border: swapped ? '2px solid #6C63FF' : `1px solid ${COLORS.gridLineFaint}`,
-            background: swapped ? '#EDE9FF' : COLORS.background,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 12,
-            fontWeight: 600,
-            color: COLORS.textSecondary,
-            boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-            zIndex: 10,
-          }}
-          title="Swap Person A and Person B (outer/inner rings)"
-        >
-          <span style={{ fontSize: 16 }}>&#x21C4;</span>
-          <span>Swap A/B</span>
-        </button>
-      )}
+      {state.chartMode === 'synastry' && (() => {
+        const isMobileSwap = typeof window !== 'undefined' && window.innerWidth < 500;
+        return (
+          <button
+            onClick={(e) => { e.stopPropagation(); setSwapped(s => !s); }}
+            style={{
+              position: 'absolute',
+              bottom: isMobileSwap ? 6 : 12,
+              left: isMobileSwap ? 6 : 12,
+              height: isMobileSwap ? 24 : 32,
+              paddingLeft: isMobileSwap ? 6 : 10,
+              paddingRight: isMobileSwap ? 6 : 10,
+              borderRadius: isMobileSwap ? 6 : 8,
+              border: swapped ? '2px solid #6C63FF' : `1px solid ${COLORS.gridLineFaint}`,
+              background: swapped ? '#EDE9FF' : COLORS.background,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: isMobileSwap ? 3 : 6,
+              fontSize: isMobileSwap ? 9 : 12,
+              fontWeight: 600,
+              color: COLORS.textSecondary,
+              boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+              zIndex: 10,
+            }}
+            title="Swap Person A and Person B (outer/inner rings)"
+          >
+            <span style={{ fontSize: isMobileSwap ? 12 : 16 }}>&#x21C4;</span>
+            <span>Swap A/B</span>
+          </button>
+        );
+      })()}
 
       {/* Location Picker Modal (paid feature) — lazy-loaded with Leaflet */}
       {state.showLocationPicker && (

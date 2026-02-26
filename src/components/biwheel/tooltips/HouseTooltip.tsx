@@ -50,6 +50,7 @@ export const HouseTooltip: React.FC<HouseTooltipProps> = ({
 }) => {
   if (!visible) return null;
 
+  const mobile = isTooltipMobile();
   const color = chart === 'A' ? COLORS.personA : COLORS.personB;
   const info = HOUSE_INFO[house];
   const signName = HOUSE_TO_SIGN[house];
@@ -86,34 +87,34 @@ export const HouseTooltip: React.FC<HouseTooltipProps> = ({
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 10,
-          marginBottom: 10,
+          gap: mobile ? 7 : 10,
+          marginBottom: mobile ? 7 : 10,
           borderBottom: `1px solid ${COLORS.gridLine}`,
-          paddingBottom: 8,
+          paddingBottom: mobile ? 6 : 8,
         }}
       >
         <div
           style={{
-            width: 36,
-            height: 36,
+            width: mobile ? 28 : 36,
+            height: mobile ? 28 : 36,
             borderRadius: '50%',
             backgroundColor: color,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: '#ffffff',
-            fontSize: 18,
+            fontSize: mobile ? 14 : 18,
             fontWeight: 'bold',
           }}
         >
           {house}
         </div>
         <div>
-          <div style={{ color: COLORS.textPrimary, fontWeight: 600, fontSize: 14 }}>
+          <div style={{ color: COLORS.textPrimary, fontWeight: 600, fontSize: mobile ? 12 : 14 }}>
             {info?.name || `House ${house}`}
             {signName && <span style={{ color: COLORS.textMuted, fontWeight: 400 }}> · {signName}</span>}
           </div>
-          <div style={{ color, fontSize: 11 }}>
+          <div style={{ color, fontSize: mobile ? 9 : 11 }}>
             {name}
             {signData && <span style={{ color: COLORS.textMuted }}> · {signData.quality}</span>}
           </div>
@@ -121,7 +122,7 @@ export const HouseTooltip: React.FC<HouseTooltipProps> = ({
       </div>
 
       {/* Details */}
-      <div style={{ fontSize: 12 }}>
+      <div style={{ fontSize: mobile ? 10 : 12 }}>
         <div
           style={{
             display: 'flex',

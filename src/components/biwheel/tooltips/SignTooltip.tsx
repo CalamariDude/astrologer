@@ -45,6 +45,7 @@ export const SignTooltip: React.FC<SignTooltipProps> = ({
 }) => {
   if (!visible) return null;
 
+  const mobile = isTooltipMobile();
   const elementColor = getElementColor(sign.element);
   const signData = SIGN_LENS_KEYWORDS[sign.name];
 
@@ -95,25 +96,25 @@ export const SignTooltip: React.FC<SignTooltipProps> = ({
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 10,
-          marginBottom: 10,
+          gap: mobile ? 7 : 10,
+          marginBottom: mobile ? 7 : 10,
           borderBottom: `1px solid ${COLORS.gridLine}`,
-          paddingBottom: 8,
+          paddingBottom: mobile ? 6 : 8,
         }}
       >
-        <span style={{ fontSize: 28, color: elementColor }}>{sign.symbol}</span>
+        <span style={{ fontSize: mobile ? 20 : 28, color: elementColor }}>{sign.symbol}</span>
         <div>
-          <div style={{ color: COLORS.textPrimary, fontWeight: 600, fontSize: 16 }}>
+          <div style={{ color: COLORS.textPrimary, fontWeight: 600, fontSize: mobile ? 13 : 16 }}>
             {sign.name}
           </div>
-          <div style={{ color: COLORS.textMuted, fontSize: 11 }}>
+          <div style={{ color: COLORS.textMuted, fontSize: mobile ? 9 : 11 }}>
             {sign.dates} {signData && <span style={{ color: elementColor }}>· {signData.quality}</span>}
           </div>
         </div>
       </div>
 
       {/* Element & Modality & Ruler - compact row */}
-      <div style={{ fontSize: 11, marginBottom: 10 }}>
+      <div style={{ fontSize: mobile ? 10 : 11, marginBottom: mobile ? 7 : 10 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
           <span style={{ color: COLORS.textMuted }}>Element</span>
           <span style={{ color: elementColor, fontWeight: 500, textTransform: 'capitalize' }}>{sign.element}</span>

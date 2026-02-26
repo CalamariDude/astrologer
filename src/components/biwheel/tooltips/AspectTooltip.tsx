@@ -75,6 +75,7 @@ export const AspectTooltip: React.FC<AspectTooltipProps> = ({
 
   if (!visible || !aspect) return null;
 
+  const mobile = isTooltipMobile();
   const planetADef = PLANETS[aspect.planetA as keyof typeof PLANETS];
   const planetBDef = PLANETS[aspect.planetB as keyof typeof PLANETS];
   const asteroidADef = ASTEROIDS[aspect.planetA as keyof typeof ASTEROIDS];
@@ -151,32 +152,32 @@ export const AspectTooltip: React.FC<AspectTooltipProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 12,
-          marginBottom: 12,
+          gap: mobile ? 8 : 12,
+          marginBottom: mobile ? 8 : 12,
         }}
       >
         {/* Planet A */}
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 24, color: COLORS.personA }}>{symbolA}</div>
-          <div style={{ fontSize: 11, color: COLORS.personA }}>{nameAPlanet}</div>
-          <div style={{ fontSize: 9, color: COLORS.textMuted }}>{nameA}</div>
+          <div style={{ fontSize: mobile ? 18 : 24, color: COLORS.personA }}>{symbolA}</div>
+          <div style={{ fontSize: mobile ? 10 : 11, color: COLORS.personA }}>{nameAPlanet}</div>
+          <div style={{ fontSize: mobile ? 8 : 9, color: COLORS.textMuted }}>{nameA}</div>
         </div>
 
         {/* Aspect symbol */}
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 22, color: aspect.aspect.color }}>
+          <div style={{ fontSize: mobile ? 16 : 22, color: aspect.aspect.color }}>
             {aspect.aspect.symbol}
           </div>
-          <div style={{ fontSize: 11, color: aspect.aspect.color }}>
+          <div style={{ fontSize: mobile ? 9 : 11, color: aspect.aspect.color }}>
             {aspect.aspect.name}
           </div>
         </div>
 
         {/* Planet B */}
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 24, color: COLORS.personB }}>{symbolB}</div>
-          <div style={{ fontSize: 11, color: COLORS.personB }}>{nameBPlanet}</div>
-          <div style={{ fontSize: 9, color: COLORS.textMuted }}>{nameB}</div>
+          <div style={{ fontSize: mobile ? 18 : 24, color: COLORS.personB }}>{symbolB}</div>
+          <div style={{ fontSize: mobile ? 10 : 11, color: COLORS.personB }}>{nameBPlanet}</div>
+          <div style={{ fontSize: mobile ? 8 : 9, color: COLORS.textMuted }}>{nameB}</div>
         </div>
       </div>
 
@@ -189,7 +190,7 @@ export const AspectTooltip: React.FC<AspectTooltipProps> = ({
       />
 
       {/* Details */}
-      <div style={{ fontSize: 12 }}>
+      <div style={{ fontSize: mobile ? 10 : 12 }}>
         <div
           style={{
             display: 'flex',
@@ -270,17 +271,17 @@ export const AspectTooltip: React.FC<AspectTooltipProps> = ({
 
           {/* Title */}
           <div style={{
-            fontSize: 14,
+            fontSize: mobile ? 12 : 14,
             fontWeight: 600,
             color: interpretation.isPositive ? '#22c55e' : '#ef4444',
-            marginBottom: 8
+            marginBottom: mobile ? 5 : 8
           }}>
             {interpretation.title}
           </div>
 
           {/* Description */}
           <div style={{
-            fontSize: 12,
+            fontSize: mobile ? 10 : 12,
             color: COLORS.textSecondary,
             lineHeight: 1.5,
           }}>

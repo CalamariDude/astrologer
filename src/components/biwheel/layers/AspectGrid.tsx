@@ -260,6 +260,8 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
 
       {aspectLines.map((line, index) => {
         const isConjunction = line.aspect.aspect.type === 'conjunction';
+        // Skip conjunctions entirely — planets already overlap visually
+        if (isConjunction) return null;
         const nature = line.aspect.aspect.nature;
         const strength = line.aspect.aspect.strength;
         const flowType = getFlowType(nature);
