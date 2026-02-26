@@ -580,7 +580,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
           className="rounded-xl border border-border"
           style={{
             maxWidth: '100%',
-            touchAction: isMobile ? 'pan-x pan-y' : (scale > 1 ? 'none' : 'auto'),
+            touchAction: isMobile ? 'manipulation' : (scale > 1 ? 'none' : 'auto'),
             cursor: !isMobile && scale > 1 ? (isMousePanning ? 'grabbing' : 'grab') : 'default',
           }}
           {...(!isMobile ? {
