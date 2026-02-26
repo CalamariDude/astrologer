@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useSearchParams, Link } from 'react-router-dom';
-import { Loader2, MapPin, Plus, X, Pencil, ClipboardPaste, FolderOpen, LogIn, User, Calendar, Clock, Search, Sparkles, Grid3X3, RotateCcw, Gauge, Table2, TrendingUp, CalendarClock, ArrowUpDown, StickyNote, Download, CreditCard, LogOut, ChevronDown, Shield, UserCog } from 'lucide-react';
+import { Loader2, MapPin, Plus, X, Pencil, ClipboardPaste, FolderOpen, LogIn, User, Calendar, Clock, Search, Sparkles, Grid3X3, RotateCcw, Gauge, Table2, TrendingUp, CalendarClock, ArrowUpDown, StickyNote, Download, CreditCard, LogOut, ChevronDown, Shield, UserCog, Keyboard } from 'lucide-react';
 import { SaveChartButton } from '@/components/charts/SaveChartButton';
 import { getSavedCharts, getSavedChartsAsync, invalidateChartsCache, type SavedChart } from '@/components/charts/SaveChartButton';
 import { toast } from 'sonner';
@@ -21,9 +21,14 @@ import {
   DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/lib/supabase';
-import type { TransitData, CompositeData, ProgressedData, RelocatedData, AsteroidsParam } from '@/components/biwheel/types';
+import type { TransitData, CompositeData, ProgressedData, RelocatedData, AsteroidsParam, AsteroidGroup, ChartMode } from '@/components/biwheel/types';
+import { ASTEROID_GROUPS } from '@/components/biwheel/types';
 import { GalacticToggle } from '@/components/galactic/GalacticToggle';
 import { useWebGLSupport } from '@/hooks/useWebGLSupport';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { KeyboardShortcutsHelp } from '@/components/ui/KeyboardShortcutsHelp';
+import { TAB_VALUES } from '@/lib/keyboardShortcuts';
+import * as analytics from '@/lib/analytics';
 
 // Lazy-load GalacticMode to avoid loading Three.js until needed
 const GalacticMode = React.lazy(() => import('@/components/galactic/GalacticMode'));
@@ -142,11 +147,21 @@ function InlineBirthForm({
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 bg-muted/30">
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{label}</h3>
-        {onRemove && (
-          <button onClick={onRemove} className="text-muted-foreground/60 hover:text-foreground transition-colors p-0.5 rounded-md hover:bg-muted">
-            <X className="w-3.5 h-3.5" />
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          {(data.name || data.date) && (
+            <button
+              onClick={() => onChange(emptyBirth())}
+              className="text-[10px] text-muted-foreground/50 hover:text-foreground transition-colors px-1.5 py-0.5 rounded-md hover:bg-muted"
+            >
+              Clear
+            </button>
+          )}
+          {onRemove && (
+            <button onClick={onRemove} className="text-muted-foreground/60 hover:text-foreground transition-colors p-0.5 rounded-md hover:bg-muted">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Form Fields */}
@@ -403,8 +418,31 @@ export default function ChartPage() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [pageTheme, setPageTheme] = useState(() => localStorage.getItem('astrologer_theme') || 'classic');
   const [themeReady, setThemeReady] = useState(!user); // ready immediately if not logged in
+
+  // Shared chart options (parsed from URL params, applied as initial props)
+  const sharedChartOptionsRef = useRef<{
+    theme?: string;
+    mode?: ChartMode;
+    visiblePlanets?: Set<string>;
+    visibleAspects?: Set<string>;
+    showHouses?: boolean;
+    showDegreeMarkers?: boolean;
+    enabledAsteroidGroups?: Set<AsteroidGroup>;
+  } | null>(null);
+
   const [activeTab, setActiveTab] = useState('aspect-grid');
+  const handleTabChange = useCallback((tab: string) => {
+    setActiveTab(tab);
+    analytics.trackToolTabViewed({ tab });
+  }, []);
   const [showGalactic, setShowGalactic] = useState(false);
+  const handleGalacticToggle = useCallback(() => {
+    setShowGalactic((v) => {
+      analytics.trackGalacticModeToggled({ enabled: !v });
+      return !v;
+    });
+  }, []);
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [saveAfterGenerate, setSaveAfterGenerate] = useState(false);
 
   // Load saved charts from DB (for logged-in) or localStorage on mount
@@ -492,6 +530,7 @@ export default function ChartPage() {
   const handleThemeChange = useCallback((t: string) => {
     setPageTheme(t);
     localStorage.setItem('astrologer_theme', t);
+    analytics.trackThemeChanged({ theme: t });
     if (user) {
       supabase.from('astrologer_profiles').update({ theme: t }).eq('id', user.id).then(() => {});
     }
@@ -518,7 +557,7 @@ export default function ChartPage() {
       }
     }
     return persons;
-  }, [user]);
+  }, [user, savedChartsLoaded]);
 
   // Load from route state (saved charts, etc.)
   useEffect(() => {
@@ -557,6 +596,32 @@ export default function ChartPage() {
     setPersonAData(birthData);
     setEditing(false);
     setLoading(true);
+
+    // Parse shared chart options from URL
+    const opts: typeof sharedChartOptionsRef.current = {};
+    const urlTheme = searchParams.get('theme');
+    if (urlTheme) {
+      opts.theme = urlTheme;
+      setPageTheme(urlTheme);
+    }
+    const urlMode = searchParams.get('mode') as ChartMode | null;
+    if (urlMode) opts.mode = urlMode;
+    const urlPlanets = searchParams.get('planets');
+    if (urlPlanets) opts.visiblePlanets = new Set(urlPlanets.split(','));
+    const urlAspects = searchParams.get('aspects');
+    if (urlAspects) opts.visibleAspects = new Set(urlAspects.split(','));
+    const urlHouses = searchParams.get('houses');
+    if (urlHouses === '0') opts.showHouses = false;
+    const urlDegrees = searchParams.get('degrees');
+    if (urlDegrees === '0') opts.showDegreeMarkers = false;
+    const urlAsteroids = searchParams.get('asteroids');
+    if (urlAsteroids) {
+      const groups = urlAsteroids.split(',').filter(g => g in ASTEROID_GROUPS) as AsteroidGroup[];
+      if (groups.length > 0) opts.enabledAsteroidGroups = new Set(groups);
+    }
+    if (Object.keys(opts).length > 0) {
+      sharedChartOptionsRef.current = opts;
+    }
 
     // Clear query params from URL
     setSearchParams({}, { replace: true });
@@ -624,6 +689,12 @@ export default function ChartPage() {
       }
       setEditing(false);
 
+      // Track chart generation
+      analytics.trackChartGenerated({
+        chart_type: parsedB ? 'synastry' : 'natal',
+        has_birth_time: !!(personAData.time && personAData.time !== '12:00'),
+      });
+
       // Auto-save if checkbox was checked
       if (saveAfterGenerate) {
         const isSyn = !!parsedB && !!personBData;
@@ -684,6 +755,7 @@ export default function ChartPage() {
   const handleAstroImport = useCallback(async (persons: ParsedPerson[]) => {
     if (persons.length === 0) return;
     setShowAstroImport(false);
+    analytics.trackAstroComImport({ person_count: persons.length });
 
     // Load first person into chart view
     const a = persons[0];
@@ -755,6 +827,7 @@ export default function ChartPage() {
   }, [user]);
 
   const handleLoadChart = useCallback((chart: any) => {
+    analytics.trackChartLoaded({ chart_type: chart.person_b_chart ? 'synastry' : 'natal' });
     const birthA: BirthData = { name: chart.person_a_name || '', date: chart.person_a_date, time: chart.person_a_time, location: chart.person_a_location || '', lat: chart.person_a_lat, lng: chart.person_a_lng };
     setPersonAData(birthA);
     setChartA(chart.person_a_chart);
@@ -897,6 +970,50 @@ export default function ChartPage() {
   const initialMode = hasSynastry ? 'synastry' : 'personA';
   const canCalculate = !!personAData.date && personAData.lat !== null;
 
+  // ─── Keyboard Shortcuts ─────────────────────────────────────
+
+  const handlePrevTab = useCallback(() => {
+    const idx = TAB_VALUES.indexOf(activeTab as typeof TAB_VALUES[number]);
+    const prev = idx <= 0 ? TAB_VALUES.length - 1 : idx - 1;
+    handleTabChange(TAB_VALUES[prev]);
+  }, [activeTab, handleTabChange]);
+
+  const handleNextTab = useCallback(() => {
+    const idx = TAB_VALUES.indexOf(activeTab as typeof TAB_VALUES[number]);
+    const next = idx >= TAB_VALUES.length - 1 ? 0 : idx + 1;
+    handleTabChange(TAB_VALUES[next]);
+  }, [activeTab, handleTabChange]);
+
+  const handleShortcutEscape = useCallback(() => {
+    if (showShortcutsHelp) { setShowShortcutsHelp(false); return; }
+    if (showSaved) { setShowSaved(false); return; }
+    if (showAstroImport) { setShowAstroImport(false); return; }
+    if (showAuth) { setShowAuth(false); return; }
+    if (showUpgrade) { setShowUpgrade(false); return; }
+    if (showProfile) { setShowProfile(false); return; }
+    if (editing && hasChart) { setEditing(false); return; }
+  }, [showShortcutsHelp, showSaved, showAstroImport, showAuth, showUpgrade, showProfile, editing, hasChart]);
+
+  const handleShortcutSave = useCallback(() => {
+    const btn = document.querySelector<HTMLButtonElement>('[data-shortcut="save"]');
+    if (btn && !btn.disabled) btn.click();
+  }, []);
+
+  useKeyboardShortcuts({
+    hasChart,
+    isEditing: editing,
+    activeTab,
+    onTabChange: handleTabChange,
+    onPrevTab: handlePrevTab,
+    onNextTab: handleNextTab,
+    onCalculate: calculateChart,
+    onSave: handleShortcutSave,
+    onToggleEdit: useCallback(() => setEditing(v => !v), []),
+    onToggleGalactic: handleGalacticToggle,
+    onEscape: handleShortcutEscape,
+    onShowHelp: useCallback(() => setShowShortcutsHelp(true), []),
+  });
+
   // ─── Render ─────────────────────────────────────────────────
 
   return (
@@ -906,13 +1023,20 @@ export default function ChartPage() {
       <div className="border-b bg-background">
         <div className="container flex items-center gap-2 md:gap-3 py-2 px-2 md:px-6">
           <Link to="/" className="text-sm md:text-base font-extralight tracking-[0.12em] uppercase shrink-0" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>Astrologer</Link>
+          <button
+            onClick={() => setShowShortcutsHelp(true)}
+            className="hidden md:flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground/40 hover:text-foreground hover:bg-muted transition-colors"
+            title="Keyboard shortcuts (?)"
+          >
+            <Keyboard className="w-3.5 h-3.5" />
+          </button>
           <div className="flex-1" />
 
           {user ? (
             <div className="flex items-center gap-2">
               {!isPaid && (
                 <button
-                  onClick={() => setShowUpgrade(true)}
+                  onClick={() => { analytics.trackUpgradeClicked(); setShowUpgrade(true); }}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
@@ -923,8 +1047,8 @@ export default function ChartPage() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
-                      <User className="w-3.5 h-3.5 text-primary" />
+                    <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                      <User className="w-3.5 h-3.5 text-foreground" />
                     </div>
                     <span className="hidden sm:inline max-w-[120px] truncate">{user.email?.split('@')[0]}</span>
                     <ChevronDown className="w-3 h-3 opacity-50" />
@@ -957,6 +1081,7 @@ export default function ChartPage() {
                     a.href = url; a.download = 'astrologer-charts.json';
                     document.body.appendChild(a); a.click();
                     document.body.removeChild(a); URL.revokeObjectURL(url);
+                    analytics.trackChartExported({ format: 'json' });
                     toast.success(`Exported ${charts.length} chart${charts.length === 1 ? '' : 's'}`);
                   }}>
                     <Download className="w-4 h-4 mr-2" />
@@ -1073,7 +1198,7 @@ export default function ChartPage() {
                   <button
                     onClick={() => setEditing(true)}
                     className="shrink-0 text-muted-foreground/50 hover:text-foreground transition-colors p-0.5"
-                    title="Edit birth data"
+                    title="Edit birth data (E)"
                   >
                     <Pencil className="w-3 h-3" />
                   </button>
@@ -1128,7 +1253,7 @@ export default function ChartPage() {
                   </div>
                   <div className="shrink-0">
                     {webglSupported && (
-                      <GalacticToggle active={showGalactic} onToggle={() => setShowGalactic(v => !v)} />
+                      <GalacticToggle active={showGalactic} onToggle={handleGalacticToggle} />
                     )}
                   </div>
                 </div>
@@ -1138,7 +1263,7 @@ export default function ChartPage() {
               <div className="flex items-center justify-end mb-2">
                 <div className="shrink-0">
                   {webglSupported && (
-                    <GalacticToggle active={showGalactic} onToggle={() => setShowGalactic(v => !v)} />
+                    <GalacticToggle active={showGalactic} onToggle={handleGalacticToggle} />
                   )}
                 </div>
               </div>
@@ -1165,7 +1290,7 @@ export default function ChartPage() {
                 chartB={hasSynastry ? personB!.natalChart : personA.natalChart}
                 nameA={personA.name || 'Person A'}
                 nameB={hasSynastry ? (personB!.name || 'Person B') : (personA.name || 'Person A')}
-                initialChartMode={initialMode as any}
+                initialChartMode={sharedChartOptionsRef.current?.mode || initialMode as any}
                 enableTransits={true}
                 enableComposite={hasSynastry}
                 enableProgressed={true}
@@ -1192,12 +1317,17 @@ export default function ChartPage() {
                   location: personAData.location,
                 } : undefined}
                 chartNotesKey={`${personAData.date}-${personAData.time}-${personAData.lat}`}
+                {...(sharedChartOptionsRef.current?.visiblePlanets && { initialVisiblePlanets: sharedChartOptionsRef.current.visiblePlanets })}
+                {...(sharedChartOptionsRef.current?.visibleAspects && { initialVisibleAspects: sharedChartOptionsRef.current.visibleAspects as Set<any> })}
+                {...(sharedChartOptionsRef.current?.showHouses !== undefined && { initialShowHouses: sharedChartOptionsRef.current.showHouses })}
+                {...(sharedChartOptionsRef.current?.showDegreeMarkers !== undefined && { initialShowDegreeMarkers: sharedChartOptionsRef.current.showDegreeMarkers })}
+                {...(sharedChartOptionsRef.current?.enabledAsteroidGroups && { initialEnabledAsteroidGroups: sharedChartOptionsRef.current.enabledAsteroidGroups })}
               />
             )}
           </div>
 
           {/* Astro Tools Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <Tabs value={activeTab} onValueChange={handleTabChange}>
             <TabsList className="flex justify-start overflow-x-auto gap-0 w-full scrollbar-hide bg-transparent border-b border-border/50 rounded-none p-0 h-auto">
               {[
                 { value: 'aspect-grid', icon: Grid3X3, label: 'Aspects' },
@@ -1309,6 +1439,7 @@ export default function ChartPage() {
       <AstroComImport isOpen={showAstroImport} onClose={() => setShowAstroImport(false)} onImport={handleAstroImport} />
       <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} />
       <UpgradeModal isOpen={showUpgrade} onClose={() => setShowUpgrade(false)} />
+      <KeyboardShortcutsHelp open={showShortcutsHelp} onOpenChange={setShowShortcutsHelp} />
 
       {/* ── Profile Edit ─────────────────────────────────────── */}
       {showProfile && (

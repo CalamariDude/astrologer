@@ -15,6 +15,7 @@ import { supabase } from '@/lib/supabase';
 import { buildTreesForQuestion, buildCompactChartSummary } from '@/lib/chartReading/buildVantageTree';
 import { DEFAULT_PARAMS } from '@/lib/chartReading/types';
 import type { NatalChart, ChartReadingTree } from '@/lib/chartReading/types';
+import * as analytics from '@/lib/analytics';
 
 interface AIReadingProps {
   chartA: NatalChart;
@@ -285,6 +286,7 @@ export function AIReading({ chartA, chartB, nameA, nameB }: AIReadingProps) {
       }
 
       await useAiCredit();
+      analytics.trackAIReadingUsed({ reading_type: readingFocus });
       setQuestion('');
     } catch (err: any) {
       setError(err.message || 'Failed to generate reading');
@@ -549,7 +551,7 @@ export function AIReading({ chartA, chartB, nameA, nameB }: AIReadingProps) {
           )}
 
           <div className="pt-2 border-t border-border/50 flex items-center justify-between">
-            <span className="text-[10px] text-muted-foreground">Powered by AI — for entertainment and self-reflection</span>
+            <span className="text-[10px] text-muted-foreground">This is an AI that can and will make mistakes — always trust your intuition over AI!</span>
             <Button
               variant="ghost"
               size="sm"

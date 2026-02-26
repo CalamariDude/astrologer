@@ -371,8 +371,8 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
         </div>
       )}
 
-      {/* Aspects list */}
-      {sortedAspects.length > 0 && (
+      {/* Aspects list — hidden on mobile hover (only show when pinned/clicked) */}
+      {sortedAspects.length > 0 && !(mobile && !onClose) && (
         <div
           style={{
             borderTop: `1px solid ${COLORS.gridLine}`,
@@ -628,8 +628,8 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
         </div>
       )}
 
-      {/* Transit aspects to natal chart(s) */}
-      {isTransit && filteredTransitAspects.length > 0 && (
+      {/* Transit aspects to natal chart(s) — hidden on mobile hover */}
+      {isTransit && filteredTransitAspects.length > 0 && !(mobile && !onClose) && (
         <div
           style={{
             borderTop: `1px solid ${COLORS.gridLine}`,
@@ -779,8 +779,8 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
         </div>
       )}
 
-      {/* Transit date display */}
-      {isTransit && transitDate && (
+      {/* Transit date display — hidden on mobile hover */}
+      {isTransit && transitDate && !(mobile && !onClose) && (
         <div
           style={{
             borderTop: `1px solid ${COLORS.gridLine}`,
@@ -811,13 +811,13 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
         </div>
       )}
 
-      {/* No aspects message */}
-      {!isTransit && sortedAspects.length === 0 && (
+      {/* No aspects message — hidden on mobile hover */}
+      {!isTransit && sortedAspects.length === 0 && !(mobile && !onClose) && (
         <div style={{ color: COLORS.textMuted, fontSize: mobile ? 9 : 11, fontStyle: 'italic' }}>
           No aspects with visible planets
         </div>
       )}
-      {isTransit && filteredTransitAspects.length === 0 && (
+      {isTransit && filteredTransitAspects.length === 0 && !(mobile && !onClose) && (
         <div style={{ color: COLORS.textMuted, fontSize: mobile ? 9 : 11, fontStyle: 'italic', marginTop: mobile ? 4 : 8 }}>
           No aspects to natal planets
         </div>

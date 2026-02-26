@@ -81,6 +81,9 @@ function buildAspectMap(
         if (!aspect) continue;
         const key = getAspectKey(pA, pB, aspect.type);
         map.aspects.set(key, aspect);
+        // Skip same-name planets for pattern graph (e.g. Venus-A vs Venus-B)
+        // — they create self-loops that produce bogus geometric patterns
+        if (pA === pB) continue;
         if (aspect.type === 'trine') addToMap(map.trines, pA, pB);
         else if (aspect.type === 'opposition') addToMap(map.oppositions, pA, pB);
         else if (aspect.type === 'square') addToMap(map.squares, pA, pB);

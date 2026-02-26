@@ -113,30 +113,38 @@ export const SignTooltip: React.FC<SignTooltipProps> = ({
         </div>
       </div>
 
-      {/* Element & Modality & Ruler - compact row */}
-      <div style={{ fontSize: mobile ? 10 : 11, marginBottom: mobile ? 7 : 10 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-          <span style={{ color: COLORS.textMuted }}>Element</span>
-          <span style={{ color: elementColor, fontWeight: 500, textTransform: 'capitalize' }}>{sign.element}</span>
+      {/* Element & Modality & Ruler - compact row; on mobile hover just show inline badges */}
+      {mobile && !onClose ? (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginBottom: 4 }}>
+          <span style={{ fontSize: 8, fontWeight: 600, padding: '0px 4px', borderRadius: 3, backgroundColor: `${elementColor}18`, color: elementColor, textTransform: 'capitalize', lineHeight: '14px' }}>{sign.element}</span>
+          <span style={{ fontSize: 8, fontWeight: 600, padding: '0px 4px', borderRadius: 3, backgroundColor: 'rgba(0,0,0,0.05)', color: COLORS.textSecondary, textTransform: 'capitalize', lineHeight: '14px' }}>{sign.modality}</span>
+          <span style={{ fontSize: 8, fontWeight: 600, padding: '0px 4px', borderRadius: 3, backgroundColor: 'rgba(0,0,0,0.05)', color: COLORS.textSecondary, lineHeight: '14px' }}>♜ {sign.ruler}</span>
         </div>
-        <div style={{ fontSize: 10, color: COLORS.textMuted, fontStyle: 'italic', marginBottom: 6 }}>
-          {ELEMENT_DESCRIPTIONS[sign.element]}
+      ) : (
+        <div style={{ fontSize: mobile ? 10 : 11, marginBottom: mobile ? 7 : 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+            <span style={{ color: COLORS.textMuted }}>Element</span>
+            <span style={{ color: elementColor, fontWeight: 500, textTransform: 'capitalize' }}>{sign.element}</span>
+          </div>
+          <div style={{ fontSize: 10, color: COLORS.textMuted, fontStyle: 'italic', marginBottom: 6 }}>
+            {ELEMENT_DESCRIPTIONS[sign.element]}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+            <span style={{ color: COLORS.textMuted }}>Modality</span>
+            <span style={{ color: COLORS.textSecondary, textTransform: 'capitalize' }}>{sign.modality}</span>
+          </div>
+          <div style={{ fontSize: 10, color: COLORS.textMuted, fontStyle: 'italic', marginBottom: 6 }}>
+            {MODALITY_DESCRIPTIONS[sign.modality]}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ color: COLORS.textMuted }}>Ruler</span>
+            <span style={{ color: COLORS.textSecondary }}>{sign.ruler}</span>
+          </div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-          <span style={{ color: COLORS.textMuted }}>Modality</span>
-          <span style={{ color: COLORS.textSecondary, textTransform: 'capitalize' }}>{sign.modality}</span>
-        </div>
-        <div style={{ fontSize: 10, color: COLORS.textMuted, fontStyle: 'italic', marginBottom: 6 }}>
-          {MODALITY_DESCRIPTIONS[sign.modality]}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ color: COLORS.textMuted }}>Ruler</span>
-          <span style={{ color: COLORS.textSecondary }}>{sign.ruler}</span>
-        </div>
-      </div>
+      )}
 
-      {/* Keywords by Lens */}
-      {signData && (
+      {/* Keywords by Lens — hidden on mobile hover */}
+      {signData && !(mobile && !onClose) && (
         <div
           style={{
             borderTop: `1px solid ${COLORS.gridLine}`,

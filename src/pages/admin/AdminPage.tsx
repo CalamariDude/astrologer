@@ -35,6 +35,24 @@ interface Stats {
   total_relocated_used: number;
 }
 
+interface FeatureRow {
+  event: string;
+  count: number;
+  unique_users?: number;
+  last_used?: string;
+}
+
+interface DailyActiveRow {
+  day: string;
+  users: number;
+}
+
+interface UserSessionRow {
+  day: string;
+  events: number;
+  session_seconds: number;
+}
+
 interface AstrologerUser {
   id: string;
   email: string;
@@ -172,6 +190,18 @@ export default function AdminPage() {
   const [broadcastHtml, setBroadcastHtml] = useState('');
   const [sending, setSending] = useState(false);
 
+  // Analytics
+  const [featureUsage, setFeatureUsage] = useState<FeatureRow[]>([]);
+  const [dailyActive, setDailyActive] = useState<DailyActiveRow[]>([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [analyticsDays, setAnalyticsDays] = useState(30);
+  const [analyticsError, setAnalyticsError] = useState('');
+
+  // Per-user analytics (shown in user detail)
+  const [userEvents, setUserEvents] = useState<FeatureRow[]>([]);
+  const [userSessions, setUserSessions] = useState<UserSessionRow[]>([]);
+  const [userAnalyticsLoading, setUserAnalyticsLoading] = useState(false);
+
   // ── Admin check ──
   useEffect(() => {
     if (authLoading) return;
@@ -210,6 +240,49 @@ export default function AdminPage() {
     try { setPromoCodes((await invoke({ action: 'list_promo_codes' })).promo_codes || []); }
     catch (e: any) { toast.error(e.message); }
     finally { setPromosLoading(false); }
+  }, [invoke]);
+
+  const loadAnalytics = useCallback(async (days: number = 30) => {
+    setAnalyticsLoading(true);
+    setAnalyticsError('');
+    try {
+      const [features, dau] = await Promise.all([
+        invoke({ action: 'posthog_analytics', sub_action: 'top_features', days }),
+        invoke({ action: 'posthog_analytics', sub_action: 'daily_active', days }),
+      ]);
+      setFeatureUsage((features.rows || []).map((r: any[]) => ({
+        event: r[0], count: r[1], unique_users: r[2],
+      })));
+      setDailyActive((dau.rows || []).map((r: any[]) => ({
+        day: r[0], users: r[1],
+      })));
+    } catch (e: any) {
+      setAnalyticsError(e.message);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, [invoke]);
+
+  const loadUserAnalytics = useCallback(async (userId: string) => {
+    setUserAnalyticsLoading(true);
+    setUserEvents([]);
+    setUserSessions([]);
+    try {
+      const [events, sessions] = await Promise.all([
+        invoke({ action: 'posthog_analytics', sub_action: 'user_events', user_id: userId, days: 90 }),
+        invoke({ action: 'posthog_analytics', sub_action: 'user_sessions', user_id: userId, days: 30 }),
+      ]);
+      setUserEvents((events.rows || []).map((r: any[]) => ({
+        event: r[0], count: r[1], last_used: r[2],
+      })));
+      setUserSessions((sessions.rows || []).map((r: any[]) => ({
+        day: r[0], events: r[1], session_seconds: r[4] || 0,
+      })));
+    } catch {
+      // PostHog may not be configured — silently ignore
+    } finally {
+      setUserAnalyticsLoading(false);
+    }
   }, [invoke]);
 
   useEffect(() => {
@@ -379,6 +452,7 @@ export default function AdminPage() {
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="analytics" onClick={() => { if (featureUsage.length === 0) loadAnalytics(analyticsDays); }}>Analytics</TabsTrigger>
             <TabsTrigger value="promotions">Promotions</TabsTrigger>
           </TabsList>
 
@@ -471,7 +545,7 @@ export default function AdminPage() {
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map(u => (
-                    <TableRow key={u.id} className="cursor-pointer" onClick={() => { setSelectedUser(u); setShowUserDetail(true); }}>
+                    <TableRow key={u.id} className="cursor-pointer" onClick={() => { setSelectedUser(u); setShowUserDetail(true); loadUserAnalytics(u.id); }}>
                       <TableCell>
                         <div className="font-medium text-sm">{u.email}</div>
                         {u.display_name && <div className="text-xs text-muted-foreground">{u.display_name}</div>}
@@ -490,7 +564,7 @@ export default function AdminPage() {
                       <TableCell className="text-sm text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</TableCell>
                       <TableCell onClick={e => e.stopPropagation()}>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => { setSelectedUser(u); setShowUserDetail(true); }}>
+                          <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => { setSelectedUser(u); setShowUserDetail(true); loadUserAnalytics(u.id); }}>
                             View
                           </Button>
                         </div>
@@ -505,6 +579,117 @@ export default function AdminPage() {
                 </TableBody>
               </Table>
             </div>
+          </TabsContent>
+
+          {/* ── ANALYTICS ── */}
+          <TabsContent value="analytics" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Feature Usage Analytics</h3>
+              <div className="flex gap-2">
+                {[7, 30, 90].map(d => (
+                  <Button
+                    key={d}
+                    size="sm"
+                    variant={analyticsDays === d ? 'default' : 'outline'}
+                    onClick={() => { setAnalyticsDays(d); loadAnalytics(d); }}
+                  >
+                    {d}d
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {analyticsError && (
+              <div className="border border-red-500/30 bg-red-500/10 rounded-lg p-3 text-sm text-red-500">
+                {analyticsError}
+              </div>
+            )}
+
+            {analyticsLoading ? (
+              <p className="text-muted-foreground">Loading analytics...</p>
+            ) : (
+              <>
+                {/* Feature usage table */}
+                <div className="border rounded-lg overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Feature</TableHead>
+                        <TableHead className="text-right">Total Events</TableHead>
+                        <TableHead className="text-right">Unique Users</TableHead>
+                        <TableHead className="text-right">Avg / User</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {featureUsage.map(f => (
+                        <TableRow key={f.event}>
+                          <TableCell className="font-medium text-sm">{f.event.replace(/_/g, ' ')}</TableCell>
+                          <TableCell className="text-right font-mono text-sm">{f.count.toLocaleString()}</TableCell>
+                          <TableCell className="text-right font-mono text-sm">{f.unique_users?.toLocaleString() || '—'}</TableCell>
+                          <TableCell className="text-right font-mono text-sm text-muted-foreground">
+                            {f.unique_users ? (f.count / f.unique_users).toFixed(1) : '—'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {featureUsage.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                            No analytics data yet. Make sure PostHog is configured.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Daily Active Users */}
+                {dailyActive.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold">Daily Active Users</h3>
+                    <div className="border rounded-lg p-4">
+                      <div className="flex items-end gap-[2px] h-32">
+                        {dailyActive.map(d => {
+                          const max = Math.max(...dailyActive.map(x => x.users), 1);
+                          const pct = (d.users / max) * 100;
+                          return (
+                            <div key={d.day} className="flex-1 flex flex-col items-center justify-end h-full group relative">
+                              <div
+                                className="w-full bg-primary/70 rounded-t-sm min-h-[2px] transition-colors group-hover:bg-primary"
+                                style={{ height: `${pct}%` }}
+                              />
+                              <div className="absolute bottom-full mb-1 hidden group-hover:block bg-popover border rounded px-2 py-1 text-xs whitespace-nowrap shadow z-10">
+                                {d.day}: {d.users} user{d.users !== 1 ? 's' : ''}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="flex justify-between mt-2 text-[10px] text-muted-foreground">
+                        <span>{dailyActive[0]?.day}</span>
+                        <span>{dailyActive[dailyActive.length - 1]?.day}</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <StatCard
+                        label="Avg DAU"
+                        value={Math.round(dailyActive.reduce((s, d) => s + d.users, 0) / dailyActive.length)}
+                        sub={`last ${analyticsDays}d`}
+                      />
+                      <StatCard
+                        label="Peak DAU"
+                        value={Math.max(...dailyActive.map(d => d.users))}
+                        sub={dailyActive.find(d => d.users === Math.max(...dailyActive.map(x => x.users)))?.day || ''}
+                      />
+                      <StatCard
+                        label="Total Events"
+                        value={featureUsage.reduce((s, f) => s + f.count, 0).toLocaleString()}
+                        sub={`last ${analyticsDays}d`}
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </TabsContent>
 
           {/* ── PROMOTIONS ── */}
@@ -623,6 +808,60 @@ export default function AdminPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* PostHog Feature Usage */}
+                <div className="border rounded-lg p-3 space-y-2">
+                  <h4 className="text-sm font-semibold">Feature Activity (90d)</h4>
+                  {userAnalyticsLoading ? (
+                    <p className="text-xs text-muted-foreground">Loading...</p>
+                  ) : userEvents.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {userEvents.map(e => {
+                        const max = Math.max(...userEvents.map(x => x.count), 1);
+                        return (
+                          <div key={e.event} className="flex items-center gap-2 text-xs">
+                            <span className="w-28 truncate text-muted-foreground" title={e.event}>{e.event.replace(/_/g, ' ')}</span>
+                            <div className="flex-1 bg-muted rounded-full h-3 overflow-hidden">
+                              <div
+                                className="bg-primary/70 h-full rounded-full transition-all"
+                                style={{ width: `${(e.count / max) * 100}%` }}
+                              />
+                            </div>
+                            <span className="font-mono w-8 text-right">{e.count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No events tracked</p>
+                  )}
+                </div>
+
+                {/* User Sessions / Time Spent */}
+                {userSessions.length > 0 && (
+                  <div className="border rounded-lg p-3 space-y-2">
+                    <h4 className="text-sm font-semibold">Daily Sessions (30d)</h4>
+                    <div className="max-h-32 overflow-y-auto space-y-1">
+                      {userSessions.map(s => (
+                        <div key={s.day} className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">{s.day}</span>
+                          <div className="flex gap-3">
+                            <span>{s.events} event{s.events !== 1 ? 's' : ''}</span>
+                            {s.session_seconds > 0 && (
+                              <span className="text-muted-foreground">
+                                {s.session_seconds >= 3600
+                                  ? `${Math.floor(s.session_seconds / 3600)}h ${Math.floor((s.session_seconds % 3600) / 60)}m`
+                                  : s.session_seconds >= 60
+                                    ? `${Math.floor(s.session_seconds / 60)}m`
+                                    : `${s.session_seconds}s`}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Activity */}
                 <div className="grid grid-cols-2 gap-3">

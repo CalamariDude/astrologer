@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import * as analytics from '@/lib/analytics';
 
 const STORAGE_KEY = 'astrologer_saved_charts';
 const FREE_CHART_LIMIT = 3;
@@ -170,7 +171,21 @@ let _chartsCacheUserId: string | null = null;
 export async function getSavedChartsAsync(userId?: string | null): Promise<SavedChart[]> {
   if (userId) {
     if (_chartsCacheUserId === userId && _chartsCache) return _chartsCache;
-    const charts = await getDbCharts(userId);
+    let charts = await getDbCharts(userId);
+    // Migrate localStorage charts to DB if user has none in DB yet
+    if (charts.length === 0) {
+      const local = getLocalCharts();
+      if (local.length > 0) {
+        for (const c of local) {
+          await insertDbChart(userId, c);
+        }
+        charts = await getDbCharts(userId);
+        // Clear localStorage after successful migration
+        if (charts.length > 0) {
+          try { localStorage.removeItem(STORAGE_KEY); } catch {}
+        }
+      }
+    }
     _chartsCache = charts;
     _chartsCacheUserId = userId;
     return charts;
@@ -189,7 +204,6 @@ export function getSavedCharts(userId?: string | null): SavedChart[] {
 export async function deleteSavedChart(id: string, userId?: string | null): Promise<void> {
   if (userId) {
     await deleteDbChart(id);
-    // Update cache
     if (_chartsCache) {
       _chartsCache = _chartsCache.filter((c) => c.id !== id);
     }
@@ -197,6 +211,7 @@ export async function deleteSavedChart(id: string, userId?: string | null): Prom
     const charts = getLocalCharts().filter((c) => c.id !== id);
     setLocalCharts(charts);
   }
+  analytics.trackChartDeleted();
 }
 
 /** Invalidate cache so next getSavedChartsAsync fetches fresh from DB */
@@ -340,6 +355,11 @@ export function SaveChartButton({ personA, personB, hasSynastry }: SaveChartButt
       setSaved(true);
       setShowNameInput(false);
       setNameConflict(null);
+      analytics.trackChartSaved({
+        chart_type: chart.chart_type,
+        is_update: !!updateId,
+        storage: userId ? 'db' : 'local',
+      });
       toast.success(updateId ? 'Chart updated' : 'Chart saved');
       setTimeout(() => setSaved(false), 3000);
     } catch (err: any) {
@@ -398,6 +418,7 @@ export function SaveChartButton({ personA, personB, hasSynastry }: SaveChartButt
         onClick={handleClick}
         disabled={isAlreadySaved || saving}
         className={`gap-2 ${isAlreadySaved ? 'opacity-50 cursor-not-allowed' : ''}`}
+        data-shortcut="save"
       >
         {saved ? <Check className="w-4 h-4 text-emerald-500" /> : <Save className="w-4 h-4" />}
         {saved ? 'Saved' : isAlreadySaved ? 'Already Saved' : hasSynastry ? 'Save Charts' : 'Save Chart'}

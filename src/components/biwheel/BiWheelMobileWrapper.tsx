@@ -14,6 +14,7 @@ import { Drawer } from 'vaul';
 import { Settings2, Download, Image, FileText, Mail, Loader2, Share2, Link2, Check } from 'lucide-react';
 // Lazy-import chart export (pulls in jsPDF ~357KB) — only needed on export button click
 const getChartExport = () => import('@/lib/chartExport');
+import * as analytics from '@/lib/analytics';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -37,7 +38,13 @@ interface BiWheelMobileWrapperProps extends Omit<BiWheelSynastryProps, 'size' | 
   shareBirthData?: { name: string; date: string; time: string; lat: number; lng: number; location: string };
   /** localStorage key for chart notes (enables "share notes" checkbox in email modal) */
   chartNotesKey?: string;
+  /** Initial asteroid groups to enable (from shared link) */
+  initialEnabledAsteroidGroups?: Set<AsteroidGroup>;
 }
+
+// Default sets for comparison when building share URLs
+const DEFAULT_PLANETS = new Set(['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto']);
+const DEFAULT_ASPECTS = new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare']);
 
 // Breakpoint for mobile detection
 const MOBILE_BREAKPOINT = 768;
@@ -58,6 +65,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   onVisibleAspectsChange,
   shareBirthData,
   chartNotesKey,
+  initialEnabledAsteroidGroups,
   ...biWheelProps
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -109,7 +117,8 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   const [showHouses, setShowHouses] = useState(biWheelProps.initialShowHouses ?? savedDefaults?.showHouses ?? true);
   const [showDegreeMarkers, setShowDegreeMarkers] = useState(biWheelProps.initialShowDegreeMarkers ?? savedDefaults?.showDegreeMarkers ?? true);
   const [enabledAsteroidGroups, setEnabledAsteroidGroups] = useState<Set<AsteroidGroup>>(
-    savedDefaults?.enabledAsteroidGroups ? new Set(savedDefaults.enabledAsteroidGroups) : new Set()
+    initialEnabledAsteroidGroups
+      || (savedDefaults?.enabledAsteroidGroups ? new Set(savedDefaults.enabledAsteroidGroups) : new Set())
   );
   const [chartMode, setChartMode] = useState<ChartMode>(biWheelProps.initialChartMode || 'synastry');
 
@@ -150,6 +159,14 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     applyTheme(theme as ThemeName); // Sync global COLORS immediately
     return theme;
   });
+
+  // Sync theme when parent prop changes (e.g. after DB load resolves)
+  useEffect(() => {
+    if (biWheelProps.initialTheme && biWheelProps.initialTheme !== chartTheme) {
+      setChartTheme(biWheelProps.initialTheme);
+      applyTheme(biWheelProps.initialTheme as ThemeName);
+    }
+  }, [biWheelProps.initialTheme]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync visibility changes up to parent (for galactic mode linking)
   useEffect(() => {
@@ -284,6 +301,28 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     setIsPanning(false);
   }, []);
 
+  // Keyboard zoom (+/-/0) and transit toggle (T)
+  useEffect(() => {
+    function isInputFocused(): boolean {
+      const el = document.activeElement;
+      if (!el) return false;
+      const tag = el.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+      if ((el as HTMLElement).isContentEditable) return true;
+      return false;
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isInputFocused()) return;
+      if (e.key === '+' || e.key === '=') { handleZoomIn(); return; }
+      if (e.key === '-') { handleZoomOut(); return; }
+      if (e.key === '0') { handleResetZoom(); return; }
+      if (e.key === 't' || e.key === 'T') { setShowTransits(v => !v); return; }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleZoomIn, handleZoomOut, handleResetZoom]);
+
   // Mouse wheel zoom for desktop
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
@@ -332,6 +371,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
       const name = biWheelProps.nameA || 'chart';
       const { exportChartAsPNG } = await getChartExport();
       await exportChartAsPNG(chartContainerRef.current, `${name}-chart.png`);
+      analytics.trackChartExported({ format: 'png' });
       toast.success('Chart exported as PNG');
     } catch (err: any) {
       toast.error(err.message || 'Export failed');
@@ -350,6 +390,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
       const title = nameB && nameB !== nameA ? `${nameA} & ${nameB}` : nameA;
       const { exportChartAsPDF } = await getChartExport();
       await exportChartAsPDF(chartContainerRef.current, `${nameA}-chart.pdf`, title);
+      analytics.trackChartExported({ format: 'pdf' });
       toast.success('Chart exported as PDF');
     } catch (err: any) {
       toast.error(err.message || 'Export failed');
@@ -358,11 +399,9 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     }
   }, [biWheelProps.nameA, biWheelProps.nameB]);
 
-  const handleCopyLink = useCallback(() => {
-    if (!shareBirthData) {
-      toast.error('No birth data available for link');
-      return;
-    }
+  // Build a shareable URL with birth data + current chart options (only non-defaults)
+  const buildShareUrl = useCallback(() => {
+    if (!shareBirthData) return null;
     const params = new URLSearchParams({
       name: shareBirthData.name,
       date: shareBirthData.date,
@@ -371,13 +410,59 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
       lng: String(shareBirthData.lng),
       loc: shareBirthData.location,
     });
-    const url = `${window.location.origin}/chart?${params.toString()}`;
+
+    // Theme (only if not default)
+    if (chartTheme && chartTheme !== 'classic') {
+      params.set('theme', chartTheme);
+    }
+
+    // Chart mode (only if not synastry)
+    if (chartMode && chartMode !== 'synastry') {
+      params.set('mode', chartMode);
+    }
+
+    // Visible planets (only if different from defaults)
+    const setsEqual = (a: Set<string>, b: Set<string>) => a.size === b.size && [...a].every(v => b.has(v));
+    if (!setsEqual(visiblePlanets, DEFAULT_PLANETS)) {
+      params.set('planets', Array.from(visiblePlanets).sort().join(','));
+    }
+
+    // Visible aspects (only if different from defaults)
+    if (!setsEqual(visibleAspects, DEFAULT_ASPECTS)) {
+      params.set('aspects', Array.from(visibleAspects).sort().join(','));
+    }
+
+    // Show houses (only if false — default is true)
+    if (!showHouses) {
+      params.set('houses', '0');
+    }
+
+    // Show degree markers (only if false — default is true)
+    if (!showDegreeMarkers) {
+      params.set('degrees', '0');
+    }
+
+    // Enabled asteroid groups (only if non-empty)
+    if (enabledAsteroidGroups.size > 0) {
+      params.set('asteroids', Array.from(enabledAsteroidGroups).sort().join(','));
+    }
+
+    return `${window.location.origin}/chart?${params.toString()}`;
+  }, [shareBirthData, chartTheme, chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups]);
+
+  const handleCopyLink = useCallback(() => {
+    const url = buildShareUrl();
+    if (!url) {
+      toast.error('No birth data available for link');
+      return;
+    }
     navigator.clipboard.writeText(url);
     setLinkCopied(true);
+    analytics.trackChartShared({ method: 'link' });
     toast.success('Chart link copied');
     setTimeout(() => setLinkCopied(false), 2000);
     setShowShareMenu(false);
-  }, [shareBirthData]);
+  }, [buildShareUrl]);
 
   const handleEmailShare = useCallback(async () => {
     if (!chartContainerRef.current || !emailTo.trim()) return;
@@ -402,19 +487,8 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
         } catch { /* ignore parse errors */ }
       }
 
-      // Build shareable chart URL if birth data available
-      let chartUrl: string | undefined;
-      if (shareBirthData) {
-        const params = new URLSearchParams({
-          name: shareBirthData.name,
-          date: shareBirthData.date,
-          time: shareBirthData.time,
-          lat: String(shareBirthData.lat),
-          lng: String(shareBirthData.lng),
-          loc: shareBirthData.location,
-        });
-        chartUrl = `${window.location.origin}/chart?${params.toString()}`;
-      }
+      // Build shareable chart URL with current chart options
+      const chartUrl = buildShareUrl() || undefined;
 
       const { emailChart } = await getChartExport();
       await emailChart({
@@ -426,6 +500,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
         notes,
         chartUrl,
       });
+      analytics.trackChartShared({ method: 'email' });
       toast.success(`Chart sent to ${emailTo}`);
       setShowEmailModal(false);
       setEmailTo('');
@@ -435,7 +510,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     } finally {
       setSendingEmail(false);
     }
-  }, [chartContainerRef, emailTo, emailMessage, biWheelProps.nameA, biWheelProps.nameB, shareNotes, chartNotesKey, shareBirthData]);
+  }, [chartContainerRef, emailTo, emailMessage, biWheelProps.nameA, biWheelProps.nameB, shareNotes, chartNotesKey, buildShareUrl]);
 
   // Toggle handlers for the drawer
   const togglePlanet = useCallback((planet: string) => {

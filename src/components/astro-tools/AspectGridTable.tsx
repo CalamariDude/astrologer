@@ -273,10 +273,10 @@ function PatternCard({ pattern }: { pattern: AspectPattern }) {
                 )}
               </div>
               <div className="flex items-center gap-1">
-                {pattern.planets.map(p => {
+                {pattern.planets.map((p, i) => {
                   const info = PLANETS[p as keyof typeof PLANETS];
                   return (
-                    <span key={p} className="text-base" style={{ color: info?.color }} title={info?.name}>
+                    <span key={`${p}-${i}`} className="text-base" style={{ color: info?.color }} title={info?.name}>
                       {info?.symbol}
                     </span>
                   );

@@ -43,6 +43,7 @@ const HouseTooltip = React.lazy(() => import('./tooltips/HouseTooltip').then(m =
 // TogglePanel — lazy-loaded (desktop sidebar, not used on mobile)
 const TogglePanel = React.lazy(() => import('./controls/TogglePanel').then(m => ({ default: m.TogglePanel })));
 import { calculateDeclination } from '@/lib/declination';
+import * as analytics from '@/lib/analytics';
 import type { BiWheelSynastryProps, BiWheelState, ChartDimensions, NatalChart, PlanetData } from './types';
 
 // localStorage key for saved chart defaults
@@ -442,10 +443,11 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   const [chartTheme, setChartTheme] = useState<ThemeName>(
     (initialTheme as ThemeName) || (savedDefaults ? savedDefaults.chartTheme as ThemeName : 'classic')
   );
+  // Apply theme visuals whenever chartTheme changes (but don't notify parent — that's
+  // done only on user-initiated changes to avoid overwriting DB on init/sync).
   useMemo(() => {
     applyTheme(chartTheme);
     setCurrentThemeName(chartTheme);
-    onThemeChange?.(chartTheme);
   }, [chartTheme]);
 
   // Sync when parent theme changes (e.g. after DB load resolves)
@@ -454,6 +456,12 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       setChartTheme(initialTheme as ThemeName);
     }
   }, [initialTheme]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // User-initiated theme change — applies locally and notifies parent (saves to DB)
+  const handleUserThemeChange = useCallback((theme: ThemeName) => {
+    setChartTheme(theme);
+    onThemeChange?.(theme);
+  }, [onThemeChange]);
 
   // Zoom state - viewBox manipulation for zooming into chart areas
   const [zoomMode, setZoomMode] = useState(false);
@@ -838,7 +846,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       ...prev,
       showTransits: show,
     }));
-    // Notify parent of change
+    if (show) analytics.trackTransitsEnabled();
     onShowTransitsChange?.(show);
   }, [onShowTransitsChange]);
 
@@ -857,7 +865,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       ...prev,
       chartMode: mode,
     }));
-    // Notify parent of change
+    if (mode === 'composite') analytics.trackCompositeViewed();
     onChartModeChange?.(mode);
   }, [onChartModeChange]);
 
@@ -870,10 +878,11 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       ...(show ? { showRelocated: false, relocatedData: null, relocatedDataOther: null, relocatedLocation: null, progressedDataOther: null } : {}),
     }));
     if (show) {
+      analytics.trackProgressedEnabled({ person: progressedPerson || 'A' });
       setRelocatedPerson(null);
       onRelocatedPersonChange?.(null);
     }
-  }, [onRelocatedPersonChange]);
+  }, [onRelocatedPersonChange, progressedPerson]);
 
   const setProgressedDate = useCallback((date: string) => {
     setState(prev => ({ ...prev, progressedDate: date }));
@@ -900,10 +909,11 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       ...(show ? { showProgressed: false, progressedData: null, progressedDataOther: null } : {}),
     }));
     if (show) {
+      analytics.trackRelocatedEnabled({ person: relocatedPerson || 'A' });
       setProgressedPerson(null);
       onProgressedPersonChange?.(null);
     }
-  }, [onProgressedPersonChange]);
+  }, [onProgressedPersonChange, relocatedPerson]);
 
   const setRelocatedLocation = useCallback((location: LocationData | null) => {
     setState(prev => ({ ...prev, relocatedLocation: location }));
@@ -942,6 +952,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         for (const asteroid of asteroids) {
           nextPlanets.add(asteroid);
         }
+        analytics.trackAsteroidsEnabled({ groups: [group] });
       }
       return { ...prev, enabledAsteroidGroups: nextGroups, visiblePlanets: nextPlanets };
     });
@@ -2055,44 +2066,49 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         )}
 
         {/* Relocated active indicator */}
-        {state.showRelocated && state.relocatedData && !state.relocatedLoading && (
-          <g>
-            <rect
-              x={dimensions.cx - 100}
-              y={dimensions.cy + 80}
-              width={200}
-              height={50}
-              rx={8}
-              fill={COLORS.background}
-              stroke="#FF6B6B"
-              strokeWidth={1.5}
-              fillOpacity={0.95}
-            />
-            <text
-              x={dimensions.cx}
-              y={dimensions.cy + 95}
-              fill="#D63031"
-              fontSize={11}
-              fontFamily="Arial, sans-serif"
-              fontWeight="bold"
-              textAnchor="middle"
-              dominantBaseline="central"
-            >
-              📍 Relocated to:
-            </text>
-            <text
-              x={dimensions.cx}
-              y={dimensions.cy + 115}
-              fill={COLORS.textMuted}
-              fontSize={10}
-              fontFamily="Arial, sans-serif"
-              textAnchor="middle"
-              dominantBaseline="central"
-            >
-              {state.relocatedLocation?.name || 'New Location'}
-            </text>
-          </g>
-        )}
+        {state.showRelocated && state.relocatedData && !state.relocatedLoading && (() => {
+          const locName = state.relocatedLocation?.name || 'New Location';
+          const truncated = locName.length > 30 ? locName.slice(0, 28) + '…' : locName;
+          const boxW = Math.max(200, Math.min(280, truncated.length * 7 + 40));
+          return (
+            <g>
+              <rect
+                x={dimensions.cx - boxW / 2}
+                y={dimensions.cy + 80}
+                width={boxW}
+                height={50}
+                rx={8}
+                fill={COLORS.background}
+                stroke="#FF6B6B"
+                strokeWidth={1.5}
+                fillOpacity={0.95}
+              />
+              <text
+                x={dimensions.cx}
+                y={dimensions.cy + 95}
+                fill="#D63031"
+                fontSize={11}
+                fontFamily="Arial, sans-serif"
+                fontWeight="bold"
+                textAnchor="middle"
+                dominantBaseline="central"
+              >
+                📍 Relocated to:
+              </text>
+              <text
+                x={dimensions.cx}
+                y={dimensions.cy + 115}
+                fill={COLORS.textMuted}
+                fontSize={10}
+                fontFamily="Arial, sans-serif"
+                textAnchor="middle"
+                dominantBaseline="central"
+              >
+                {truncated}
+              </text>
+            </g>
+          );
+        })()}
 
         {/* Legend (fixed position, not rotated) */}
         {(() => {
@@ -2489,7 +2505,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             onDisableAllAsteroids={disableAllAsteroids}
             // Theme controls
             chartTheme={chartTheme}
-            onThemeChange={setChartTheme}
+            onThemeChange={handleUserThemeChange}
             // Save defaults
             onSaveDefaults={saveDefaults}
           />

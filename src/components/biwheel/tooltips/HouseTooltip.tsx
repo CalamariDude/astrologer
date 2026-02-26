@@ -123,39 +123,31 @@ export const HouseTooltip: React.FC<HouseTooltipProps> = ({
 
       {/* Details */}
       <div style={{ fontSize: mobile ? 10 : 12 }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            marginBottom: 6,
-          }}
-        >
-          <span style={{ color: COLORS.textMuted }}>Cusp</span>
-          <span style={{ color: COLORS.textSecondary }}>
-            {formatLongitude(cusp)}
-          </span>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            marginBottom: 8,
-          }}
-        >
-          <span style={{ color: COLORS.textMuted }}>Type</span>
-          <span
-            style={{
+        {/* On mobile, show cusp & type as inline badges instead of rows */}
+        {mobile ? (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginBottom: 4 }}>
+            <span style={{ fontSize: 8, fontWeight: 600, padding: '0px 4px', borderRadius: 3, backgroundColor: 'rgba(0,0,0,0.05)', color: COLORS.textSecondary, lineHeight: '14px' }}>{formatLongitude(cusp)}</span>
+            <span style={{
+              fontSize: 8, fontWeight: 600, padding: '0px 4px', borderRadius: 3, lineHeight: '14px',
+              backgroundColor: isAngularHouse(house) ? 'rgba(124,58,237,0.1)' : 'rgba(0,0,0,0.05)',
               color: isAngularHouse(house) ? '#7c3aed' : COLORS.textSecondary,
-              fontWeight: isAngularHouse(house) ? 600 : 400,
-            }}
-          >
-            {houseType}
-          </span>
-        </div>
+            }}>{houseType}</span>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ color: COLORS.textMuted }}>Cusp</span>
+              <span style={{ color: COLORS.textSecondary }}>{formatLongitude(cusp)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ color: COLORS.textMuted }}>Type</span>
+              <span style={{ color: isAngularHouse(house) ? '#7c3aed' : COLORS.textSecondary, fontWeight: isAngularHouse(house) ? 600 : 400 }}>{houseType}</span>
+            </div>
+          </>
+        )}
 
-        {/* Keywords by Lens */}
-        {signData && (
+        {/* Keywords by Lens — hidden on mobile */}
+        {signData && !mobile && (
           <div
             style={{
               borderTop: `1px solid ${COLORS.gridLine}`,

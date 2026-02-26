@@ -442,6 +442,107 @@ serve(async (req) => {
         return json({ sent, total: emails.length });
       }
 
+      // ── PostHog Analytics ──
+      case "posthog_analytics": {
+        const phKey = Deno.env.get("POSTHOG_PERSONAL_API_KEY");
+        const phProject = Deno.env.get("POSTHOG_PROJECT_ID");
+        const phHost = Deno.env.get("POSTHOG_HOST") || "https://us.i.posthog.com";
+        if (!phKey || !phProject) return json({ error: "PostHog API key or project ID not configured" }, 500);
+
+        const phQuery = async (hogql: string) => {
+          const res = await fetch(`${phHost}/api/projects/${phProject}/query/`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${phKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ query: { kind: "HogQLQuery", query: hogql } }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data?.detail || data?.error || "PostHog query failed");
+          return data;
+        };
+
+        const subAction = body.sub_action;
+
+        if (subAction === "feature_usage") {
+          // Aggregate feature usage counts (last 30 days)
+          const days = body.days || 30;
+          const result = await phQuery(`
+            SELECT event, count() as count
+            FROM events
+            WHERE timestamp > now() - interval ${days} day
+              AND event NOT LIKE '$%'
+            GROUP BY event
+            ORDER BY count DESC
+          `);
+          return json({ rows: result.results || [], columns: result.columns || [] });
+        }
+
+        if (subAction === "daily_active") {
+          // Daily active users (last 30 days)
+          const days = body.days || 30;
+          const result = await phQuery(`
+            SELECT toDate(timestamp) as day, count(DISTINCT distinct_id) as users
+            FROM events
+            WHERE timestamp > now() - interval ${days} day
+            GROUP BY day
+            ORDER BY day
+          `);
+          return json({ rows: result.results || [], columns: result.columns || [] });
+        }
+
+        if (subAction === "user_events") {
+          // Per-user feature usage histogram
+          if (!body.user_id) return json({ error: "Missing user_id" }, 400);
+          const days = body.days || 90;
+          const result = await phQuery(`
+            SELECT event, count() as count, max(timestamp) as last_used
+            FROM events
+            WHERE distinct_id = '${body.user_id}'
+              AND timestamp > now() - interval ${days} day
+              AND event NOT LIKE '$%'
+            GROUP BY event
+            ORDER BY count DESC
+          `);
+          return json({ rows: result.results || [], columns: result.columns || [] });
+        }
+
+        if (subAction === "user_sessions") {
+          // Per-user session/time data
+          if (!body.user_id) return json({ error: "Missing user_id" }, 400);
+          const days = body.days || 30;
+          const result = await phQuery(`
+            SELECT toDate(timestamp) as day, count() as events,
+                   min(timestamp) as first_event, max(timestamp) as last_event,
+                   dateDiff('second', min(timestamp), max(timestamp)) as session_seconds
+            FROM events
+            WHERE distinct_id = '${body.user_id}'
+              AND timestamp > now() - interval ${days} day
+            GROUP BY day
+            ORDER BY day DESC
+          `);
+          return json({ rows: result.results || [], columns: result.columns || [] });
+        }
+
+        if (subAction === "top_features") {
+          // Top features by unique users (last 30 days)
+          const days = body.days || 30;
+          const result = await phQuery(`
+            SELECT event, count() as total, count(DISTINCT distinct_id) as unique_users
+            FROM events
+            WHERE timestamp > now() - interval ${days} day
+              AND event NOT LIKE '$%'
+            GROUP BY event
+            ORDER BY unique_users DESC
+            LIMIT 20
+          `);
+          return json({ rows: result.results || [], columns: result.columns || [] });
+        }
+
+        return json({ error: `Unknown sub_action: ${subAction}` }, 400);
+      }
+
       default:
         return json({ error: `Unknown action: ${action}` }, 400);
     }

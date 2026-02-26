@@ -1,6 +1,6 @@
 /**
  * Shared tooltip positioning logic.
- * On narrow screens (< 500px), renders as a bottom sheet.
+ * On narrow screens (< 500px), renders as a compact bottom sheet.
  * On wider screens, floats near the cursor.
  */
 
@@ -25,6 +25,8 @@ export function getTooltipContainerStyle(opts: TooltipStyleOptions): React.CSSPr
   const isMobile = window.innerWidth < MOBILE_BP;
 
   if (isMobile) {
+    // Pinned (click) tooltips get more room; hover tooltips stay minimal
+    const maxH = opts.pinned ? '30vh' : '8vh';
     return {
       position: 'fixed',
       left: 4,
@@ -35,9 +37,9 @@ export function getTooltipContainerStyle(opts: TooltipStyleOptions): React.CSSPr
       border: `1px solid ${opts.borderColor}`,
       borderBottom: 'none',
       borderRadius: '8px 8px 0 0',
-      padding: '4px 8px 6px',
+      padding: opts.pinned ? '6px 10px 8px' : '3px 8px 4px',
       zIndex: 1000,
-      maxHeight: '14vh',
+      maxHeight: maxH,
       overflowY: 'auto',
       boxShadow: '0 -2px 12px rgba(0,0,0,0.15)',
       pointerEvents: 'auto',
