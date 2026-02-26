@@ -2,23 +2,23 @@
  * GalacticMode
  * Top-level container: R3F Canvas + HTML overlay controls + info panel
  * Transit time slider for animating planets through time.
- * Object visibility linked from 2D chart (one-way: 2D→3D).
+ * Right-side settings panel with all display, aspect, and object controls.
  */
 
 import { useState, useCallback, useMemo, useRef, useEffect, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import {
-  Loader2, RotateCw, Eye, EyeOff, Home, Maximize2, Minimize2,
+  Loader2, RotateCw, Home, Maximize2, Minimize2,
   Play, Pause, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  RotateCcw, Layers,
+  RotateCcw, Settings, ChevronDown, ChevronUp, X,
 } from 'lucide-react';
 import { GalacticScene } from './GalacticScene';
 import { PlanetInfoPanel } from './PlanetInfoPanel';
 import { useAspectEnergy } from './hooks/useAspectEnergy';
 import { useGalacticChart } from './hooks/useGalacticChart';
 import { CAMERA, CAMERA_PRESETS } from './constants';
-import { PLANETS, ASTEROID_GROUP_INFO } from '../biwheel/utils/constants';
+import { PLANETS, ASPECTS, ASTEROIDS, ASTEROID_GROUP_INFO, ARABIC_PARTS, ARABIC_PART_KEYS, calculateArabicParts } from '../biwheel/utils/constants';
 import { ASTEROID_GROUPS, type AsteroidGroup } from '../biwheel/types';
 import type { GalacticNatalChart, CameraPreset } from './types';
 
@@ -46,139 +46,173 @@ function GalacticEffects() {
   );
 }
 
-/** Object panel — shows all planets + asteroid groups with toggles */
-function ObjectPanel({
+/** Collapsible section for settings panel */
+function PanelSection({
+  title,
+  defaultOpen = false,
+  children,
+  badge,
+}: {
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+  badge?: string | number;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-1.5 w-full py-1.5 text-[10px] font-semibold text-white/60 uppercase tracking-wider hover:text-white/90 transition-colors"
+      >
+        {open ? <ChevronUp className="w-3 h-3 flex-shrink-0" /> : <ChevronDown className="w-3 h-3 flex-shrink-0" />}
+        <span className="flex-1 text-left">{title}</span>
+        {badge !== undefined && (
+          <span className="bg-white/10 text-white/50 text-[8px] px-1.5 py-0.5 rounded-full">{badge}</span>
+        )}
+      </button>
+      {open && <div className="pb-2 space-y-1">{children}</div>}
+    </div>
+  );
+}
+
+/** Small toggle row */
+function ToggleRow({
+  label,
+  checked,
+  onChange,
+  color,
+  symbol,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  color?: string;
+  symbol?: string;
+}) {
+  return (
+    <button
+      onClick={() => onChange(!checked)}
+      className="flex items-center gap-2 w-full px-1.5 py-1 rounded text-[11px] transition-all hover:bg-white/5"
+      style={{ color: checked ? '#fff' : 'rgba(255,255,255,0.4)' }}
+    >
+      <span
+        className="w-2 h-2 rounded-sm flex-shrink-0 transition-all"
+        style={{
+          background: checked ? (color ?? '#818cf8') : 'rgba(255,255,255,0.12)',
+          boxShadow: checked ? `0 0 4px ${color ?? '#818cf8'}50` : 'none',
+        }}
+      />
+      {symbol && (
+        <span className="w-4 text-center text-xs" style={{ color: checked ? (color ?? '#fff') : 'rgba(255,255,255,0.3)' }}>
+          {symbol}
+        </span>
+      )}
+      <span className="flex-1 text-left">{label}</span>
+    </button>
+  );
+}
+
+/** Expandable asteroid group with individual member toggles */
+function AsteroidGroupSection({
+  group,
+  info,
+  isEnabled,
+  isLoading,
+  members,
+  visibleInGroup,
+  totalCount,
   chartPlanets,
   localVisiblePlanets,
-  enabledGroups,
-  loadingGroups,
-  onTogglePlanet,
   onToggleGroup,
-  isOpen,
-  onToggleOpen,
+  onToggleMember,
 }: {
+  group: AsteroidGroup;
+  info: { name: string; color: string; icon: string };
+  isEnabled: boolean;
+  isLoading: boolean;
+  members: string[];
+  visibleInGroup: number;
+  totalCount: number;
   chartPlanets: Record<string, any>;
   localVisiblePlanets: Set<string>;
-  enabledGroups: Set<AsteroidGroup>;
-  loadingGroups: Set<AsteroidGroup>;
-  onTogglePlanet: (key: string) => void;
-  onToggleGroup: (group: AsteroidGroup) => void;
-  isOpen: boolean;
-  onToggleOpen: () => void;
+  onToggleGroup: () => void;
+  onToggleMember: (key: string) => void;
 }) {
-  const visibleCount = localVisiblePlanets.size;
-
-  // Separate main planets from asteroids
-  const mainPlanets = useMemo(() => {
-    const keys = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto', 'chiron', 'northnode', 'southnode', 'lilith'];
-    return keys
-      .filter(k => chartPlanets[k])
-      .map(k => {
-        const def = PLANETS[k as keyof typeof PLANETS];
-        return {
-          key: k,
-          name: def?.name ?? k,
-          symbol: def?.symbol ?? '',
-          color: def?.color ?? '#888',
-        };
-      });
-  }, [chartPlanets]);
+  const [expanded, setExpanded] = useState(false);
+  const astLookup = { ...ASTEROIDS, ...ARABIC_PARTS } as Record<string, { name?: string; symbol?: string; color?: string }>;
 
   return (
-    <div className="absolute top-14 left-3 z-10">
-      <button
-        onClick={onToggleOpen}
-        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg backdrop-blur-sm text-[11px] transition-colors ${
-          isOpen ? 'bg-indigo-500/30 text-indigo-300' : 'bg-black/50 text-white/50 hover:text-white/80'
-        }`}
-      >
-        <Layers className="w-3 h-3" />
-        Objects
-        <span className="bg-white/15 text-white/60 text-[9px] px-1.5 rounded-full">
-          {visibleCount}
-        </span>
-      </button>
+    <div>
+      {/* Group header row */}
+      <div className="flex items-center gap-1">
+        {/* Expand/collapse arrow */}
+        {isEnabled && (
+          <button
+            onClick={() => setExpanded(v => !v)}
+            className="p-0.5 text-white/30 hover:text-white/60 transition-colors"
+          >
+            {expanded ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+          </button>
+        )}
 
-      {isOpen && (
-        <div className="mt-1.5 bg-black/90 backdrop-blur-md rounded-lg p-2.5 max-h-[70vh] overflow-y-auto w-56 space-y-3 border border-white/10">
-          {/* Main planets */}
-          <div>
-            <div className="text-[9px] text-white/50 uppercase tracking-wider mb-1.5 font-medium">Planets</div>
-            <div className="space-y-0.5">
-              {mainPlanets.map(p => {
-                const isOn = localVisiblePlanets.has(p.key);
-                return (
-                  <button
-                    key={p.key}
-                    onClick={() => onTogglePlanet(p.key)}
-                    className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-[11px] transition-all hover:bg-white/8"
-                    style={{ color: isOn ? '#fff' : 'rgba(255,255,255,0.45)' }}
-                  >
-                    <span
-                      className="w-2.5 h-2.5 rounded-full flex-shrink-0 transition-all"
-                      style={{
-                        background: isOn ? p.color : 'rgba(255,255,255,0.12)',
-                        boxShadow: isOn ? `0 0 6px ${p.color}60` : 'none',
-                      }}
-                    />
-                    <span style={{ color: isOn ? p.color : 'rgba(255,255,255,0.35)' }}>{p.symbol}</span>
-                    <span className="flex-1 text-left">{p.name}</span>
-                    <span
-                      className="text-[9px] px-1.5 py-0.5 rounded-full font-medium"
-                      style={{
-                        background: isOn ? `${p.color}25` : 'rgba(255,255,255,0.06)',
-                        color: isOn ? p.color : 'rgba(255,255,255,0.25)',
-                      }}
-                    >
-                      {isOn ? 'ON' : 'OFF'}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+        {/* Group toggle button */}
+        <button
+          onClick={onToggleGroup}
+          disabled={isLoading}
+          className={`flex items-center gap-2 flex-1 px-1.5 py-1 rounded text-[11px] transition-all hover:bg-white/5 disabled:opacity-50 ${!isEnabled ? 'ml-4' : ''}`}
+          style={{ color: isEnabled ? info.color : 'rgba(255,255,255,0.45)' }}
+        >
+          <span
+            className="w-2 h-2 rounded-sm flex-shrink-0 transition-all"
+            style={{
+              background: isEnabled ? info.color : 'rgba(255,255,255,0.12)',
+              boxShadow: isEnabled ? `0 0 4px ${info.color}50` : 'none',
+            }}
+          />
+          <span className="text-sm leading-none">{info.icon}</span>
+          <span className="flex-1 text-left">{info.name}</span>
+          {isLoading ? (
+            <Loader2 className="w-3 h-3 animate-spin" style={{ color: info.color }} />
+          ) : (
+            <span className="text-[9px] opacity-60">
+              {isEnabled ? `${visibleInGroup}/${totalCount}` : totalCount}
+            </span>
+          )}
+        </button>
+      </div>
 
-          {/* Asteroid groups — always show all, even if data not loaded */}
-          <div>
-            <div className="text-[9px] text-white/50 uppercase tracking-wider mb-1.5 font-medium">Asteroid Groups</div>
-            <div className="space-y-0.5">
-              {Object.entries(ASTEROID_GROUP_INFO).map(([groupKey, info]) => {
-                const group = groupKey as AsteroidGroup;
-                const isEnabled = enabledGroups.has(group);
-                const isLoading = loadingGroups.has(group);
-                const members = ASTEROID_GROUPS[group] ?? [];
-                const loadedCount = members.filter(k => chartPlanets[k]).length;
-                const totalCount = members.length;
+      {/* Individual members — shown when expanded */}
+      {isEnabled && expanded && (
+        <div className="ml-5 mt-0.5 space-y-0">
+          {members.map(key => {
+            const ast = astLookup[key];
+            const isLoaded = !!chartPlanets[key];
+            const isVisible = localVisiblePlanets.has(key);
+            const label = ast?.name ?? key;
+            const color = ast?.color ?? info.color;
 
-                return (
-                  <button
-                    key={groupKey}
-                    onClick={() => onToggleGroup(group)}
-                    disabled={isLoading}
-                    className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-[11px] transition-all hover:bg-white/8 disabled:opacity-50"
-                    style={{
-                      background: isEnabled ? `${info.color}20` : 'transparent',
-                      color: isEnabled ? info.color : 'rgba(255,255,255,0.55)',
-                      borderLeft: isEnabled ? `2px solid ${info.color}` : '2px solid transparent',
-                    }}
-                  >
-                    <span className="text-base leading-none">{info.icon}</span>
-                    <span className="flex-1 text-left">{info.name}</span>
-                    {isLoading ? (
-                      <Loader2 className="w-3 h-3 animate-spin" style={{ color: info.color }} />
-                    ) : (
-                      <span className="text-[9px] opacity-70">
-                        {loadedCount > 0 ? `${loadedCount}/${totalCount}` : totalCount}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-[8px] text-white/25 mt-1.5 px-1 leading-tight">
-              Groups load from the API when enabled
-            </p>
-          </div>
+            return (
+              <button
+                key={key}
+                onClick={() => onToggleMember(key)}
+                disabled={!isLoaded}
+                className="flex items-center gap-2 w-full px-1.5 py-0.5 rounded text-[10px] transition-all hover:bg-white/5 disabled:opacity-30"
+                style={{ color: isVisible ? '#fff' : 'rgba(255,255,255,0.35)' }}
+              >
+                <span
+                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                  style={{
+                    background: isVisible ? color : 'rgba(255,255,255,0.12)',
+                  }}
+                />
+                <span className="flex-1 text-left">{label}</span>
+                {!isLoaded && (
+                  <span className="text-[8px] text-white/20">n/a</span>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -278,15 +312,21 @@ function TransitControls({
   );
 }
 
+// Aspect definitions for toggles
+const MAJOR_ASPECTS = Object.entries(ASPECTS).filter(([, v]) => v.major);
+const MINOR_ASPECTS = Object.entries(ASPECTS).filter(([, v]) => !v.major);
+
 export default function GalacticMode({ chart: initialChart, name, birthDate, visiblePlanets, visibleAspects, onFetchAsteroidData }: GalacticModeProps) {
   const [selectedPlanet, setSelectedPlanet] = useState<string | null>(null);
   const [autoRotate, setAutoRotate] = useState(true);
   const [showAspects, setShowAspects] = useState(true);
   const [showHouses, setShowHouses] = useState(true);
+  const [showOrbits, setShowOrbits] = useState(true);
+  const [showZodiac, setShowZodiac] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [activePreset, setActivePreset] = useState<CameraPreset | null>(null);
   const [activePresetName, setActivePresetName] = useState<string>('Overview');
-  const [objectPanelOpen, setObjectPanelOpen] = useState(false);
+  const [settingsPanelOpen, setSettingsPanelOpen] = useState(true);
   const [enabledAsteroidGroups, setEnabledAsteroidGroups] = useState<Set<AsteroidGroup>>(new Set());
   const [loadingGroups, setLoadingGroups] = useState<Set<AsteroidGroup>>(new Set());
   const [extraPlanets, setExtraPlanets] = useState<Record<string, any>>({});
@@ -296,56 +336,59 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
   // Transit state
   const [transitDayOffset, setTransitDayOffset] = useState(0);
   const [transitPlaying, setTransitPlaying] = useState(false);
-  const [transitSpeed, setTransitSpeed] = useState(1); // days per second
+  const [transitSpeed, setTransitSpeed] = useState(1);
 
-  // Merge initial chart planets with fetched asteroid data
+  // Merge initial chart planets with fetched asteroid data + Arabic Parts
   const chart = useMemo<GalacticNatalChart>(() => {
-    if (Object.keys(extraPlanets).length === 0) return initialChart;
-    return {
-      ...initialChart,
-      planets: { ...initialChart.planets, ...extraPlanets },
-    };
+    const merged = { ...initialChart.planets, ...extraPlanets };
+
+    // Calculate Arabic Parts client-side from chart data
+    const asc = initialChart.angles?.ascendant;
+    if (asc !== undefined) {
+      const parts = calculateArabicParts(
+        merged as Record<string, { longitude: number }>,
+        asc,
+      );
+      for (const [key, value] of Object.entries(parts)) {
+        if (!merged[key]) merged[key] = value;
+      }
+    }
+
+    return { ...initialChart, planets: merged };
   }, [initialChart, extraPlanets]);
 
-  // Local planet visibility — initialized from 2D prop, can be modified locally
+  // Local planet visibility
   const [localVisiblePlanets, setLocalVisiblePlanets] = useState<Set<string>>(() =>
     visiblePlanets ? new Set(visiblePlanets) : new Set(Object.keys(chart.planets))
   );
 
-  // Sync from 2D prop when it changes (re-mount or prop update)
+  // Local aspect visibility
+  const [localVisibleAspects, setLocalVisibleAspects] = useState<Set<string>>(() => {
+    const base = visibleAspects ? new Set(visibleAspects) : new Set<string>();
+    for (const a of ['conjunction', 'sextile', 'square', 'trine', 'opposition']) {
+      base.add(a);
+    }
+    return base;
+  });
+
+  // Sync from 2D prop when it changes
   useEffect(() => {
     if (visiblePlanets) {
       setLocalVisiblePlanets(new Set(visiblePlanets));
     }
   }, [visiblePlanets]);
 
-  // Merge local visible + enabled asteroid groups
-  const mergedVisiblePlanets = useMemo(() => {
-    const merged = new Set(localVisiblePlanets);
-    for (const group of enabledAsteroidGroups) {
-      const asteroids = ASTEROID_GROUPS[group];
-      if (asteroids) {
-        for (const key of asteroids) {
-          if (chart.planets[key]) {
-            merged.add(key);
-          }
-        }
+  useEffect(() => {
+    if (visibleAspects) {
+      const base = new Set(visibleAspects);
+      for (const a of ['conjunction', 'sextile', 'square', 'trine', 'opposition']) {
+        base.add(a);
       }
+      setLocalVisibleAspects(base);
     }
-    return merged;
-  }, [localVisiblePlanets, enabledAsteroidGroups, chart.planets]);
-
-  // Ensure major aspects (including conjunction) are always included in galactic mode
-  const mergedVisibleAspects = useMemo(() => {
-    const base = visibleAspects ? new Set(visibleAspects) : new Set<string>();
-    // Always include the 5 major aspects in 3D view
-    for (const a of ['conjunction', 'sextile', 'square', 'trine', 'opposition']) {
-      base.add(a);
-    }
-    return base;
   }, [visibleAspects]);
 
-  const { planets3D, aspects } = useGalacticChart(chart, mergedVisiblePlanets, mergedVisibleAspects, transitDayOffset);
+  const { planets3D, aspects } = useGalacticChart(chart, localVisiblePlanets, localVisibleAspects, transitDayOffset);
   const aspects3D = useAspectEnergy(aspects, planets3D);
 
   const selectedPlanetData = selectedPlanet
@@ -371,7 +414,10 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
 
   const handleSelectPlanet = useCallback((key: string | null) => {
     setSelectedPlanet(key);
-    if (key) setAutoRotate(false);
+    if (key) {
+      setAutoRotate(false);
+      setTransitPlaying(false);
+    }
   }, []);
 
   const handleInteractionStart = useCallback(() => {
@@ -399,12 +445,28 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
     });
   }, []);
 
+  const handleToggleAspect = useCallback((key: string) => {
+    setLocalVisibleAspects(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
   const handleToggleAsteroidGroup = useCallback(async (group: AsteroidGroup) => {
-    // If already enabled, just disable
+    const members = ASTEROID_GROUPS[group] ?? [];
+
     if (enabledAsteroidGroups.has(group)) {
+      // Disable group — remove all members from visible
       setEnabledAsteroidGroups(prev => {
         const next = new Set(prev);
         next.delete(group);
+        return next;
+      });
+      setLocalVisiblePlanets(prev => {
+        const next = new Set(prev);
+        for (const k of members) next.delete(k);
         return next;
       });
       return;
@@ -413,15 +475,21 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
     // Enable group
     setEnabledAsteroidGroups(prev => new Set(prev).add(group));
 
-    // Check if we need to fetch data for this group's asteroids
-    const members = ASTEROID_GROUPS[group] ?? [];
-    const missingMembers = members.filter(k => !chart.planets[k]);
-    if (missingMembers.length > 0 && onFetchAsteroidData) {
+    // Arabic Parts are calculated client-side — exclude from API fetch
+    const fetchMembers = members.filter(k => !chart.planets[k] && !ARABIC_PART_KEYS.has(k));
+    if (fetchMembers.length > 0 && onFetchAsteroidData) {
       setLoadingGroups(prev => new Set(prev).add(group));
       try {
-        const result = await onFetchAsteroidData(missingMembers as string[]);
-        // Merge fetched planets into extraPlanets
+        const result = await onFetchAsteroidData(fetchMembers as string[]);
         setExtraPlanets(prev => ({ ...prev, ...result.chartA }));
+        // Add all fetched + already-loaded + Arabic Part members to visible
+        setLocalVisiblePlanets(prev => {
+          const next = new Set(prev);
+          for (const k of members) {
+            if (chart.planets[k] || result.chartA[k] || ARABIC_PART_KEYS.has(k)) next.add(k);
+          }
+          return next;
+        });
       } catch (err) {
         console.error('Failed to fetch asteroid data:', err);
       } finally {
@@ -431,6 +499,15 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
           return next;
         });
       }
+    } else {
+      // All data already loaded (or Arabic Parts) — just add to visible
+      setLocalVisiblePlanets(prev => {
+        const next = new Set(prev);
+        for (const k of members) {
+          if (chart.planets[k]) next.add(k);
+        }
+        return next;
+      });
     }
   }, [enabledAsteroidGroups, chart.planets, onFetchAsteroidData]);
 
@@ -451,6 +528,66 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
       document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
     }
   }, []);
+
+  // Planet list for Object toggles
+  const mainPlanetKeys = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto', 'chiron', 'northnode', 'southnode', 'lilith'];
+  const mainPlanets = useMemo(() => {
+    return mainPlanetKeys
+      .filter(k => chart.planets[k])
+      .map(k => {
+        const def = PLANETS[k as keyof typeof PLANETS];
+        return { key: k, name: def?.name ?? k, symbol: def?.symbol ?? '', color: def?.color ?? '#888' };
+      });
+  }, [chart.planets]);
+
+  // Quick group toggles
+  const handleEnableGroup = useCallback((group: 'core' | 'outer' | 'all') => {
+    setLocalVisiblePlanets(prev => {
+      const next = new Set(prev);
+      if (group === 'core' || group === 'all') {
+        for (const k of ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'northnode', 'southnode']) {
+          if (chart.planets[k]) next.add(k);
+        }
+      }
+      if (group === 'outer' || group === 'all') {
+        for (const k of ['uranus', 'neptune', 'pluto', 'chiron', 'lilith']) {
+          if (chart.planets[k]) next.add(k);
+        }
+      }
+      return next;
+    });
+  }, [chart.planets]);
+
+  const handleClearPlanets = useCallback(() => {
+    setLocalVisiblePlanets(new Set());
+  }, []);
+
+  const handleEnableAllMajorAspects = useCallback(() => {
+    setLocalVisibleAspects(prev => {
+      const next = new Set(prev);
+      for (const [key] of MAJOR_ASPECTS) next.add(key);
+      return next;
+    });
+  }, []);
+
+  const handleEnableAllMinorAspects = useCallback(() => {
+    setLocalVisibleAspects(prev => {
+      const next = new Set(prev);
+      for (const [key] of MINOR_ASPECTS) next.add(key);
+      return next;
+    });
+  }, []);
+
+  const handleDisableAllMinorAspects = useCallback(() => {
+    setLocalVisibleAspects(prev => {
+      const next = new Set(prev);
+      for (const [key] of MINOR_ASPECTS) next.delete(key);
+      return next;
+    });
+  }, []);
+
+  const visibleAspectCount = localVisibleAspects.size;
+  const visiblePlanetCount = localVisiblePlanets.size;
 
   return (
     <div
@@ -482,14 +619,16 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
         >
           <GalacticScene
             chart={chart}
-            visiblePlanets={mergedVisiblePlanets}
-            visibleAspects={visibleAspects}
+            visiblePlanets={localVisiblePlanets}
+            visibleAspects={localVisibleAspects}
             selectedPlanet={selectedPlanet}
             onSelectPlanet={handleSelectPlanet}
             autoRotate={autoRotate}
             onInteractionStart={handleInteractionStart}
             showAspects={showAspects}
             showHouses={showHouses}
+            showOrbits={showOrbits}
+            showZodiac={showZodiac}
             activePreset={activePreset}
             transitDayOffset={transitDayOffset}
           />
@@ -507,44 +646,12 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
         </div>
       </div>
 
-      {/* Object toggle panel */}
-      <ObjectPanel
-        chartPlanets={chart.planets}
-        localVisiblePlanets={mergedVisiblePlanets}
-        enabledGroups={enabledAsteroidGroups}
-        loadingGroups={loadingGroups}
-        onTogglePlanet={handleTogglePlanet}
-        onToggleGroup={handleToggleAsteroidGroup}
-        isOpen={objectPanelOpen}
-        onToggleOpen={() => setObjectPanelOpen(v => !v)}
-      />
-
-      {/* Top-right: controls */}
+      {/* Top-right: settings toggle + quick buttons */}
       <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
-        <button
-          onClick={() => setShowAspects(v => !v)}
-          className={`p-2 rounded-lg backdrop-blur-sm transition-colors ${
-            showAspects ? 'bg-indigo-500/30 text-indigo-300' : 'bg-black/50 text-white/50'
-          }`}
-          title={showAspects ? 'Hide aspects' : 'Show aspects'}
-        >
-          {showAspects ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-        </button>
-
-        <button
-          onClick={() => setShowHouses(v => !v)}
-          className={`p-2 rounded-lg backdrop-blur-sm transition-colors text-xs font-bold ${
-            showHouses ? 'bg-indigo-500/30 text-indigo-300' : 'bg-black/50 text-white/50'
-          }`}
-          title={showHouses ? 'Hide houses' : 'Show houses'}
-        >
-          H
-        </button>
-
         <button
           onClick={() => setAutoRotate(v => !v)}
           className={`p-2 rounded-lg backdrop-blur-sm transition-colors ${
-            autoRotate ? 'bg-indigo-500/30 text-indigo-300' : 'bg-black/50 text-white/50'
+            autoRotate ? 'bg-indigo-500/30 text-indigo-300' : 'bg-black/50 text-white/50 hover:text-white/80'
           }`}
           title={autoRotate ? 'Stop rotation' : 'Auto-rotate'}
         >
@@ -570,7 +677,191 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
         >
           {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
         </button>
+
+        <button
+          onClick={() => setSettingsPanelOpen(v => !v)}
+          className={`p-2 rounded-lg backdrop-blur-sm transition-colors ${
+            settingsPanelOpen ? 'bg-indigo-500/30 text-indigo-300' : 'bg-black/50 text-white/50 hover:text-white/80'
+          }`}
+          title="Settings"
+        >
+          <Settings className="w-4 h-4" />
+        </button>
       </div>
+
+      {/* ═══ Right-side Settings Panel ═══ */}
+      {settingsPanelOpen && (
+        <div className="absolute top-14 right-3 z-20 w-56 max-h-[calc(100%-7rem)] overflow-y-auto bg-black/90 backdrop-blur-md rounded-lg border border-white/10 scrollbar-thin scrollbar-thumb-white/10">
+          <div className="p-2.5 space-y-1">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-1 border-b border-white/10 mb-1">
+              <span className="text-[11px] font-semibold text-white/80">Settings</span>
+              <button onClick={() => setSettingsPanelOpen(false)} className="p-0.5 hover:bg-white/10 rounded transition-colors">
+                <X className="w-3 h-3 text-white/50" />
+              </button>
+            </div>
+
+            {/* ── Display ── */}
+            <PanelSection title="Display" defaultOpen={true}>
+              <ToggleRow label="Aspect Lines" checked={showAspects} onChange={setShowAspects} color="#818cf8" />
+              <ToggleRow label="Houses" checked={showHouses} onChange={setShowHouses} color="#818cf8" />
+              <ToggleRow label="Orbit Paths" checked={showOrbits} onChange={setShowOrbits} color="#818cf8" />
+              <ToggleRow label="Zodiac Ring" checked={showZodiac} onChange={setShowZodiac} color="#818cf8" />
+              <ToggleRow label="Auto-Rotate" checked={autoRotate} onChange={setAutoRotate} color="#818cf8" />
+            </PanelSection>
+
+            <div className="border-t border-white/5" />
+
+            {/* ── Major Aspects ── */}
+            <PanelSection title="Major Aspects" defaultOpen={true} badge={MAJOR_ASPECTS.filter(([k]) => localVisibleAspects.has(k)).length}>
+              {MAJOR_ASPECTS.map(([key, asp]) => (
+                <ToggleRow
+                  key={key}
+                  label={`${asp.name} (${asp.angle}°)`}
+                  symbol={asp.symbol}
+                  checked={localVisibleAspects.has(key)}
+                  onChange={() => handleToggleAspect(key)}
+                  color={asp.color}
+                />
+              ))}
+              <button
+                onClick={handleEnableAllMajorAspects}
+                className="text-[9px] text-indigo-400/70 hover:text-indigo-300 px-1.5 pt-0.5 transition-colors"
+              >
+                Enable all
+              </button>
+            </PanelSection>
+
+            <div className="border-t border-white/5" />
+
+            {/* ── Minor Aspects ── */}
+            <PanelSection title="Minor Aspects" defaultOpen={false} badge={MINOR_ASPECTS.filter(([k]) => localVisibleAspects.has(k)).length}>
+              {MINOR_ASPECTS.map(([key, asp]) => (
+                <ToggleRow
+                  key={key}
+                  label={`${asp.name} (${asp.angle}°)`}
+                  symbol={asp.symbol}
+                  checked={localVisibleAspects.has(key)}
+                  onChange={() => handleToggleAspect(key)}
+                  color={asp.color}
+                />
+              ))}
+              <div className="flex gap-2 px-1.5 pt-0.5">
+                <button
+                  onClick={handleEnableAllMinorAspects}
+                  className="text-[9px] text-indigo-400/70 hover:text-indigo-300 transition-colors"
+                >
+                  Enable all
+                </button>
+                <button
+                  onClick={handleDisableAllMinorAspects}
+                  className="text-[9px] text-white/30 hover:text-white/60 transition-colors"
+                >
+                  Disable all
+                </button>
+              </div>
+            </PanelSection>
+
+            <div className="border-t border-white/5" />
+
+            {/* ── Planets ── */}
+            <PanelSection title="Planets" defaultOpen={false} badge={visiblePlanetCount}>
+              {/* Quick toggles */}
+              <div className="flex gap-1 px-1 pb-1">
+                <button
+                  onClick={() => handleEnableGroup('core')}
+                  className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-white/50 hover:text-white/80 hover:bg-white/10 transition-colors"
+                >
+                  Core
+                </button>
+                <button
+                  onClick={() => handleEnableGroup('outer')}
+                  className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-white/50 hover:text-white/80 hover:bg-white/10 transition-colors"
+                >
+                  +Outer
+                </button>
+                <button
+                  onClick={() => handleEnableGroup('all')}
+                  className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-white/50 hover:text-white/80 hover:bg-white/10 transition-colors"
+                >
+                  All
+                </button>
+                <button
+                  onClick={handleClearPlanets}
+                  className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-white/30 hover:text-white/60 hover:bg-white/10 transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+              {mainPlanets.map(p => (
+                <ToggleRow
+                  key={p.key}
+                  label={p.name}
+                  symbol={p.symbol}
+                  checked={localVisiblePlanets.has(p.key)}
+                  onChange={() => handleTogglePlanet(p.key)}
+                  color={p.color}
+                />
+              ))}
+            </PanelSection>
+
+            <div className="border-t border-white/5" />
+
+            {/* ── Asteroid Groups ── */}
+            <PanelSection title="Asteroid Groups" defaultOpen={false} badge={enabledAsteroidGroups.size}>
+              {Object.entries(ASTEROID_GROUP_INFO).map(([groupKey, info]) => {
+                const group = groupKey as AsteroidGroup;
+                const isEnabled = enabledAsteroidGroups.has(group);
+                const isLoading = loadingGroups.has(group);
+                const members = ASTEROID_GROUPS[group] ?? [];
+                const visibleInGroup = members.filter(k => localVisiblePlanets.has(k)).length;
+                const totalCount = members.length;
+
+                return (
+                  <AsteroidGroupSection
+                    key={groupKey}
+                    group={group}
+                    info={info}
+                    isEnabled={isEnabled}
+                    isLoading={isLoading}
+                    members={members as string[]}
+                    visibleInGroup={visibleInGroup}
+                    totalCount={totalCount}
+                    chartPlanets={chart.planets}
+                    localVisiblePlanets={localVisiblePlanets}
+                    onToggleGroup={() => handleToggleAsteroidGroup(group)}
+                    onToggleMember={handleTogglePlanet}
+                  />
+                );
+              })}
+              <p className="text-[8px] text-white/20 px-1.5 pt-0.5 leading-tight">
+                Groups load from the API when enabled
+              </p>
+            </PanelSection>
+
+            <div className="border-t border-white/5" />
+
+            {/* ── Camera Presets ── */}
+            <PanelSection title="Camera" defaultOpen={false}>
+              <div className="flex flex-wrap gap-1 px-1">
+                {CAMERA_PRESETS.map((preset) => (
+                  <button
+                    key={preset.name}
+                    className={`px-2 py-1 rounded text-[10px] transition-colors ${
+                      activePresetName === preset.name
+                        ? 'bg-indigo-500/30 text-indigo-300'
+                        : 'bg-white/5 text-white/45 hover:text-white/80 hover:bg-white/10'
+                    }`}
+                    onClick={() => handlePreset(preset)}
+                  >
+                    {preset.name}
+                  </button>
+                ))}
+              </div>
+            </PanelSection>
+          </div>
+        </div>
+      )}
 
       {/* Bottom: Transit controls + camera presets */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
@@ -605,7 +896,7 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
         </div>
       </div>
 
-      {/* Planet info panel */}
+      {/* Planet info panel — shift left when settings panel is open */}
       {selectedPlanetData && (
         <PlanetInfoPanel
           planet={selectedPlanetData}

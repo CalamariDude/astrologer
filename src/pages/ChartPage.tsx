@@ -404,6 +404,7 @@ export default function ChartPage() {
   const [pageTheme, setPageTheme] = useState(() => localStorage.getItem('astrologer_theme') || 'classic');
   const [activeTab, setActiveTab] = useState('aspect-grid');
   const [showGalactic, setShowGalactic] = useState(false);
+  const [saveAfterGenerate, setSaveAfterGenerate] = useState(false);
   const webglSupported = useWebGLSupport();
 
   // Shared visibility state — synced from 2D chart, passed one-way to galactic mode
@@ -545,8 +546,10 @@ export default function ChartPage() {
         lat: personAData.lat,
         lng: personAData.lng,
       });
-      setChartA(parseNatalResponse(dataA));
+      const parsedA = parseNatalResponse(dataA);
+      setChartA(parsedA);
 
+      let parsedB: NatalChart | null = null;
       if (personBData && personBData.date && personBData.lat !== null) {
         const dataB = await swissEphemeris.natal({
           birth_date: personBData.date,
@@ -554,17 +557,52 @@ export default function ChartPage() {
           lat: personBData.lat,
           lng: personBData.lng,
         });
-        setChartB(parseNatalResponse(dataB));
+        parsedB = parseNatalResponse(dataB);
+        setChartB(parsedB);
       } else {
         setChartB(null);
       }
       setEditing(false);
+
+      // Auto-save if checkbox was checked
+      if (saveAfterGenerate) {
+        const existing = getSavedCharts();
+        const isSyn = !!parsedB && !!personBData;
+        const defaultName = isSyn
+          ? `${personAData.name || 'Person A'} & ${personBData!.name || 'Person B'}`
+          : personAData.name || 'My Chart';
+        const chart: SavedChart = {
+          id: crypto.randomUUID(),
+          name: defaultName,
+          chart_type: isSyn ? 'synastry' : 'natal',
+          person_a_name: personAData.name,
+          person_a_date: personAData.date,
+          person_a_time: personAData.time,
+          person_a_location: personAData.location,
+          person_a_lat: personAData.lat,
+          person_a_lng: personAData.lng,
+          person_a_chart: parsedA,
+          person_b_name: isSyn ? personBData!.name : null,
+          person_b_date: isSyn ? personBData!.date : null,
+          person_b_time: isSyn ? personBData!.time : null,
+          person_b_location: isSyn ? personBData!.location : null,
+          person_b_lat: isSyn ? personBData!.lat : null,
+          person_b_lng: isSyn ? personBData!.lng : null,
+          person_b_chart: isSyn ? parsedB : null,
+          created_at: new Date().toISOString(),
+        };
+        existing.unshift(chart);
+        const max = isPaid ? 50 : 3;
+        if (existing.length > max) existing.length = max;
+        localStorage.setItem('astrologer_saved_charts', JSON.stringify(existing));
+        toast.success('Chart saved');
+      }
     } catch (err: any) {
       toast.error(err.message || 'Failed to calculate chart');
     } finally {
       setLoading(false);
     }
-  }, [personAData, personBData]);
+  }, [personAData, personBData, saveAfterGenerate, isPaid]);
 
   // ─── Import / Load ──────────────────────────────────────────
 
@@ -816,7 +854,7 @@ export default function ChartPage() {
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setShowAstroImport(true)}>
                     <ClipboardPaste className="w-4 h-4 mr-2" />
-                    Import from Astro.com
+                    Import Charts
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => {
                     const charts = getSavedCharts();
@@ -862,10 +900,9 @@ export default function ChartPage() {
       </div>
 
       {/* ── Birth Data Panel ────────────────────────────────── */}
-      <div className="border-b border-border/50 bg-gradient-to-b from-background to-muted/20">
-        <div className="container px-3 md:px-6">
-          {editing ? (
-            /* ─ Expanded edit form ─ */
+      {editing && (
+        <div className="border-b border-border/50 bg-gradient-to-b from-background to-muted/20">
+          <div className="container px-3 md:px-6">
             <div className="py-5 space-y-4 max-w-2xl mx-auto">
               <InlineBirthForm data={personAData} onChange={setPersonAData} label="Person A" savedPersons={savedPersons} />
 
@@ -881,7 +918,7 @@ export default function ChartPage() {
                 </button>
               )}
 
-              <div className="flex items-center gap-3 pt-1">
+              <div className="flex items-center gap-3 pt-1 flex-wrap">
                 <Button
                   onClick={calculateChart}
                   disabled={loading || !canCalculate}
@@ -894,6 +931,15 @@ export default function ChartPage() {
                     <><Sparkles className="w-3.5 h-3.5" /> Calculate Chart</>
                   )}
                 </Button>
+                <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={saveAfterGenerate}
+                    onChange={(e) => setSaveAfterGenerate(e.target.checked)}
+                    className="w-3.5 h-3.5 rounded border-border accent-primary cursor-pointer"
+                  />
+                  <span className="text-xs text-muted-foreground">Save to My Charts</span>
+                </label>
                 {hasChart && (
                   <Button variant="ghost" size="sm" onClick={() => setEditing(false)} className="text-muted-foreground">
                     Cancel
@@ -901,37 +947,65 @@ export default function ChartPage() {
                 )}
               </div>
             </div>
-          ) : (
-            /* ─ Compact summary ─ */
-            <div className="py-3 flex items-center gap-3 min-h-[48px] max-w-2xl mx-auto">
-              <div className="flex-1 min-w-0 space-y-1">
-                <BirthSummary data={personAData} />
-                {personBData && hasSynastry && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-medium text-muted-foreground/50">&</span>
-                    <BirthSummary data={personBData} />
-                  </div>
-                )}
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setEditing(true)} className="shrink-0 gap-1.5 text-xs text-muted-foreground hover:text-foreground">
-                <Pencil className="w-3.5 h-3.5" />
-                Edit
-              </Button>
-            </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── Chart Content ───────────────────────────────────── */}
       {hasChart && personA ? (
         <div className="container py-4 md:py-6 space-y-4 md:space-y-6 px-2 md:px-6">
           <div>
-            {/* Chart toolbar: save + galactic toggle */}
-            <div className="flex items-center justify-between mb-2">
-              <SaveChartButton personA={personA} personB={personB} />
-              {webglSupported && !hasSynastry && (
-                <GalacticToggle active={showGalactic} onToggle={() => setShowGalactic(v => !v)} />
+            {/* Combined birth info card + save + galactic toggle */}
+            <div className="flex items-center justify-between mb-2 gap-2">
+              {!editing && (
+                <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border/50 bg-muted/30 text-sm min-w-0">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                      <span className="font-medium truncate">{personAData.name || 'Unnamed'}</span>
+                      <span className="text-muted-foreground/40">&middot;</span>
+                      <span className="text-muted-foreground text-xs">{formatDate(personAData.date)}</span>
+                      <span className="text-muted-foreground/40">&middot;</span>
+                      <span className="text-muted-foreground text-xs">{personAData.time}</span>
+                      {personAData.location && (
+                        <>
+                          <span className="text-muted-foreground/40">&middot;</span>
+                          <span className="text-muted-foreground text-xs truncate max-w-[160px]">{shortLocation(personAData.location)}</span>
+                        </>
+                      )}
+                    </div>
+                    {personBData && hasSynastry && (
+                      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-0.5">
+                        <span className="text-[10px] text-muted-foreground/40">&</span>
+                        <span className="font-medium truncate">{personBData.name || 'Unnamed'}</span>
+                        <span className="text-muted-foreground/40">&middot;</span>
+                        <span className="text-muted-foreground text-xs">{formatDate(personBData.date)}</span>
+                        <span className="text-muted-foreground/40">&middot;</span>
+                        <span className="text-muted-foreground text-xs">{personBData.time}</span>
+                        {personBData.location && (
+                          <>
+                            <span className="text-muted-foreground/40">&middot;</span>
+                            <span className="text-muted-foreground text-xs truncate max-w-[160px]">{shortLocation(personBData.location)}</span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="shrink-0 text-muted-foreground/60 hover:text-foreground transition-colors p-0.5"
+                    title="Edit birth data"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                  <div className="w-px h-4 bg-border/50 shrink-0" />
+                  <SaveChartButton personA={personA} personB={personB} />
+                </div>
               )}
+              <div className="shrink-0 ml-auto">
+                {webglSupported && !hasSynastry && (
+                  <GalacticToggle active={showGalactic} onToggle={() => setShowGalactic(v => !v)} />
+                )}
+              </div>
             </div>
 
             {showGalactic && webglSupported && !hasSynastry ? (
@@ -986,7 +1060,7 @@ export default function ChartPage() {
 
           {/* Astro Tools Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="flex overflow-x-auto gap-0 w-full scrollbar-hide bg-transparent border-b border-border/50 rounded-none p-0 h-auto">
+            <TabsList className="flex justify-start overflow-x-auto gap-0 w-full scrollbar-hide bg-transparent border-b border-border/50 rounded-none p-0 h-auto">
               {[
                 { value: 'aspect-grid', icon: Grid3X3, label: 'Aspects' },
                 { value: 'profections', icon: RotateCcw, label: 'Profections' },

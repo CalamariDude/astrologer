@@ -245,7 +245,6 @@ function PricingToggle({ onSubscribe }: { onSubscribe: () => void }) {
             'AI chart interpretations',
             'Save unlimited charts',
             'Astrocartography maps',
-            'Solar & Lunar returns',
             'Priority support',
           ].map((f) => (
             <div key={f} className="flex items-center gap-3">
@@ -264,6 +263,59 @@ function PricingToggle({ onSubscribe }: { onSubscribe: () => void }) {
         </Button>
 
         <p className="text-[11px] text-white/25 mt-4">Cancel anytime. Have a promo code? Apply it at checkout.</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Galactic Mode Section Components ─────────────────────────────────
+
+function GalacticSectionText() {
+  const fade = useFadeIn(0);
+  return (
+    <div ref={fade.ref} style={fade.style} className={`text-center max-w-2xl ${fade.className}`}>
+      <div className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.25em] mb-5 text-indigo-400/80">
+        Galactic Mode
+      </div>
+      <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05]">
+        <span className="bg-gradient-to-r from-indigo-200 via-purple-200 to-pink-200 bg-clip-text text-transparent">
+          Your chart<br className="hidden sm:block" /> in 3D.
+        </span>
+      </h2>
+      <p className="mt-6 sm:mt-8 text-base sm:text-lg md:text-xl leading-relaxed text-white/40 max-w-xl mx-auto">
+        Step inside your natal chart. Orbit around planets, watch aspects pulse with energy, and animate transits through time — all rendered in real-time 3D with bloom lighting and post-processing effects.
+      </p>
+      <div className="flex flex-wrap justify-center gap-3 mt-8">
+        {[
+          { label: 'Fly Through Space', icon: '🚀' },
+          { label: 'Real-Time 3D Rendering', icon: '🌌' },
+          { label: 'Neon Bloom Lighting', icon: '✨' },
+          { label: 'Cinematic Camera Orbits', icon: '🎬' },
+          { label: 'Animated Transit Trails', icon: '☄️' },
+          { label: 'Interactive Planet Labels', icon: '🪐' },
+        ].map((f) => (
+          <span key={f.label} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-white/50 text-xs sm:text-sm">
+            <span>{f.icon}</span>
+            {f.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function GalacticSectionVisual() {
+  const fade = useFadeIn(200);
+  return (
+    <div ref={fade.ref} style={fade.style} className={`w-full ${fade.className}`}>
+      <div className="relative group">
+        <div className="absolute -inset-12 bg-gradient-to-br from-indigo-500/[0.12] via-purple-500/[0.08] to-pink-500/[0.06] rounded-[3rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
+        <div className="absolute -inset-[2px] rounded-2xl bg-gradient-to-br from-indigo-500/30 via-purple-500/20 to-pink-500/30 opacity-60" />
+        <img
+          src="/galactic.png"
+          alt="Galactic Mode — 3D natal chart visualization"
+          className="w-full h-auto relative rounded-2xl drop-shadow-2xl"
+        />
       </div>
     </div>
   );
@@ -324,20 +376,14 @@ export default function HomePage() {
           <Link to="/" className="text-lg font-bold tracking-tight transition-colors duration-500"
             style={{ color: inDarkZone ? '#fff' : '#0a0a0a' }}>Astrologer</Link>
 
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-6">
             <a href="#features" className="text-sm hover:opacity-80 transition-colors duration-500"
               style={{ color: inDarkZone ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)' }}>Features</a>
             <a href="#pricing" className="text-sm hover:opacity-80 transition-colors duration-500"
               style={{ color: inDarkZone ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)' }}>Pricing</a>
             <Link to="/chart">
-              <Button variant="ghost" size="sm" style={{ color: inDarkZone ? '#fff' : undefined }}>Open App</Button>
+              <Button size="sm" className={inDarkZone ? 'bg-white text-black hover:bg-white/90' : ''}>Open App</Button>
             </Link>
-            {user ? (
-              <Link to="/chart"><Button size="sm">My Charts</Button></Link>
-            ) : (
-              <Button size="sm" onClick={() => setShowAuth(true)}
-                className={inDarkZone ? 'bg-white text-black hover:bg-white/90' : ''}>Sign In</Button>
-            )}
           </div>
 
           <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -354,10 +400,8 @@ export default function HomePage() {
             <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-sm"
               style={{ color: inDarkZone ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)' }}>Pricing</a>
             <Link to="/chart" onClick={() => setMobileMenuOpen(false)}>
-              <div className="py-2 text-sm" style={{ color: inDarkZone ? '#fff' : '#0a0a0a' }}>Open App</div>
+              <Button size="sm" className="w-full mt-1">Open App</Button>
             </Link>
-            {!user && <Button size="sm" className="w-full mt-1"
-              onClick={() => { setShowAuth(true); setMobileMenuOpen(false); }}>Sign In</Button>}
           </div>
         )}
       </header>
@@ -403,7 +447,7 @@ export default function HomePage() {
         <FeatureShowcase
           tag="Synastry"
           headline={<>See how two<br className="hidden sm:block" /> charts align.</>}
-          body="Overlay any two natal charts in a stunning biwheel. Conjunctions, trines, squares — every aspect between two people, instantly visible. The connections become obvious at a glance."
+          body="Overlay any two natal charts in a stunning biwheel. Conjunctions, trines, squares — every aspect between two people, instantly visible."
           reversed
           visual={
             <div className="relative group">
@@ -451,6 +495,34 @@ export default function HomePage() {
             </div>
           }
         />
+
+        {/* Galactic Mode — immersive 3D hero section */}
+        <section className="relative py-32 sm:py-44 md:py-52 px-4 sm:px-6 overflow-hidden bg-[#07050F]">
+          {/* Starfield background */}
+          <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
+            {Array.from({ length: 60 }).map((_, i) => (
+              <div
+                key={i}
+                className="absolute rounded-full bg-white"
+                style={{
+                  width: Math.random() * 2 + 0.5,
+                  height: Math.random() * 2 + 0.5,
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                  opacity: Math.random() * 0.3 + 0.05,
+                }}
+              />
+            ))}
+          </div>
+
+          <div className="relative max-w-7xl mx-auto flex flex-col items-center gap-12 sm:gap-16">
+            {/* Text */}
+            <GalacticSectionText />
+
+            {/* Screenshot */}
+            <GalacticSectionVisual />
+          </div>
+        </section>
 
         <FeatureShowcase
           tag="Pro — Astrocartography"
@@ -510,7 +582,7 @@ export default function HomePage() {
         <FeatureShowcase
           tag="40+ Asteroids"
           headline={<>Beyond the<br className="hidden sm:block" /> classical planets.</>}
-          body="Chiron, Eris, Sedna, Pholus, Eros, and dozens more. Main Belt, Centaurs, Trans-Neptunian Objects, Arabic Parts, Lunar Points — all with original interpretations rooted in orbital mechanics."
+          body="Chiron, Eris, Sedna, Pholus, Eros, and dozens more. Main Belt, Centaurs, Trans-Neptunian Objects, Arabic Parts, Lunar Points — all with interpretations rooted in orbital mechanics."
           visual={
             <div className="relative group">
               <div className="absolute -inset-10 bg-gradient-to-br from-cyan-500/[0.07] to-blue-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
@@ -671,15 +743,25 @@ export default function HomePage() {
       </section>
 
       {/* ── Footer ───────────────────────────────────────────── */}
-      <footer className="relative z-10 bg-[#07050F] border-t border-white/[0.06] py-6 sm:py-8 px-4 sm:px-6">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs sm:text-sm text-white/30">
-          <div className="font-medium text-white/60">Astrologer</div>
-          <div className="flex gap-4 sm:gap-6">
-            <Link to="/chart" className="hover:text-white/60 transition-colors">Chart Tool</Link>
-            <a href="#features" className="hover:text-white/60 transition-colors">Features</a>
-            <a href="#pricing" className="hover:text-white/60 transition-colors">Pricing</a>
+      <footer className="relative z-10 bg-[#07050F] border-t border-white/10 py-8 sm:py-10 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto space-y-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs sm:text-sm text-white/50">
+            <div className="font-medium text-white/80">Astrologer</div>
+            <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
+              <Link to="/chart" className="hover:text-white/90 transition-colors">Chart Tool</Link>
+              <a href="#features" className="hover:text-white/90 transition-colors">Features</a>
+              <a href="#pricing" className="hover:text-white/90 transition-colors">Pricing</a>
+              <Link to="/support" className="hover:text-white/90 transition-colors">Support</Link>
+            </div>
           </div>
-          <div>&copy; {new Date().getFullYear()} Astrologer.</div>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-white/40 border-t border-white/10 pt-5">
+            <div>&copy; {new Date().getFullYear()} Astrologer.</div>
+            <div className="flex gap-4">
+              <Link to="/terms" className="hover:text-white/70 transition-colors">Terms</Link>
+              <Link to="/privacy" className="hover:text-white/70 transition-colors">Privacy</Link>
+              <Link to="/support" className="hover:text-white/70 transition-colors">Support</Link>
+            </div>
+          </div>
         </div>
       </footer>
 

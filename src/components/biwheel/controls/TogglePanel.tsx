@@ -557,7 +557,17 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
       style={{
         flexShrink: 0,
         width: 200,
-        maxHeight: '100%',
+        alignSelf: 'stretch',
+        position: 'relative',
+      }}
+    >
+    <div
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         overflowY: 'auto',
         overflowX: 'hidden',
         background: COLORS.background,
@@ -565,7 +575,6 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
         borderRadius: 8,
         padding: 12,
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        alignSelf: 'flex-start',
       }}
     >
       {/* Header */}
@@ -1043,17 +1052,17 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
                         alignItems: 'center',
                         gap: 6,
                         padding: '6px 8px',
-                        background: '#fff8e1',
-                        border: '1px solid #ffc107',
+                        background: COLORS.backgroundAlt2,
+                        border: `1px solid ${COLORS.gridLineFaint}`,
                         borderRadius: 4,
                       }}
                     >
                       <span style={{ fontSize: 14 }}>📍</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.textSecondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {relocatedLocation.name}
                         </div>
-                        <div style={{ fontSize: 9, color: COLORS.textMuted }}>
+                        <div style={{ fontSize: 9, color: COLORS.textSecondary }}>
                           {relocatedLocation.lat.toFixed(2)}°, {relocatedLocation.lng.toFixed(2)}°
                         </div>
                       </div>
@@ -1063,15 +1072,39 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
                       style={{
                         padding: '6px 8px',
                         fontSize: 10,
-                        color: '#d32f2f',
-                        background: '#ffebee',
-                        border: '1px solid #ffcdd2',
+                        color: '#ef5350',
+                        background: COLORS.backgroundAlt2,
+                        border: `1px solid ${COLORS.gridLineFaint}`,
                         borderRadius: 4,
                         textAlign: 'center',
                       }}
                     >
                       No current location set for this user
                     </div>
+                  )}
+                  {/* Change Location button - opens the map picker */}
+                  {onOpenLocationPicker && (
+                    <button
+                      onClick={onOpenLocationPicker}
+                      style={{
+                        marginTop: 6,
+                        width: '100%',
+                        padding: '6px 8px',
+                        fontSize: 10,
+                        fontWeight: 600,
+                        background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
+                        color: '#1a1a1a',
+                        border: 'none',
+                        borderRadius: 4,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      {relocatedLocation ? 'Change Location' : 'Pick Location on Map'}
+                    </button>
                   )}
                 </div>
               )}
@@ -1169,9 +1202,8 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
         )}
       </Section>
 
-      {/* Aspects - moved to top */}
-      <Section title="Aspects" defaultOpen={true}>
-        {/* All aspect checkboxes */}
+      {/* Aspects - Major and Minor sub-sections */}
+      <Section title="Major Aspects" defaultOpen={true}>
         {majorAspects.map(([key, def]) => (
           <Checkbox
             key={key}
@@ -1182,6 +1214,8 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
             color={def.color}
           />
         ))}
+      </Section>
+      <Section title="Minor Aspects" defaultOpen={false}>
         {minorAspects.map(([key, def]) => (
           <Checkbox
             key={key}
@@ -1380,6 +1414,7 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
         </div>
       )}
 
+    </div>
     </div>
   );
 };

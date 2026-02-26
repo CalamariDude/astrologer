@@ -17,6 +17,7 @@ export const LAYOUT = {
     social: 0.38,
     outer: 0.28,
     node: 0.2,
+    point: 0.22,
     asteroid: 0.16,
     angle: 0.14,
   } as Record<string, number>,

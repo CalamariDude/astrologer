@@ -4,6 +4,17 @@ import { useAuth } from './AuthContext';
 
 type SubStatus = 'free' | 'trialing' | 'active' | 'past_due' | 'canceled';
 
+const FREE_AI_LIMIT = 3;
+const PAID_AI_LIMIT = 1000;
+const FREE_RELOCATED_LIMIT = 3;
+
+function getMonthStart(): Date {
+  const d = new Date();
+  d.setDate(1);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 interface SubscriptionContextType {
   status: SubStatus;
   plan: string | null;
@@ -11,6 +22,14 @@ interface SubscriptionContextType {
   isTrialing: boolean;
   trialDaysRemaining: number | null;
   loading: boolean;
+  // Credits
+  aiCreditsRemaining: number;
+  aiCreditsLimit: number;
+  relocatedRemaining: number; // -1 = unlimited
+  relocatedLimit: number; // -1 = unlimited
+  useAiCredit: () => Promise<boolean>;
+  useRelocatedCredit: () => Promise<boolean>;
+  // Actions
   openCheckout: (plan: 'monthly' | 'annual') => Promise<void>;
   openPortal: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -25,11 +44,17 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Usage tracking
+  const [aiCreditsUsed, setAiCreditsUsed] = useState(0);
+  const [relocatedUsed, setRelocatedUsed] = useState(0);
+
   const fetchProfile = useCallback(async () => {
     if (!user) {
       setStatus('free');
       setPlan(null);
       setTrialEndsAt(null);
+      setAiCreditsUsed(0);
+      setRelocatedUsed(0);
       return;
     }
 
@@ -37,7 +62,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     try {
       const { data } = await supabase
         .from('astrologer_profiles')
-        .select('subscription_status, subscription_plan, trial_ends_at, subscription_expires_at')
+        .select('subscription_status, subscription_plan, trial_ends_at, subscription_expires_at, ai_credits_used, ai_credits_reset_at, relocated_used, relocated_reset_at')
         .eq('id', user.id)
         .single();
 
@@ -45,6 +70,39 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         setStatus(data.subscription_status || 'free');
         setPlan(data.subscription_plan || null);
         setTrialEndsAt(data.trial_ends_at || null);
+
+        // Check monthly reset
+        const monthStart = getMonthStart();
+        const aiResetAt = new Date(data.ai_credits_reset_at || '2000-01-01');
+        const relocatedResetAt = new Date(data.relocated_reset_at || '2000-01-01');
+
+        if (aiResetAt < monthStart || relocatedResetAt < monthStart) {
+          // Reset expired counters
+          const updates: Record<string, unknown> = {};
+          if (aiResetAt < monthStart) {
+            updates.ai_credits_used = 0;
+            updates.ai_credits_reset_at = monthStart.toISOString();
+            setAiCreditsUsed(0);
+          } else {
+            setAiCreditsUsed(data.ai_credits_used || 0);
+          }
+          if (relocatedResetAt < monthStart) {
+            updates.relocated_used = 0;
+            updates.relocated_reset_at = monthStart.toISOString();
+            setRelocatedUsed(0);
+          } else {
+            setRelocatedUsed(data.relocated_used || 0);
+          }
+          if (Object.keys(updates).length > 0) {
+            await supabase
+              .from('astrologer_profiles')
+              .update(updates)
+              .eq('id', user.id);
+          }
+        } else {
+          setAiCreditsUsed(data.ai_credits_used || 0);
+          setRelocatedUsed(data.relocated_used || 0);
+        }
       }
     } catch {
       // Profile might not exist yet (trigger may be delayed)
@@ -76,6 +134,8 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
           setStatus(data.subscription_status || 'free');
           setPlan(data.subscription_plan || null);
           setTrialEndsAt(data.trial_ends_at || null);
+          if (data.ai_credits_used != null) setAiCreditsUsed(data.ai_credits_used);
+          if (data.relocated_used != null) setRelocatedUsed(data.relocated_used);
         }
       )
       .subscribe();
@@ -93,6 +153,40 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const trialDaysRemaining = isTrialing && trialEndsAt
     ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     : null;
+
+  // Credit calculations
+  const aiCreditsLimit = isPaid ? PAID_AI_LIMIT : FREE_AI_LIMIT;
+  const aiCreditsRemaining = Math.max(0, aiCreditsLimit - aiCreditsUsed);
+
+  const relocatedLimit = isPaid ? -1 : FREE_RELOCATED_LIMIT; // -1 = unlimited
+  const relocatedRemaining = isPaid ? -1 : Math.max(0, FREE_RELOCATED_LIMIT - relocatedUsed);
+
+  const useAiCredit = useCallback(async (): Promise<boolean> => {
+    if (!user) return false;
+    if (aiCreditsRemaining <= 0) return false;
+
+    const newUsed = aiCreditsUsed + 1;
+    setAiCreditsUsed(newUsed);
+    await supabase
+      .from('astrologer_profiles')
+      .update({ ai_credits_used: newUsed })
+      .eq('id', user.id);
+    return true;
+  }, [user, aiCreditsUsed, aiCreditsRemaining]);
+
+  const useRelocatedCredit = useCallback(async (): Promise<boolean> => {
+    if (!user) return false;
+    if (!isPaid) {
+      if (relocatedUsed >= FREE_RELOCATED_LIMIT) return false;
+      const newUsed = relocatedUsed + 1;
+      setRelocatedUsed(newUsed);
+      await supabase
+        .from('astrologer_profiles')
+        .update({ relocated_used: newUsed })
+        .eq('id', user.id);
+    }
+    return true;
+  }, [user, isPaid, relocatedUsed]);
 
   const openCheckout = async (selectedPlan: 'monthly' | 'annual') => {
     if (!user) return;
@@ -126,7 +220,13 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   return (
     <SubscriptionContext.Provider
-      value={{ status, plan, isPaid, isTrialing, trialDaysRemaining, loading, openCheckout, openPortal, refresh: fetchProfile }}
+      value={{
+        status, plan, isPaid, isTrialing, trialDaysRemaining, loading,
+        aiCreditsRemaining, aiCreditsLimit,
+        relocatedRemaining, relocatedLimit,
+        useAiCredit, useRelocatedCredit,
+        openCheckout, openPortal, refresh: fetchProfile,
+      }}
     >
       {children}
     </SubscriptionContext.Provider>

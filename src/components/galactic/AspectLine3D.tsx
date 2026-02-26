@@ -290,36 +290,27 @@ export function AspectLine3D({ aspect, visible, dimmed = false, declinationAspec
 
       {/* Aspect symbol billboard at apex */}
       <Billboard position={apexPosition} follow lockX={false} lockY={false} lockZ={false}>
-        {/* Background circle */}
-        <mesh>
-          <circleGeometry args={[0.22, 16]} />
-          <meshBasicMaterial color="#0a0a1a" transparent opacity={0.85 * opacityRef.current} depthWrite={false} />
-        </mesh>
-        <mesh>
-          <ringGeometry args={[0.2, 0.23, 16]} />
-          <meshBasicMaterial color={energy.color} transparent opacity={0.6 * opacityRef.current} depthWrite={false} />
-        </mesh>
         {/* Aspect symbol */}
         <Text
-          fontSize={0.2}
+          fontSize={0.18}
           color={energy.color}
           anchorX="center"
           anchorY="middle"
-          outlineWidth={0.01}
+          outlineWidth={0.015}
           outlineColor="#000000"
         >
           {symbolText}
         </Text>
         {/* Orb degree below */}
         <Text
-          position={[0, -0.28, 0]}
-          fontSize={0.1}
+          position={[0, -0.22, 0]}
+          fontSize={0.09}
           color={energy.color}
           anchorX="center"
           anchorY="middle"
           outlineWidth={0.005}
           outlineColor="#000000"
-          fillOpacity={0.7}
+          fillOpacity={0.6}
         >
           {orbText}{decSymbol}
         </Text>

@@ -394,7 +394,7 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
                   // Perpendicular
                   const px = -ny;
                   const py = nx;
-                  const sz = 3 + strength * 2;
+                  const sz = 5 + strength * 3;
                   const p1 = `${arrowTip.x},${arrowTip.y}`;
                   const p2 = `${arrowTip.x - nx * sz * 2 + px * sz},${arrowTip.y - ny * sz * 2 + py * sz}`;
                   const p3 = `${arrowTip.x - nx * sz * 2 - px * sz},${arrowTip.y - ny * sz * 2 - py * sz}`;
@@ -402,7 +402,7 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
                     <polygon
                       points={`${p1} ${p2} ${p3}`}
                       fill={line.color}
-                      fillOpacity={line.opacity * 0.7}
+                      fillOpacity={line.opacity * 0.85}
                     />
                   );
                 })()}
@@ -421,11 +421,11 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
                 <circle
                   cx={apex.x}
                   cy={apex.y}
-                  r={11}
+                  r={7}
                   fill={COLORS.background}
                   fillOpacity={Math.max(line.opacity, 0.7)}
                   stroke={line.color}
-                  strokeWidth={isHighlighted ? 1.5 : 1}
+                  strokeWidth={isHighlighted ? 1.2 : 0.8}
                   strokeOpacity={line.opacity}
                   filter={isHighlighted ? `url(#${idPrefix}-glow)` : undefined}
                 />
@@ -435,7 +435,7 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
                   y={apex.y}
                   fill={line.color}
                   fillOpacity={Math.max(line.opacity, 0.6)}
-                  fontSize={13}
+                  fontSize={9}
                   fontWeight="bold"
                   textAnchor="middle"
                   dominantBaseline="central"
@@ -447,10 +447,10 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
                 {isHighlighted && (
                   <text
                     x={apex.x}
-                    y={apex.y + 16}
+                    y={apex.y + 11}
                     fill={line.color}
                     fillOpacity={0.7}
-                    fontSize={8}
+                    fontSize={7}
                     textAnchor="middle"
                     dominantBaseline="central"
                     style={{ userSelect: 'none' }}
@@ -461,8 +461,8 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
                 {/* Declination spark indicator */}
                 {decAspect && (
                   <text
-                    x={apex.x + 13}
-                    y={apex.y - 8}
+                    x={apex.x + 9}
+                    y={apex.y - 6}
                     fill={decAspect === 'parallel' ? '#fbbf24' : '#f97316'}
                     fillOpacity={Math.max(line.opacity, 0.5)}
                     fontSize={9}
@@ -488,11 +488,11 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
                 <circle
                   cx={conjunctionPos.x}
                   cy={conjunctionPos.y}
-                  r={11}
+                  r={7}
                   fill={COLORS.background}
                   fillOpacity={Math.max(line.opacity, 0.7)}
                   stroke={line.color}
-                  strokeWidth={isHighlighted ? 1.5 : 1}
+                  strokeWidth={isHighlighted ? 1.2 : 0.8}
                   strokeOpacity={line.opacity}
                   filter={isHighlighted ? `url(#${idPrefix}-glow)` : undefined}
                 />
@@ -501,7 +501,7 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
                   y={conjunctionPos.y}
                   fill={line.color}
                   fillOpacity={Math.max(line.opacity, 0.6)}
-                  fontSize={13}
+                  fontSize={9}
                   fontWeight="bold"
                   textAnchor="middle"
                   dominantBaseline="central"
@@ -512,10 +512,10 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
                 {isHighlighted && (
                   <text
                     x={conjunctionPos.x}
-                    y={conjunctionPos.y + 16}
+                    y={conjunctionPos.y + 11}
                     fill={line.color}
                     fillOpacity={0.7}
-                    fontSize={8}
+                    fontSize={7}
                     textAnchor="middle"
                     dominantBaseline="central"
                     style={{ userSelect: 'none' }}
@@ -525,8 +525,8 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
                 )}
                 {decAspect && (
                   <text
-                    x={conjunctionPos.x + 13}
-                    y={conjunctionPos.y - 8}
+                    x={conjunctionPos.x + 9}
+                    y={conjunctionPos.y - 6}
                     fill={decAspect === 'parallel' ? '#fbbf24' : '#f97316'}
                     fillOpacity={Math.max(line.opacity, 0.5)}
                     fontSize={9}

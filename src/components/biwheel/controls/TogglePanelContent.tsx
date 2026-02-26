@@ -9,6 +9,7 @@ import {
   ASPECTS,
   COLORS,
   ASTEROIDS,
+  ARABIC_PARTS,
   ASTEROID_GROUP_INFO,
   getThemeAwarePlanetColor,
 } from '../utils/constants';
@@ -60,6 +61,8 @@ interface TogglePanelContentProps {
   onToggleAsteroidGroup?: (group: AsteroidGroup) => void;
   onEnableAllAsteroids?: () => void;
   onDisableAllAsteroids?: () => void;
+  // Save defaults
+  onSaveDefaults?: () => void;
 }
 
 interface SectionProps {
@@ -347,7 +350,9 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
   onToggleAsteroidGroup,
   onEnableAllAsteroids,
   onDisableAllAsteroids,
+  onSaveDefaults,
 }) => {
+  const [saveFlash, setSaveFlash] = useState(false);
   const majorAspects = Object.entries(ASPECTS).filter(([_, def]) => def.major);
   const minorAspects = Object.entries(ASPECTS).filter(([_, def]) => !def.major);
 
@@ -621,7 +626,7 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
           </div>
 
           {/* Group toggle buttons */}
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr', gap: 6 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr', gap: 6, marginBottom: 12 }}>
             {(Object.entries(ASTEROID_GROUP_INFO) as [AsteroidGroup, { name: string; color: string; icon: string }][]).map(([groupKey, info]) => {
               const isEnabled = enabledAsteroidGroups.has(groupKey);
               const groupPlanets = ASTEROID_GROUPS[groupKey] || [];
@@ -651,7 +656,67 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
               );
             })}
           </div>
+
+          {/* Individual asteroid checkboxes by group */}
+          {(Object.entries(ASTEROID_GROUP_INFO) as [AsteroidGroup, { name: string; color: string; icon: string }][]).map(([groupKey, groupInfo]) => {
+            const groupAsteroids = [
+              ...Object.entries(ASTEROIDS).filter(([_, def]) => def.group === groupKey),
+              ...Object.entries(ARABIC_PARTS).filter(([_, def]) => def.group === groupKey),
+            ];
+            if (groupAsteroids.length === 0) return null;
+            return (
+              <div key={groupKey} style={{ marginBottom: 8 }}>
+                <div style={{
+                  fontSize: isMobile ? 12 : 9,
+                  color: groupInfo.color,
+                  marginBottom: 4,
+                  fontWeight: 600,
+                }}>
+                  {groupInfo.icon} {groupInfo.name}
+                </div>
+                <div style={isMobile ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 } : {}}>
+                  {groupAsteroids.map(([key, def]) => (
+                    <Checkbox
+                      key={key}
+                      label={def.name}
+                      checked={visiblePlanets.has(key)}
+                      onChange={() => onTogglePlanet(key)}
+                      color={def.color}
+                      isMobile={isMobile}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </Section>
+      )}
+
+      {/* Save as Default button */}
+      {onSaveDefaults && (
+        <div style={{ marginTop: isMobile ? 16 : 12, paddingTop: 12, borderTop: `1px solid ${COLORS.gridLineFaint}` }}>
+          <button
+            onClick={() => {
+              onSaveDefaults();
+              setSaveFlash(true);
+              setTimeout(() => setSaveFlash(false), 1500);
+            }}
+            style={{
+              width: '100%',
+              padding: isMobile ? '12px 0' : '8px 0',
+              fontSize: isMobile ? 14 : 12,
+              fontWeight: 600,
+              color: saveFlash ? '#fff' : COLORS.textPrimary,
+              background: saveFlash ? '#22c55e' : COLORS.backgroundAlt,
+              border: `1px solid ${COLORS.gridLineFaint}`,
+              borderRadius: 8,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            {saveFlash ? 'Saved!' : 'Save as Default'}
+          </button>
+        </div>
       )}
     </div>
   );

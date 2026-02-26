@@ -10,8 +10,8 @@ import type { BiWheelSynastryProps, AsteroidGroup } from './types';
 import { ASTEROID_GROUPS } from './types';
 import { ASTEROIDS, ASTEROID_GROUP_INFO } from './utils/constants';
 import { Drawer } from 'vaul';
-import { Settings2, Download, Image, FileText } from 'lucide-react';
-import { exportChartAsPNG, exportChartAsPDF } from '@/lib/chartExport';
+import { Settings2, Download, Image, FileText, Mail, Loader2, Share2, Link2, Check } from 'lucide-react';
+import { exportChartAsPNG, exportChartAsPDF, emailChart } from '@/lib/chartExport';
 import { toast } from 'sonner';
 
 interface BiWheelMobileWrapperProps extends Omit<BiWheelSynastryProps, 'size' | 'showTogglePanel'> {
@@ -25,6 +25,8 @@ interface BiWheelMobileWrapperProps extends Omit<BiWheelSynastryProps, 'size' | 
   onVisiblePlanetsChange?: (planets: Set<string>) => void;
   /** Callback when visible aspects change (for syncing with galactic mode) */
   onVisibleAspectsChange?: (aspects: Set<string>) => void;
+  /** Birth data for generating shareable links */
+  shareBirthData?: { name: string; date: string; time: string; lat: number; lng: number; location: string };
 }
 
 // Breakpoint for mobile detection
@@ -44,6 +46,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   forceMobile,
   onVisiblePlanetsChange,
   onVisibleAspectsChange,
+  shareBirthData,
   ...biWheelProps
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -54,6 +57,12 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailTo, setEmailTo] = useState('');
+  const [emailMessage, setEmailMessage] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   // Zoom and pan state
   const [scale, setScale] = useState(1);
@@ -65,16 +74,31 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   const [isMousePanning, setIsMousePanning] = useState(false);
   const lastMouseRef = useRef<{ x: number; y: number } | null>(null);
 
+  // Load saved defaults from localStorage (same key as BiWheelSynastry)
+  const savedDefaults = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('biwheel-chart-defaults');
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }, []);
+
   // BiWheel control state (lifted up for drawer access)
   const [visiblePlanets, setVisiblePlanets] = useState<Set<string>>(
-    biWheelProps.initialVisiblePlanets || new Set(['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'northnode', 'southnode', 'ascendant', 'midheaven'])
+    biWheelProps.initialVisiblePlanets
+      || (savedDefaults?.visiblePlanets ? new Set(savedDefaults.visiblePlanets) : new Set(['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'northnode', 'southnode', 'ascendant', 'midheaven']))
   );
   const [visibleAspects, setVisibleAspects] = useState<Set<string>>(
-    biWheelProps.initialVisibleAspects || new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition'])
+    biWheelProps.initialVisibleAspects
+      || (savedDefaults?.visibleAspects ? new Set(savedDefaults.visibleAspects) : new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition']))
   );
-  const [showHouses, setShowHouses] = useState(biWheelProps.initialShowHouses ?? true);
-  const [showDegreeMarkers, setShowDegreeMarkers] = useState(biWheelProps.initialShowDegreeMarkers ?? true);
-  const [enabledAsteroidGroups, setEnabledAsteroidGroups] = useState<Set<AsteroidGroup>>(new Set());
+  const [showHouses, setShowHouses] = useState(biWheelProps.initialShowHouses ?? savedDefaults?.showHouses ?? true);
+  const [showDegreeMarkers, setShowDegreeMarkers] = useState(biWheelProps.initialShowDegreeMarkers ?? savedDefaults?.showDegreeMarkers ?? true);
+  const [enabledAsteroidGroups, setEnabledAsteroidGroups] = useState<Set<AsteroidGroup>>(
+    savedDefaults?.enabledAsteroidGroups ? new Set(savedDefaults.enabledAsteroidGroups) : new Set()
+  );
 
   // Sync visibility changes up to parent (for galactic mode linking)
   useEffect(() => {
@@ -281,6 +305,52 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     }
   }, [biWheelProps.nameA, biWheelProps.nameB]);
 
+  const handleCopyLink = useCallback(() => {
+    if (!shareBirthData) {
+      toast.error('No birth data available for link');
+      return;
+    }
+    const params = new URLSearchParams({
+      name: shareBirthData.name,
+      date: shareBirthData.date,
+      time: shareBirthData.time,
+      lat: String(shareBirthData.lat),
+      lng: String(shareBirthData.lng),
+      loc: shareBirthData.location,
+    });
+    const url = `${window.location.origin}/chart?${params.toString()}`;
+    navigator.clipboard.writeText(url);
+    setLinkCopied(true);
+    toast.success('Chart link copied');
+    setTimeout(() => setLinkCopied(false), 2000);
+    setShowShareMenu(false);
+  }, [shareBirthData]);
+
+  const handleEmailShare = useCallback(async () => {
+    if (!chartContainerRef.current || !emailTo.trim()) return;
+    setSendingEmail(true);
+    try {
+      const nameA = biWheelProps.nameA || 'Person A';
+      const nameB = biWheelProps.nameB;
+      const title = nameB && nameB !== nameA ? `${nameA} & ${nameB}` : nameA;
+      await emailChart({
+        container: chartContainerRef.current,
+        to: emailTo.trim(),
+        title,
+        message: emailMessage.trim() || undefined,
+        chartDetails: nameB && nameB !== nameA ? 'Synastry Chart' : 'Natal Chart',
+      });
+      toast.success(`Chart sent to ${emailTo}`);
+      setShowEmailModal(false);
+      setEmailTo('');
+      setEmailMessage('');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send email');
+    } finally {
+      setSendingEmail(false);
+    }
+  }, [chartContainerRef, emailTo, emailMessage, biWheelProps.nameA, biWheelProps.nameB]);
+
   // Toggle handlers for the drawer
   const togglePlanet = useCallback((planet: string) => {
     setVisiblePlanets(prev => {
@@ -355,6 +425,22 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     });
   }, []);
 
+  // Save current mobile selections as defaults to localStorage
+  const saveDefaults = useCallback(() => {
+    const defaults = {
+      visiblePlanets: Array.from(visiblePlanets),
+      visibleAspects: Array.from(visibleAspects),
+      showHouses,
+      showDegreeMarkers,
+      showRetrogrades: true,
+      showDecans: true,
+      rotateToAscendant: false,
+      chartTheme: 'classic',
+      enabledAsteroidGroups: Array.from(enabledAsteroidGroups),
+    };
+    localStorage.setItem('biwheel-chart-defaults', JSON.stringify(defaults));
+  }, [visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups]);
+
   // Generate a key that changes when control state changes
   // This forces BiWheelSynastry to re-mount with new initial values
   const chartKey = useMemo(() => {
@@ -378,13 +464,45 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
               </button>
             )}
 
-            {/* Export button */}
+            {/* Share button */}
             <div className="relative">
               <button
-                onClick={() => setShowExportMenu(v => !v)}
+                onClick={() => { setShowShareMenu(v => !v); setShowExportMenu(false); }}
+                className="p-1.5 md:p-2 rounded-lg bg-muted hover:bg-muted/70 transition-colors"
+                title="Share chart"
+              >
+                <Share2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              </button>
+              {showShareMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowShareMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-50 bg-card border rounded-lg shadow-lg overflow-hidden min-w-[150px]">
+                    <button
+                      onClick={handleCopyLink}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-muted transition-colors"
+                    >
+                      {linkCopied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Link2 className="w-3.5 h-3.5" />}
+                      Copy Link
+                    </button>
+                    <button
+                      onClick={() => { setShowShareMenu(false); setShowEmailModal(true); }}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-muted transition-colors"
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                      Send via Email
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Download button */}
+            <div className="relative">
+              <button
+                onClick={() => { setShowExportMenu(v => !v); setShowShareMenu(false); }}
                 disabled={exporting}
                 className="p-1.5 md:p-2 rounded-lg bg-muted hover:bg-muted/70 transition-colors"
-                title="Export chart"
+                title="Download chart"
               >
                 <Download className="w-3.5 h-3.5 md:w-4 md:h-4" />
               </button>
@@ -410,8 +528,6 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                 </>
               )}
             </div>
-
-            {/* Fullscreen toggle removed — not useful in 2D mode */}
           </div>
         </div>
 
@@ -528,11 +644,75 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                   onToggleAsteroidGroup={toggleAsteroidGroup}
                   onEnableAllAsteroids={enableAllAsteroids}
                   onDisableAllAsteroids={disableAllAsteroids}
+                  onSaveDefaults={saveDefaults}
                 />
               </div>
             </Drawer.Content>
           </Drawer.Portal>
         </Drawer.Root>
+
+        {/* Email share modal */}
+        {showEmailModal && (
+          <>
+            <div className="fixed inset-0 bg-black/50 z-50" onClick={() => !sendingEmail && setShowEmailModal(false)} />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+              <div className="bg-card border rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-4 pointer-events-auto">
+                <div>
+                  <h3 className="text-base font-semibold">Share Chart via Email</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Send this chart as a PNG attachment</p>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-1 block">
+                      Recipient Email
+                    </label>
+                    <input
+                      type="email"
+                      value={emailTo}
+                      onChange={(e) => setEmailTo(e.target.value)}
+                      placeholder="name@example.com"
+                      className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                      autoFocus
+                      onKeyDown={(e) => e.key === 'Enter' && emailTo.trim() && handleEmailShare()}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-1 block">
+                      Message (optional)
+                    </label>
+                    <textarea
+                      value={emailMessage}
+                      onChange={(e) => setEmailMessage(e.target.value)}
+                      placeholder="Check out this chart..."
+                      rows={2}
+                      className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={() => { setShowEmailModal(false); setEmailTo(''); setEmailMessage(''); }}
+                    disabled={sendingEmail}
+                    className="px-4 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleEmailShare}
+                    disabled={sendingEmail || !emailTo.trim()}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    {sendingEmail ? (
+                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sending...</>
+                    ) : (
+                      <><Mail className="w-3.5 h-3.5" /> Send</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
 
       </div>
     </div>

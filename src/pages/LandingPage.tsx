@@ -289,7 +289,7 @@ export default function LandingPage() {
             className="flex-1 flex items-center justify-center gap-2 py-3 border rounded-sm text-sm text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
           >
             <ClipboardPaste className="w-4 h-4" />
-            Import from Astro.com
+            Import Charts
           </button>
           {user && isPaid && (
             <button

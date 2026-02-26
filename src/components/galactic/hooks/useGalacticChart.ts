@@ -7,10 +7,9 @@
 
 import { useMemo } from 'react';
 import * as THREE from 'three';
-import { PLANETS, ZODIAC_SIGNS, getPlanetOrb } from '../../biwheel/utils/constants';
+import { PLANETS, ZODIAC_SIGNS, getPlanetOrb, ASTEROIDS, ARABIC_PARTS, ARABIC_PART_KEYS } from '../../biwheel/utils/constants';
 import { calculateNatalAspects, type SynastryAspect } from '../../biwheel/utils/aspectCalculations';
 import { LAYOUT, SIGN_COLORS_3D, PLANET_RINGS, PLANET_ORBIT_RADII, DEFAULT_ORBIT_RADIUS, ASTEROID_ORBIT_ZONES, PLANET_ORBITAL_ELEMENTS } from '../constants';
-import { ASTEROIDS } from '../../biwheel/utils/constants';
 import type { Planet3D, HouseSector3D, ZodiacSegment3D, GalacticNatalChart } from '../types';
 
 /** Get the semi-major axis (visualization radius) for a planet */
@@ -51,10 +50,28 @@ function getPlanetSize(category: string): number {
   return LAYOUT.planetSizes[category] ?? LAYOUT.planetSizes.asteroid;
 }
 
+/** Set of keys that are mathematical/calculated points (not physical bodies) */
+const POINT_KEYS = new Set([
+  'truelilith', 'meanlilith', 'whitemoon', 'lilithast',
+  'vertex', 'sophia',
+  ...ARABIC_PART_KEYS,
+]);
+
 function getPlanetInfo(key: string): { symbol: string; name: string; color: string; category: string } {
   const planet = PLANETS[key as keyof typeof PLANETS];
   if (planet) {
     return { symbol: planet.symbol, name: planet.name, color: planet.color, category: planet.category };
+  }
+  // Arabic Parts
+  const arabicPart = (ARABIC_PARTS as Record<string, { symbol: string; name: string; color: string }>)[key];
+  if (arabicPart) {
+    return { symbol: arabicPart.symbol, name: arabicPart.name, color: arabicPart.color, category: 'point' };
+  }
+  // Lunar points & calculated points
+  const asteroid = (ASTEROIDS as Record<string, { symbol: string; name: string; color: string }>)[key];
+  if (asteroid) {
+    const category = POINT_KEYS.has(key) ? 'point' : 'asteroid';
+    return { symbol: asteroid.symbol, name: asteroid.name, color: asteroid.color, category };
   }
   return { symbol: key.slice(0, 3).toUpperCase(), name: key, color: '#a78bfa', category: 'asteroid' };
 }

@@ -269,7 +269,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
         <div
           style={{
             padding: '16px 20px',
-            borderBottom: '1px solid #e5e5e5',
+            borderBottom: `1px solid ${COLORS.gridLineFaint}33`,
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -303,20 +303,20 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
         <div
           style={{
             padding: '8px 20px',
-            borderBottom: '1px solid #e5e5e5',
+            borderBottom: `1px solid ${COLORS.gridLineFaint}33`,
             display: 'flex',
             gap: 8,
             alignItems: 'center',
           }}
         >
-          <span style={{ fontSize: 12, color: COLORS.textMuted }}>Map Style:</span>
+          <span style={{ fontSize: 12, color: COLORS.textSecondary }}>Map Style:</span>
           <button
             onClick={() => setMapStyle('streets')}
             style={{
               padding: '4px 12px',
               fontSize: 11,
-              background: mapStyle === 'streets' ? '#3b82f6' : '#f0f0f0',
-              color: mapStyle === 'streets' ? '#fff' : '#666',
+              background: mapStyle === 'streets' ? '#3b82f6' : COLORS.backgroundAlt2,
+              color: mapStyle === 'streets' ? '#fff' : COLORS.textSecondary,
               border: 'none',
               borderRadius: 4,
               cursor: 'pointer',
@@ -329,8 +329,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
             style={{
               padding: '4px 12px',
               fontSize: 11,
-              background: mapStyle === 'dark' ? '#3b82f6' : '#f0f0f0',
-              color: mapStyle === 'dark' ? '#fff' : '#666',
+              background: mapStyle === 'dark' ? '#3b82f6' : COLORS.backgroundAlt2,
+              color: mapStyle === 'dark' ? '#fff' : COLORS.textSecondary,
               border: 'none',
               borderRadius: 4,
               cursor: 'pointer',
@@ -350,14 +350,14 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
           <div
             style={{
               padding: '8px 20px',
-              borderBottom: '1px solid #e5e5e5',
+              borderBottom: `1px solid ${COLORS.gridLineFaint}33`,
               display: 'flex',
               gap: 8,
               alignItems: 'center',
               flexWrap: 'wrap',
             }}
           >
-            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: COLORS.textSecondary }}>
               <input
                 type="checkbox"
                 checked={showLines}
@@ -383,8 +383,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
                     style={{
                       padding: '2px 8px',
                       fontSize: 10,
-                      background: selectedPlanets.has(planet) ? '#3b82f6' : '#f0f0f0',
-                      color: selectedPlanets.has(planet) ? '#fff' : '#666',
+                      background: selectedPlanets.has(planet) ? '#3b82f6' : COLORS.backgroundAlt2,
+                      color: selectedPlanets.has(planet) ? '#fff' : COLORS.textSecondary,
                       border: 'none',
                       borderRadius: 3,
                       cursor: 'pointer',
@@ -435,7 +435,24 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
               />
             )}
 
-            {/* Astrocartography lines */}
+            {/* Astrocartography lines - glow layer for visibility */}
+            {showLines && astroLines
+              .filter(line => selectedPlanets.has(line.planet))
+              .map((line, index) => (
+                <Polyline
+                  key={`glow-${line.planet}-${line.lineType}-${index}`}
+                  positions={line.points.map(p => [p.lat, p.lng] as [number, number])}
+                  pathOptions={{
+                    color: line.color,
+                    weight: 8,
+                    opacity: 0.25,
+                    lineCap: 'round',
+                    dashArray: undefined,
+                  }}
+                  interactive={false}
+                />
+              ))}
+            {/* Astrocartography lines - main layer */}
             {showLines && astroLines
               .filter(line => selectedPlanets.has(line.planet))
               .map((line, index) => (
@@ -444,9 +461,9 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
                   positions={line.points.map(p => [p.lat, p.lng] as [number, number])}
                   pathOptions={{
                     color: line.color,
-                    weight: line.lineType === 'MC' || line.lineType === 'IC' ? 3 : 2,
-                    opacity: line.lineType === 'MC' || line.lineType === 'ASC' ? 0.8 : 0.5,
-                    dashArray: line.lineType === 'IC' || line.lineType === 'DSC' ? '5, 5' : undefined,
+                    weight: line.lineType === 'MC' || line.lineType === 'IC' ? 4 : 3,
+                    opacity: 0.9,
+                    dashArray: line.lineType === 'IC' || line.lineType === 'DSC' ? '8, 6' : undefined,
                   }}
                 />
               ))}
@@ -477,7 +494,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
         <div
           style={{
             padding: '12px 20px',
-            borderTop: '1px solid #e5e5e5',
+            borderTop: `1px solid ${COLORS.gridLineFaint}33`,
             background: COLORS.backgroundAlt,
           }}
         >
@@ -506,11 +523,11 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
                 style={{
                   padding: '4px 10px',
                   fontSize: 11,
-                  background: '#f0f0f0',
-                  border: '1px solid #ddd',
+                  background: COLORS.backgroundAlt2,
+                  border: `1px solid ${COLORS.gridLineFaint}44`,
                   borderRadius: 4,
                   cursor: 'pointer',
-                  color: COLORS.textMuted,
+                  color: COLORS.textSecondary,
                 }}
               >
                 Clear
@@ -527,7 +544,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
         <div
           style={{
             padding: '12px 20px',
-            borderTop: '1px solid #e5e5e5',
+            borderTop: `1px solid ${COLORS.gridLineFaint}33`,
             display: 'flex',
             justifyContent: 'flex-end',
             gap: 8,
@@ -538,8 +555,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
             style={{
               padding: '8px 20px',
               fontSize: 13,
-              background: '#f0f0f0',
-              border: '1px solid #ddd',
+              background: COLORS.backgroundAlt2,
+              border: `1px solid ${COLORS.gridLineFaint}44`,
               borderRadius: 6,
               cursor: 'pointer',
               color: COLORS.textSecondary,
@@ -553,11 +570,11 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
             style={{
               padding: '8px 20px',
               fontSize: 13,
-              background: selectedLocation ? '#FFD700' : '#ccc',
+              background: selectedLocation ? '#FFD700' : COLORS.backgroundAlt2,
               border: 'none',
               borderRadius: 6,
               cursor: selectedLocation ? 'pointer' : 'not-allowed',
-              color: selectedLocation ? '#1a1a1a' : '#666',
+              color: selectedLocation ? '#1a1a1a' : COLORS.textMuted,
               fontWeight: 600,
             }}
           >

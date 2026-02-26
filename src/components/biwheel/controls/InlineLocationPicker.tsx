@@ -113,15 +113,18 @@ function createLineLabelIcon(text: string, color: string): L.DivIcon {
   return L.divIcon({
     className: 'astro-line-label',
     html: `<div style="
-      font-size: 10px;
+      font-size: 11px;
       font-weight: bold;
       color: ${color};
-      text-shadow: 0 0 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.5);
+      text-shadow: 0 0 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7), 0 1px 2px rgba(0,0,0,0.9);
       white-space: nowrap;
       pointer-events: none;
+      background: rgba(0,0,0,0.45);
+      padding: 1px 5px;
+      border-radius: 3px;
     ">${text}</div>`,
-    iconSize: [60, 14],
-    iconAnchor: [30, 7],
+    iconSize: [70, 18],
+    iconAnchor: [35, 9],
   });
 }
 
@@ -468,16 +471,31 @@ export const InlineLocationPicker: React.FC<InlineLocationPickerProps> = ({
             />
           )}
 
-          {/* Astrocartography lines */}
+          {/* Astrocartography lines - glow layer (wider, transparent) for visibility */}
+          {visibleLines.map((line, index) => (
+            <Polyline
+              key={`glow-${line.planet}-${line.lineType}-${index}`}
+              positions={line.points.map(p => [p.lat, p.lng] as [number, number])}
+              pathOptions={{
+                color: line.color,
+                weight: 8,
+                opacity: 0.25,
+                lineCap: 'round',
+                dashArray: undefined,
+              }}
+              interactive={false}
+            />
+          ))}
+          {/* Astrocartography lines - main layer */}
           {visibleLines.map((line, index) => (
             <Polyline
               key={`${line.planet}-${line.lineType}-${index}`}
               positions={line.points.map(p => [p.lat, p.lng] as [number, number])}
               pathOptions={{
                 color: line.color,
-                weight: line.lineType === 'MC' || line.lineType === 'IC' ? 3 : 2,
-                opacity: line.lineType === 'MC' || line.lineType === 'ASC' ? 0.8 : 0.5,
-                dashArray: line.lineType === 'IC' || line.lineType === 'DSC' ? '5, 5' : undefined,
+                weight: line.lineType === 'MC' || line.lineType === 'IC' ? 4 : 3,
+                opacity: 0.9,
+                dashArray: line.lineType === 'IC' || line.lineType === 'DSC' ? '8, 6' : undefined,
               }}
             >
               <Tooltip sticky>

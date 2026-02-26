@@ -85,7 +85,7 @@ const VIEWBOX_SIZE = 1400;
  * 8. Outer house ring (A's houses)
  * 9. Transit ring (when enabled) - outermost
  */
-function calculateDimensions(size: number, showTransits: boolean = false, _showProgressed: boolean = false): ChartDimensions {
+function calculateDimensions(size: number, showTransits: boolean = false, _showProgressed: boolean = false, showDecans: boolean = true): ChartDimensions {
   // Increase margin when showing transits to make room for outer ring
   // Progressed no longer needs extra margin (planets are integrated into the main wheel)
   const transitExtraMargin = showTransits ? 75 : 0;
@@ -104,8 +104,9 @@ function calculateDimensions(size: number, showTransits: boolean = false, _showP
   const zodiacInner = zodiacOuter - CHART_DIMENSIONS.zodiacWidth;
 
   // Decan ring (inside zodiac ring, between zodiac and planet rings)
+  // When decans are off, collapse this space so planets sit against the zodiac ring
   const decanOuter = zodiacInner - 2;
-  const decanWidth = 38;
+  const decanWidth = showDecans ? 38 : 0;
   const decanInner = decanOuter - decanWidth;
 
   // Person A's rings (outer person) - from outside in: planet, degree, spark, minute
@@ -201,7 +202,7 @@ function calculateDimensions(size: number, showTransits: boolean = false, _showP
  * 5. Outer house ring
  * 6. Transit ring (when enabled) - outermost
  */
-function calculateSingleWheelDimensions(size: number, showTransits: boolean = false, _showProgressed: boolean = false): ChartDimensions {
+function calculateSingleWheelDimensions(size: number, showTransits: boolean = false, _showProgressed: boolean = false, showDecans: boolean = true): ChartDimensions {
   const transitExtraMargin = showTransits ? 75 : 0;
   const margin = CHART_DIMENSIONS.margin + 10 + transitExtraMargin;
   const outerRadius = (size - margin * 2) / 2;
@@ -217,8 +218,9 @@ function calculateSingleWheelDimensions(size: number, showTransits: boolean = fa
   const zodiacInner = zodiacOuter - CHART_DIMENSIONS.zodiacWidth;
 
   // Decan ring (inside zodiac ring, between zodiac and planet rings)
+  // When decans are off, collapse this space so planets sit against the zodiac ring
   const decanOuter = zodiacInner - 2;
-  const decanWidth = 38;
+  const decanWidth = showDecans ? 38 : 0;
   const decanInner = decanOuter - decanWidth;
 
   // Single planet ring — degree/spark/minute are a tight cluster
@@ -554,9 +556,9 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   const isSingleWheel = state.chartMode !== 'synastry';
   const dimensions = useMemo(
     () => isSingleWheel
-      ? calculateSingleWheelDimensions(VIEWBOX_SIZE, state.showTransits, state.showProgressed)
-      : calculateDimensions(VIEWBOX_SIZE, state.showTransits, state.showProgressed),
-    [state.showTransits, state.showProgressed, isSingleWheel]
+      ? calculateSingleWheelDimensions(VIEWBOX_SIZE, state.showTransits, state.showProgressed, state.showDecans)
+      : calculateDimensions(VIEWBOX_SIZE, state.showTransits, state.showProgressed, state.showDecans),
+    [state.showTransits, state.showProgressed, state.showDecans, isSingleWheel]
   );
 
   // Calculate rotation offset to place Ascendant at 9 o'clock (left side, traditional East)

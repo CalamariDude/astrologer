@@ -30,6 +30,8 @@ interface GalacticSceneProps {
   onInteractionStart: () => void;
   showAspects: boolean;
   showHouses: boolean;
+  showOrbits: boolean;
+  showZodiac: boolean;
   activePreset: CameraPreset | null;
   transitDayOffset?: number;
 }
@@ -80,6 +82,8 @@ export function GalacticScene({
   onInteractionStart,
   showAspects,
   showHouses,
+  showOrbits,
+  showZodiac,
   activePreset,
   transitDayOffset,
 }: GalacticSceneProps) {
@@ -164,7 +168,7 @@ export function GalacticScene({
       </mesh>
 
       {/* Elliptical orbit paths — one per visible main planet */}
-      {orbitPaths.map((orbit) => (
+      {showOrbits && orbitPaths.map((orbit) => (
         <EllipticalOrbit
           key={orbit.key}
           semiMajor={orbit.semiMajor}
@@ -176,10 +180,10 @@ export function GalacticScene({
       ))}
 
       {/* Asteroid belt dust ring — visible when asteroids are in the scene */}
-      <AsteroidBelt3D visible={planets3D.some((p) => p.category === 'asteroid')} />
+      {showOrbits && <AsteroidBelt3D visible={planets3D.some((p) => p.category === 'asteroid')} />}
 
       {/* Zodiac Ring (flat with cusp fusion) */}
-      <ZodiacRing3D segments={zodiacSegments} />
+      {showZodiac && <ZodiacRing3D segments={zodiacSegments} />}
 
       {/* House Sectors */}
       {showHouses && houseSectors.length > 0 && (

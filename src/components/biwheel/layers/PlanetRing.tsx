@@ -439,19 +439,19 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
   };
 
   /**
-   * Get retrograde ℞ offset — for text-label planets, offset along the tangent
-   * so it doesn't collide with the rotated name.
+   * Get retrograde ℞ offset — for text-label planets, position as superscript
+   * at the top-right of the name (in local text space, before rotation).
+   * For symbol planets, use a fixed offset.
    */
-  const getRetrogradeOffset = (longitude: number, key: string, baseX: number, baseY: number): { x: number; y: number } => {
+  const getRetrogradeOffset = (key: string, baseX: number, baseY: number, labelFontSize?: number): { x: number; y: number; useRotation: boolean } => {
     if (!isTextLabel(key)) {
-      return { x: baseX, y: baseY }; // default fixed offset for symbol planets
+      return { x: baseX, y: baseY, useRotation: false };
     }
-    // Tangent direction (perpendicular to radius, clockwise)
-    const angleRad = (90 + longitude + rotationOffset) * (Math.PI / 180);
-    const tx = Math.sin(angleRad);  // tangent x (perpendicular to cos/sin radius)
-    const ty = Math.cos(angleRad);  // tangent y
-    const offset = 26;
-    return { x: tx * offset, y: -ty * offset };
+    const symbol = getPlanetSymbol(key);
+    const fs = labelFontSize || 16;
+    const charWidth = fs * 0.55;
+    const halfWidth = (symbol.length * charWidth) / 2;
+    return { x: halfWidth + 4, y: -fs * 0.55, useRotation: true };
   };
 
   // Font sizes - enlarged to fill widened ring gaps
@@ -665,41 +665,25 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
 
             {/* Retrograde indicator */}
             {showRetrogrades && planet.data.retrograde && (() => {
-              const rOff = getRetrogradeOffset(planet.displayLongitude, planet.key, 19, -14);
+              const rOff = getRetrogradeOffset(planet.key, 19, -14, asteroidASize);
               return (
                 <text
                   x={planetPos.x + rOff.x}
                   y={planetPos.y + rOff.y}
                   fill="#c41e3a"
-                  fontSize={12}
+                  fontSize={isTextLabel(planet.key) ? 9 : 12}
                   fontFamily="Arial, sans-serif"
                   fontWeight="bold"
                   textAnchor="middle"
                   dominantBaseline="central"
                   style={{ userSelect: 'none' }}
+                  {...(rOff.useRotation && textRotation ? { transform: `rotate(${textRotation}, ${planetPos.x}, ${planetPos.y})` } : {})}
                 >
                   ℞
                 </text>
               );
             })()}
 
-            {/* Decan sign indicator */}
-            {showDecans && planet.data.decanSign && (
-              <text
-                x={planetPos.x + (showRetrogrades && planet.data.retrograde ? 32 : 22)}
-                y={planetPos.y + 12}
-                fill={getDecanSignColor(planet.data.decanSign)}
-                fontSize={30}
-                fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
-                fontWeight="bold"
-                textAnchor="middle"
-                dominantBaseline="central"
-                style={{ userSelect: 'none', opacity: 0.8 }}
-                title={`Decan ${planet.data.decan}: ${planet.data.decanSign}`}
-              >
-                {getDecanSignSymbol(planet.data.decanSign)}
-              </text>
-            )}
 
           </g>
         );
@@ -811,41 +795,25 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
 
             {/* Retrograde indicator */}
             {showRetrogrades && planet.data.retrograde && (() => {
-              const rOff = getRetrogradeOffset(planet.displayLongitude, planet.key, 16, -12);
+              const rOff = getRetrogradeOffset(planet.key, 16, -12, asteroidBSize);
               return (
                 <text
                   x={planetPos.x + rOff.x}
                   y={planetPos.y + rOff.y}
                   fill="#c41e3a"
-                  fontSize={11}
+                  fontSize={isTextLabel(planet.key) ? 8 : 11}
                   fontFamily="Arial, sans-serif"
                   fontWeight="bold"
                   textAnchor="middle"
                   dominantBaseline="central"
                   style={{ userSelect: 'none' }}
+                  {...(rOff.useRotation && textRotation ? { transform: `rotate(${textRotation}, ${planetPos.x}, ${planetPos.y})` } : {})}
                 >
                   ℞
                 </text>
               );
             })()}
 
-            {/* Decan sign indicator */}
-            {showDecans && planet.data.decanSign && (
-              <text
-                x={planetPos.x + (showRetrogrades && planet.data.retrograde ? 28 : 18)}
-                y={planetPos.y + 10}
-                fill={getDecanSignColor(planet.data.decanSign)}
-                fontSize={26}
-                fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
-                fontWeight="bold"
-                textAnchor="middle"
-                dominantBaseline="central"
-                style={{ userSelect: 'none', opacity: 0.8 }}
-                title={`Decan ${planet.data.decan}: ${planet.data.decanSign}`}
-              >
-                {getDecanSignSymbol(planet.data.decanSign)}
-              </text>
-            )}
           </g>
         );
       })}
@@ -950,41 +918,25 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
 
             {/* Retrograde indicator */}
             {showRetrogrades && planet.data.retrograde && (() => {
-              const rOff = getRetrogradeOffset(planet.displayLongitude, planet.key, 19, -14);
+              const rOff = getRetrogradeOffset(planet.key, 19, -14, asteroidASize);
               return (
                 <text
                   x={planetPos.x + rOff.x}
                   y={planetPos.y + rOff.y}
                   fill="#c41e3a"
-                  fontSize={12}
+                  fontSize={isTextLabel(planet.key) ? 9 : 12}
                   fontFamily="Arial, sans-serif"
                   fontWeight="bold"
                   textAnchor="middle"
                   dominantBaseline="central"
                   style={{ userSelect: 'none' }}
+                  {...(rOff.useRotation && textRotation ? { transform: `rotate(${textRotation}, ${planetPos.x}, ${planetPos.y})` } : {})}
                 >
                   ℞
                 </text>
               );
             })()}
 
-            {/* Decan sign indicator */}
-            {showDecans && planet.data.decanSign && (
-              <text
-                x={planetPos.x + (showRetrogrades && planet.data.retrograde ? 32 : 22)}
-                y={planetPos.y + 12}
-                fill={getDecanSignColor(planet.data.decanSign)}
-                fontSize={30}
-                fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
-                fontWeight="bold"
-                textAnchor="middle"
-                dominantBaseline="central"
-                style={{ userSelect: 'none', opacity: 0.8 }}
-                title={`Decan ${planet.data.decan}: ${planet.data.decanSign}`}
-              >
-                {getDecanSignSymbol(planet.data.decanSign)}
-              </text>
-            )}
 
           </g>
         );

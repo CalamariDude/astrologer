@@ -422,9 +422,9 @@ export const ASPECTS = {
   },
 } as const;
 
-// Default visible aspects - all except sesquiquadrate
+// Default visible aspects - no conjunction (clutters chart), no sesquiquadrate
 export const DEFAULT_VISIBLE_ASPECTS = new Set([
-  'conjunction', 'sextile', 'square', 'trine', 'opposition',
+  'sextile', 'square', 'trine', 'opposition',
   'quincunx', 'semisextile', 'semisquare'
 ]);
 

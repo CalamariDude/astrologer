@@ -631,6 +631,10 @@ export function TransitTimeline({ natalChart, personName }: TransitTimelineProps
       {/* Initial loading skeleton */}
       {initialLoading && loading && (
         <div className="space-y-2">
+          <Skeleton className="h-8 w-48 rounded-lg" />
+          <Skeleton className="h-16 w-full rounded-xl" />
+          <Skeleton className="h-16 w-full rounded-xl" />
+          <Skeleton className="h-16 w-full rounded-xl" />
           <Skeleton className="h-16 w-full rounded-xl" />
           <Skeleton className="h-16 w-full rounded-xl" />
           <Skeleton className="h-16 w-full rounded-xl" />

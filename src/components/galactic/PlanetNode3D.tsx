@@ -815,7 +815,9 @@ export function PlanetNode3D({ planet, selected, onSelect, animationDelay = 0, d
   const dimFactor = dimmed ? 0.3 : 1;
 
   const isAsteroid = planet.category === 'asteroid';
-  const labelY = planet.size + (isAsteroid ? 0.6 : 1.2);
+  const isPoint = planet.category === 'point';
+  const isSmall = isAsteroid || isPoint;
+  const labelY = planet.size + (isSmall ? 0.6 : 1.2);
 
   return (
     <group ref={groupRef} position={planet.position}>
@@ -904,10 +906,11 @@ export function PlanetNode3D({ planet, selected, onSelect, animationDelay = 0, d
       )}
 
       {/* Planet name + symbol label — hidden when hovered (tooltip replaces it) */}
+      {/* Points always show (like planets), asteroids only when selected */}
       {!hovered && (isAsteroid ? selected : true) && (
         <Billboard position={[0, labelY, 0]}>
           <Text
-            fontSize={isAsteroid ? 0.22 : 0.3}
+            fontSize={isPoint ? 0.28 : isAsteroid ? 0.22 : 0.3}
             color={realColor}
             anchorX="center"
             anchorY="middle"
@@ -922,9 +925,9 @@ export function PlanetNode3D({ planet, selected, onSelect, animationDelay = 0, d
 
       {/* Degree label — hidden when hovered (tooltip replaces it) */}
       {!hovered && (isAsteroid ? selected : true) && (
-        <Billboard position={[0, labelY - (isAsteroid ? 0.3 : 0.4), 0]}>
+        <Billboard position={[0, labelY - (isSmall ? 0.3 : 0.4), 0]}>
           <Text
-            fontSize={isAsteroid ? 0.18 : 0.22}
+            fontSize={isSmall ? 0.18 : 0.22}
             color="#ffffff"
             anchorX="center"
             anchorY="middle"
