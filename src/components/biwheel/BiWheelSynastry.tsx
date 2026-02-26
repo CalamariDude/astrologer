@@ -29,16 +29,19 @@ import { DecanRing } from './layers/DecanRing';
 import { AspectGrid } from './layers/AspectGrid';
 import type { PlanetDisplayPositions, TransitData, CompositeData, ChartMode, ProgressedData, RelocatedData, LocationData, AsteroidGroup } from './types';
 import { ASTEROID_GROUPS } from './types';
-import { LocationPicker } from './controls/LocationPicker';
+// Lazy-load LocationPicker — Leaflet is ~4MB, only needed when relocate modal opens
+const LocationPicker = React.lazy(() => import('./controls/LocationPicker').then(m => ({ default: m.LocationPicker })));
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
-import { PlanetTooltip } from './tooltips/PlanetTooltip';
-import { AspectTooltip } from './tooltips/AspectTooltip';
-import { SignTooltip } from './tooltips/SignTooltip';
-import { HouseTooltip } from './tooltips/HouseTooltip';
-import { TogglePanel } from './controls/TogglePanel';
+// Tooltips — lazy-loaded (only mount on hover/click interactions)
+const PlanetTooltip = React.lazy(() => import('./tooltips/PlanetTooltip').then(m => ({ default: m.PlanetTooltip })));
+const AspectTooltip = React.lazy(() => import('./tooltips/AspectTooltip').then(m => ({ default: m.AspectTooltip })));
+const SignTooltip = React.lazy(() => import('./tooltips/SignTooltip').then(m => ({ default: m.SignTooltip })));
+const HouseTooltip = React.lazy(() => import('./tooltips/HouseTooltip').then(m => ({ default: m.HouseTooltip })));
+// TogglePanel — lazy-loaded (desktop sidebar, not used on mobile)
+const TogglePanel = React.lazy(() => import('./controls/TogglePanel').then(m => ({ default: m.TogglePanel })));
 import { calculateDeclination } from '@/lib/declination';
 import type { BiWheelSynastryProps, BiWheelState, ChartDimensions, NatalChart, PlanetData } from './types';
 
@@ -317,6 +320,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   nameA,
   nameB,
   showTogglePanel = true,
+  hideZoomControls = false,
   initialVisiblePlanets,
   initialVisibleAspects,
   initialShowHouses = true,
@@ -2220,7 +2224,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       </svg>
 
       {/* Zoom controls overlay */}
-      <div style={{ position: 'absolute', top: 12, right: 12, display: 'flex', gap: 6, zIndex: 10 }}>
+      {!hideZoomControls && <div style={{ position: 'absolute', top: 12, right: 12, display: 'flex', gap: 6, zIndex: 10 }}>
         <button
           onClick={(e) => { e.stopPropagation(); setZoomMode(!zoomMode); setPanMode(false); }}
           style={{
@@ -2284,7 +2288,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             ✕
           </button>
         )}
-      </div>
+      </div>}
 
       {/* Swap A/B button overlay */}
       {state.chartMode === 'synastry' && (
@@ -2317,22 +2321,28 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         </button>
       )}
 
-      {/* Location Picker Modal (paid feature) */}
-      <LocationPicker
-        isOpen={state.showLocationPicker}
-        onClose={() => setShowLocationPicker(false)}
-        onConfirm={handleLocationConfirm}
-        originalLocation={originalLocation}
-        currentLocation={state.relocatedLocation || undefined}
-        birthDate={birthDateA}
-        birthTime={birthTimeA}
-        showAstroLines={true}
-      />
+      {/* Location Picker Modal (paid feature) — lazy-loaded with Leaflet */}
+      {state.showLocationPicker && (
+        <React.Suspense fallback={null}>
+          <LocationPicker
+            isOpen={state.showLocationPicker}
+            onClose={() => setShowLocationPicker(false)}
+            onConfirm={handleLocationConfirm}
+            originalLocation={originalLocation}
+            currentLocation={state.relocatedLocation || undefined}
+            birthDate={birthDateA}
+            birthTime={birthTimeA}
+            showAstroLines={true}
+          />
+        </React.Suspense>
+      )}
 
       {/* Auth/Upgrade modals for gated features */}
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
       <UpgradeModal isOpen={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
 
+      {/* Tooltips — lazy-loaded on first interaction */}
+      <React.Suspense fallback={null}>
       {/* Planet Tooltip (on hover) */}
       {state.hoveredPlanet && hoveredPlanetData && state.tooltipPosition && !state.selectedPlanet && (
         <PlanetTooltip
@@ -2442,10 +2452,12 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           onClose={() => setState((prev) => ({ ...prev, selectedAspect: null }))}
         />
       )}
+      </React.Suspense>
       </div>
 
       {/* Toggle Panel - flex sibling next to SVG wrapper */}
       {showTogglePanel && (
+        <React.Suspense fallback={null}>
           <TogglePanel
             visiblePlanets={state.visiblePlanets}
             visibleAspects={state.visibleAspects}
@@ -2525,6 +2537,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             // Save defaults
             onSaveDefaults={saveDefaults}
           />
+        </React.Suspense>
       )}
     </div>
   );

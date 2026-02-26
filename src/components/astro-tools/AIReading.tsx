@@ -4,7 +4,7 @@
  * Builds structured trees client-side, sends to edge function for deep analysis
  */
 
-import React, { useState, useCallback, useMemo, Fragment } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef, Fragment } from 'react';
 import { Sparkles, Send, Loader2, Lock, ChevronDown, ChevronUp, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -183,6 +183,7 @@ export function AIReading({ chartA, chartB, nameA, nameB }: AIReadingProps) {
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const pendingSubmitRef = useRef<string | null>(null);
 
   const hasTwoCharts = !!chartB && !!nameB;
   const [readingFocus, setReadingFocus] = useState<ReadingFocus>(hasTwoCharts ? 'synastry' : 'personA');
@@ -202,6 +203,8 @@ export function AIReading({ chartA, chartB, nameA, nameB }: AIReadingProps) {
     const userQuestion = q || question || 'Give me a comprehensive chart reading';
 
     if (!user) {
+      pendingSubmitRef.current = userQuestion;
+      sessionStorage.setItem('astrologer_pending_ai', userQuestion);
       setShowAuth(true);
       return;
     }
@@ -290,6 +293,19 @@ export function AIReading({ chartA, chartB, nameA, nameB }: AIReadingProps) {
       setLoadingPhase('');
     }
   }, [question, user, aiCreditsRemaining, chartA, chartB, nameA, nameB, hasTwoCharts, readingFocus, useAiCredit]);
+
+  // Auto-submit after sign-in if there was a pending request
+  useEffect(() => {
+    if (!user) return;
+    const pending = pendingSubmitRef.current || sessionStorage.getItem('astrologer_pending_ai');
+    if (pending) {
+      pendingSubmitRef.current = null;
+      sessionStorage.removeItem('astrologer_pending_ai');
+      // Small delay to let subscription context load
+      const timer = setTimeout(() => handleSubmit(pending), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [user, handleSubmit]);
 
   return (
     <div className="space-y-4 pb-32">

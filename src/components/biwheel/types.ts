@@ -148,6 +148,7 @@ export interface BiWheelSynastryProps {
   nameA: string;
   nameB: string;
   showTogglePanel?: boolean;
+  hideZoomControls?: boolean;
   initialVisiblePlanets?: Set<string>;
   initialVisibleAspects?: Set<AspectType>;
   initialShowHouses?: boolean;

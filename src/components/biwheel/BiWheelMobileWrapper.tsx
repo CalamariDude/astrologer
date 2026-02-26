@@ -11,7 +11,8 @@ import { ASTEROID_GROUPS } from './types';
 import { ASTEROIDS, ASTEROID_GROUP_INFO } from './utils/constants';
 import { Drawer } from 'vaul';
 import { Settings2, Download, Image, FileText, Mail, Loader2, Share2, Link2, Check } from 'lucide-react';
-import { exportChartAsPNG, exportChartAsPDF, emailChart } from '@/lib/chartExport';
+// Lazy-import chart export (pulls in jsPDF ~357KB) — only needed on export button click
+const getChartExport = () => import('@/lib/chartExport');
 import { toast } from 'sonner';
 
 interface BiWheelMobileWrapperProps extends Omit<BiWheelSynastryProps, 'size' | 'showTogglePanel'> {
@@ -283,6 +284,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     setShowExportMenu(false);
     try {
       const name = biWheelProps.nameA || 'chart';
+      const { exportChartAsPNG } = await getChartExport();
       await exportChartAsPNG(chartContainerRef.current, `${name}-chart.png`);
       toast.success('Chart exported as PNG');
     } catch (err: any) {
@@ -300,6 +302,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
       const nameA = biWheelProps.nameA || 'Person A';
       const nameB = biWheelProps.nameB;
       const title = nameB && nameB !== nameA ? `${nameA} & ${nameB}` : nameA;
+      const { exportChartAsPDF } = await getChartExport();
       await exportChartAsPDF(chartContainerRef.current, `${nameA}-chart.pdf`, title);
       toast.success('Chart exported as PDF');
     } catch (err: any) {
@@ -367,6 +370,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
         chartUrl = `${window.location.origin}/chart?${params.toString()}`;
       }
 
+      const { emailChart } = await getChartExport();
       await emailChart({
         container: chartContainerRef.current,
         to: emailTo.trim(),
@@ -569,51 +573,59 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
           </div>
         </div>
 
-        {/* Chart container with zoom/pan */}
+        {/* Chart container */}
         <div
           ref={chartContainerRef}
-          className="overflow-hidden rounded-xl border border-border"
+          className="rounded-xl border border-border"
           style={{
             maxWidth: '100%',
-            maxHeight: isMobile ? '80vh' : undefined,
-            touchAction: scale > 1 ? 'none' : 'auto',
-            cursor: scale > 1 ? (isMousePanning ? 'grabbing' : 'grab') : 'default',
+            touchAction: isMobile ? 'manipulation' : (scale > 1 ? 'none' : 'auto'),
+            cursor: !isMobile && scale > 1 ? (isMousePanning ? 'grabbing' : 'grab') : 'default',
           }}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onWheel={handleWheel}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseLeave}
+          {...(!isMobile ? {
+            onTouchStart: handleTouchStart,
+            onTouchMove: handleTouchMove,
+            onTouchEnd: handleTouchEnd,
+            onWheel: handleWheel,
+            onMouseDown: handleMouseDown,
+            onMouseMove: handleMouseMove,
+            onMouseUp: handleMouseUp,
+            onMouseLeave: handleMouseLeave,
+          } : {})}
         >
-          <div
-            style={{
-              transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
-              transformOrigin: 'center center',
-              transition: isPanning || isMousePanning ? 'none' : 'transform 0.1s ease-out',
-            }}
-          >
+          {isMobile ? (
+            /* Mobile: no custom zoom transform — native pinch-to-zoom works on the SVG */
             <BiWheelSynastry
-              key={isMobile ? chartKey : undefined}
+              key={chartKey}
               {...biWheelProps}
               size={chartSize}
-              showTogglePanel={!isMobile}
+              showTogglePanel={false}
+              hideZoomControls
               initialVisiblePlanets={visiblePlanets}
               initialVisibleAspects={visibleAspects as Set<any>}
               initialShowHouses={showHouses}
               initialShowDegreeMarkers={showDegreeMarkers}
             />
-          </div>
+          ) : (
+            <div
+              style={{
+                transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
+                transformOrigin: 'center center',
+                transition: isPanning || isMousePanning ? 'none' : 'transform 0.1s ease-out',
+              }}
+            >
+              <BiWheelSynastry
+                {...biWheelProps}
+                size={chartSize}
+                showTogglePanel={true}
+                initialVisiblePlanets={visiblePlanets}
+                initialVisibleAspects={visibleAspects as Set<any>}
+                initialShowHouses={showHouses}
+                initialShowDegreeMarkers={showDegreeMarkers}
+              />
+            </div>
+          )}
         </div>
-
-        {/* Zoom hint for mobile */}
-        {isMobile && scale === 1 && (
-          <p className="text-xs text-muted-foreground mt-2 text-center">
-            Pinch to zoom • Drag to pan when zoomed
-          </p>
-        )}
 
         {/* Mobile drawer for controls */}
         <Drawer.Root open={drawerOpen} onOpenChange={setDrawerOpen}>
