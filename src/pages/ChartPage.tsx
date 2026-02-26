@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useSearchParams, Link } from 'react-router-dom';
 import { Loader2, MapPin, Plus, X, Pencil, ClipboardPaste, FolderOpen, LogIn, User, Calendar, Clock, Search, Sparkles, Grid3X3, RotateCcw, Gauge, Table2, TrendingUp, CalendarClock, ArrowUpDown, StickyNote, Download, CreditCard, LogOut, ChevronDown, Shield, UserCog } from 'lucide-react';
 import { SaveChartButton } from '@/components/charts/SaveChartButton';
-import { getSavedCharts, type SavedChart } from '@/components/charts/SaveChartButton';
+import { getSavedCharts, getSavedChartsAsync, invalidateChartsCache, type SavedChart } from '@/components/charts/SaveChartButton';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -407,11 +407,20 @@ export default function ChartPage() {
   const [showGalactic, setShowGalactic] = useState(false);
   const [saveAfterGenerate, setSaveAfterGenerate] = useState(false);
 
+  // Load saved charts from DB (for logged-in) or localStorage on mount
+  const [savedChartsLoaded, setSavedChartsLoaded] = useState<SavedChart[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    getSavedChartsAsync(user?.id || null).then((charts) => {
+      if (!cancelled) setSavedChartsLoaded(charts);
+    });
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
   // Check if current birth data is already saved
   const isChartAlreadySaved = useMemo(() => {
     if (!personAData.lat) return false;
-    const charts = getSavedCharts();
-    return charts.some((c) => {
+    return savedChartsLoaded.some((c) => {
       const matchA = c.person_a_date === personAData.date
         && c.person_a_time === personAData.time
         && c.person_a_lat === personAData.lat
@@ -425,7 +434,7 @@ export default function ChartPage() {
       }
       return !c.person_b_date;
     });
-  }, [personAData.date, personAData.time, personAData.lat, personAData.lng,
+  }, [savedChartsLoaded, personAData.date, personAData.time, personAData.lat, personAData.lng,
       personBData?.date, personBData?.time, personBData?.lat, personBData?.lng]);
   const webglSupported = useWebGLSupport();
   const [isAdmin, setIsAdmin] = useState(false);
@@ -491,7 +500,7 @@ export default function ChartPage() {
   // Build unique saved persons from saved charts for name autocomplete
   const savedPersons = useMemo<SavedPerson[]>(() => {
     if (!user) return [];
-    const charts = getSavedCharts();
+    const charts = savedChartsLoaded;
     const seen = new Set<string>();
     const persons: SavedPerson[] = [];
     for (const c of charts) {
@@ -617,7 +626,6 @@ export default function ChartPage() {
 
       // Auto-save if checkbox was checked
       if (saveAfterGenerate) {
-        const existing = getSavedCharts();
         const isSyn = !!parsedB && !!personBData;
         const defaultName = isSyn
           ? `${personAData.name || 'Person A'} & ${personBData!.name || 'Person B'}`
@@ -642,10 +650,26 @@ export default function ChartPage() {
           person_b_chart: isSyn ? parsedB : null,
           created_at: new Date().toISOString(),
         };
-        existing.unshift(chart);
-        const max = isPaid ? 50 : 3;
-        if (existing.length > max) existing.length = max;
-        localStorage.setItem('astrologer_saved_charts', JSON.stringify(existing));
+        if (user) {
+          await supabase.from('saved_charts').insert({
+            user_id: user.id, name: chart.name, chart_type: chart.chart_type,
+            person_a_name: chart.person_a_name, person_a_date: chart.person_a_date, person_a_time: chart.person_a_time,
+            person_a_location: chart.person_a_location, person_a_lat: chart.person_a_lat, person_a_lng: chart.person_a_lng,
+            person_a_chart: chart.person_a_chart,
+            person_b_name: chart.person_b_name, person_b_date: chart.person_b_date, person_b_time: chart.person_b_time,
+            person_b_location: chart.person_b_location, person_b_lat: chart.person_b_lat, person_b_lng: chart.person_b_lng,
+            person_b_chart: chart.person_b_chart,
+          });
+          invalidateChartsCache();
+          getSavedChartsAsync(user.id).then(setSavedChartsLoaded);
+        } else {
+          const existing = getSavedCharts();
+          existing.unshift(chart);
+          const max = isPaid ? 50 : 3;
+          if (existing.length > max) existing.length = max;
+          localStorage.setItem('astrologer_saved_charts', JSON.stringify(existing));
+          setSavedChartsLoaded(existing);
+        }
         toast.success('Chart saved');
       }
     } catch (err: any) {
@@ -675,7 +699,6 @@ export default function ChartPage() {
     setEditing(true);
 
     // Compute natal charts for all imported persons and save them
-    const existing = getSavedCharts();
     let savedCount = 0;
     for (const person of persons) {
       if (!person.lat || !person.lng) continue;
@@ -687,7 +710,7 @@ export default function ChartPage() {
           lng: person.lng,
         });
         const natalChart = parseNatalResponse(data);
-        const saved: SavedChart = {
+        const chartToSave: SavedChart = {
           id: crypto.randomUUID(),
           name: person.name,
           chart_type: 'natal',
@@ -707,17 +730,29 @@ export default function ChartPage() {
           person_b_chart: null,
           created_at: new Date().toISOString(),
         };
-        existing.unshift(saved);
+        if (user) {
+          await supabase.from('saved_charts').insert({
+            user_id: user.id, name: chartToSave.name, chart_type: chartToSave.chart_type,
+            person_a_name: chartToSave.person_a_name, person_a_date: chartToSave.person_a_date, person_a_time: chartToSave.person_a_time,
+            person_a_location: chartToSave.person_a_location, person_a_lat: chartToSave.person_a_lat, person_a_lng: chartToSave.person_a_lng,
+            person_a_chart: chartToSave.person_a_chart,
+          });
+        } else {
+          const existing = getSavedCharts();
+          existing.unshift(chartToSave);
+          localStorage.setItem('astrologer_saved_charts', JSON.stringify(existing));
+        }
         savedCount++;
       } catch {
         // Skip charts that fail to compute
       }
     }
     if (savedCount > 0) {
-      localStorage.setItem('astrologer_saved_charts', JSON.stringify(existing));
+      invalidateChartsCache();
+      getSavedChartsAsync(user?.id || null).then(setSavedChartsLoaded);
     }
     toast.success(`Saved ${savedCount} chart${savedCount !== 1 ? 's' : ''}`);
-  }, []);
+  }, [user]);
 
   const handleLoadChart = useCallback((chart: any) => {
     const birthA: BirthData = { name: chart.person_a_name || '', date: chart.person_a_date, time: chart.person_a_time, location: chart.person_a_location || '', lat: chart.person_a_lat, lng: chart.person_a_lng };
@@ -912,7 +947,7 @@ export default function ChartPage() {
                     Import Charts
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => {
-                    const charts = getSavedCharts();
+                    const charts = getSavedCharts(user?.id || null);
                     if (charts.length === 0) { toast.error('No saved charts to export'); return; }
                     const blob = new Blob([JSON.stringify(charts, null, 2)], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);

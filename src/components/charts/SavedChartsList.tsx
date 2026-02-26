@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Trash2, BarChart3, Heart, X } from 'lucide-react';
+import { Trash2, BarChart3, Heart, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { getSavedCharts, deleteSavedChart, type SavedChart } from './SaveChartButton';
+import { getSavedChartsAsync, deleteSavedChart, type SavedChart } from './SaveChartButton';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SavedChartsListProps {
   isOpen: boolean;
@@ -12,14 +13,25 @@ interface SavedChartsListProps {
 
 export function SavedChartsList({ isOpen, onClose, onLoad }: SavedChartsListProps) {
   const [charts, setCharts] = useState<SavedChart[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
+  const userId = user?.id || null;
 
   useEffect(() => {
     if (!isOpen) return;
-    setCharts(getSavedCharts());
-  }, [isOpen]);
+    let cancelled = false;
+    setLoading(true);
+    getSavedChartsAsync(userId).then((loaded) => {
+      if (!cancelled) {
+        setCharts(loaded);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [isOpen, userId]);
 
-  const handleDelete = (id: string) => {
-    deleteSavedChart(id);
+  const handleDelete = async (id: string) => {
+    await deleteSavedChart(id, userId);
     setCharts((prev) => prev.filter((c) => c.id !== id));
     toast.success('Chart deleted');
   };
@@ -43,7 +55,11 @@ export function SavedChartsList({ isOpen, onClose, onLoad }: SavedChartsListProp
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
-          {charts.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-12">
+              <Loader2 className="w-6 h-6 mx-auto animate-spin text-muted-foreground" />
+            </div>
+          ) : charts.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-40" />
               <p className="text-sm">No saved charts yet</p>

@@ -16,6 +16,8 @@ import {
 } from '@/lib/interpretationLookup';
 import { getTooltipContainerStyle, isTooltipMobile } from './useTooltipStyle';
 
+const isMobileView = () => window.innerWidth < 500;
+
 // Transit aspect with natal chart indicator
 interface TransitAspect extends SynastryAspect {
   natalChart: 'A' | 'B' | 'Composite';
@@ -48,6 +50,7 @@ const TIGHT_ORB_THRESHOLD = 1;
 
 // Max aspects to show in tooltip (to prevent overflow)
 const MAX_ASPECTS_SHOWN = 6;
+const MAX_ASPECTS_MOBILE = 3;
 
 // Planet keywords/meanings (for main planets)
 const PLANET_KEYWORDS: Record<string, string> = {
@@ -189,6 +192,8 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
     (a, b) => a.aspect.exactOrb - b.aspect.exactOrb
   );
 
+  const mobile = isMobileView();
+  const maxAspects = mobile ? MAX_ASPECTS_MOBILE : MAX_ASPECTS_SHOWN;
   const hasExpandedAspects = expandedAspects.size > 0;
   const tooltipWidth = onClose ? (hasExpandedAspects ? 360 : 320) : 280;
 
@@ -304,13 +309,13 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
           {formatLongitude(data.longitude)}
         </div>
 
-        {data.decan && data.decanSign && (
+        {!isMobileView() && data.decan && data.decanSign && (
           <div style={{ color: COLORS.textMuted, marginBottom: 4 }}>
             Decan {data.decan} ({data.decanSign})
           </div>
         )}
 
-        {data.longitude !== undefined && (() => {
+        {!isMobileView() && data.longitude !== undefined && (() => {
           const spark = calculateSpark(data.longitude);
           return (
             <div style={{ color: COLORS.textMuted, marginBottom: 4 }}>
@@ -320,40 +325,42 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
         })()}
       </div>
 
-      {/* Ecliptic Coordinates */}
-      <div style={{
-        borderTop: `1px solid ${COLORS.gridLine}`,
-        paddingTop: 8,
-        marginBottom: 8,
-      }}>
+      {/* Ecliptic Coordinates — hidden on mobile to save space */}
+      {!isMobileView() && (
         <div style={{
-          fontSize: 10, fontWeight: 600, color: COLORS.textMuted,
-          marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px',
+          borderTop: `1px solid ${COLORS.gridLine}`,
+          paddingTop: 8,
+          marginBottom: 8,
         }}>
-          Ecliptic Coordinates
+          <div style={{
+            fontSize: 10, fontWeight: 600, color: COLORS.textMuted,
+            marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px',
+          }}>
+            Ecliptic Coordinates
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '3px 12px', fontSize: 11 }}>
+            <span style={{ color: COLORS.textMuted }}>Longitude</span>
+            <span style={{ color: COLORS.textSecondary, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+              {data.degree !== undefined && data.minute !== undefined
+                ? `${data.degree}° ${data.minute.toString().padStart(2, '0')}'`
+                : `${Math.floor(data.longitude % 30)}° ${Math.floor((data.longitude % 1) * 60).toString().padStart(2, '0')}'`
+              }
+            </span>
+            <span style={{ color: COLORS.textMuted }}>Abs. Longitude</span>
+            <span style={{ color: COLORS.textSecondary, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+              {data.longitude.toFixed(4)}°
+            </span>
+            {data.latitude !== undefined && (
+              <>
+                <span style={{ color: COLORS.textMuted }}>Latitude</span>
+                <span style={{ color: COLORS.textSecondary, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                  {data.latitude >= 0 ? '' : '-'}{Math.abs(data.latitude).toFixed(4)}°
+                </span>
+              </>
+            )}
+          </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '3px 12px', fontSize: 11 }}>
-          <span style={{ color: COLORS.textMuted }}>Longitude</span>
-          <span style={{ color: COLORS.textSecondary, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-            {data.degree !== undefined && data.minute !== undefined
-              ? `${data.degree}° ${data.minute.toString().padStart(2, '0')}'`
-              : `${Math.floor(data.longitude % 30)}° ${Math.floor((data.longitude % 1) * 60).toString().padStart(2, '0')}'`
-            }
-          </span>
-          <span style={{ color: COLORS.textMuted }}>Abs. Longitude</span>
-          <span style={{ color: COLORS.textSecondary, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-            {data.longitude.toFixed(4)}°
-          </span>
-          {data.latitude !== undefined && (
-            <>
-              <span style={{ color: COLORS.textMuted }}>Latitude</span>
-              <span style={{ color: COLORS.textSecondary, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                {data.latitude >= 0 ? '' : '-'}{Math.abs(data.latitude).toFixed(4)}°
-              </span>
-            </>
-          )}
-        </div>
-      </div>
+      )}
 
       {/* Aspects list */}
       {sortedAspects.length > 0 && (
@@ -376,7 +383,7 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
             Aspects to {partnerName} ({sortedAspects.length})
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {sortedAspects.slice(0, MAX_ASPECTS_SHOWN).map((asp, idx) => {
+            {sortedAspects.slice(0, maxAspects).map((asp, idx) => {
               // Get the partner planet (the one from the other chart)
               const partnerPlanet = chart === 'A' ? asp.planetB : asp.planetA;
               const partnerPlanetDef = PLANETS[partnerPlanet as keyof typeof PLANETS];
@@ -600,7 +607,7 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
             })}
 
             {/* Show remaining count if there are more */}
-            {sortedAspects.length > MAX_ASPECTS_SHOWN && (
+            {sortedAspects.length > maxAspects && (
               <div
                 style={{
                   fontSize: 11,
@@ -610,7 +617,7 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
                   fontStyle: 'italic',
                 }}
               >
-                +{sortedAspects.length - MAX_ASPECTS_SHOWN} more aspect{sortedAspects.length - MAX_ASPECTS_SHOWN !== 1 ? 's' : ''}
+                +{sortedAspects.length - maxAspects} more aspect{sortedAspects.length - maxAspects !== 1 ? 's' : ''}
               </div>
             )}
           </div>
@@ -638,7 +645,7 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
             Aspects to Natal ({filteredTransitAspects.length})
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {filteredTransitAspects.slice(0, MAX_ASPECTS_SHOWN).map((asp, idx) => {
+            {filteredTransitAspects.slice(0, maxAspects).map((asp, idx) => {
               const natalPlanet = asp.planetB;
               const natalPlanetDef = PLANETS[natalPlanet as keyof typeof PLANETS];
               const natalAsteroidDef = ASTEROIDS[natalPlanet as keyof typeof ASTEROIDS];
@@ -751,7 +758,7 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
             })}
 
             {/* Show remaining count */}
-            {filteredTransitAspects.length > MAX_ASPECTS_SHOWN && (
+            {filteredTransitAspects.length > maxAspects && (
               <div
                 style={{
                   fontSize: 11,
@@ -761,7 +768,7 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
                   fontStyle: 'italic',
                 }}
               >
-                +{filteredTransitAspects.length - MAX_ASPECTS_SHOWN} more aspect{filteredTransitAspects.length - MAX_ASPECTS_SHOWN !== 1 ? 's' : ''}
+                +{filteredTransitAspects.length - maxAspects} more aspect{filteredTransitAspects.length - maxAspects !== 1 ? 's' : ''}
               </div>
             )}
           </div>

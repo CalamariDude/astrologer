@@ -1,8 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Save, Check, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 const STORAGE_KEY = 'astrologer_saved_charts';
 const FREE_CHART_LIMIT = 3;
@@ -38,7 +40,9 @@ export interface SavedChart {
   created_at: string;
 }
 
-export function getSavedCharts(): SavedChart[] {
+// ── Local storage helpers (fallback for logged-out users) ────────────
+
+function getLocalCharts(): SavedChart[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
@@ -47,14 +51,163 @@ export function getSavedCharts(): SavedChart[] {
   }
 }
 
-export function deleteSavedChart(id: string) {
-  const charts = getSavedCharts().filter((c) => c.id !== id);
+function setLocalCharts(charts: SavedChart[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(charts));
 }
 
-/** Check if a chart with the exact same birth data already exists */
-function findExactDuplicate(personA: PersonInfo, personB?: PersonInfo | null): SavedChart | null {
-  const charts = getSavedCharts();
+// ── DB helpers ───────────────────────────────────────────────────────
+
+async function getDbCharts(userId: string): Promise<SavedChart[]> {
+  const { data, error } = await supabase
+    .from('saved_charts')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('Failed to fetch saved charts:', error);
+    return [];
+  }
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    name: row.name,
+    chart_type: row.chart_type,
+    person_a_name: row.person_a_name,
+    person_a_date: row.person_a_date,
+    person_a_time: row.person_a_time,
+    person_a_location: row.person_a_location,
+    person_a_lat: row.person_a_lat,
+    person_a_lng: row.person_a_lng,
+    person_a_chart: row.person_a_chart,
+    person_b_name: row.person_b_name,
+    person_b_date: row.person_b_date,
+    person_b_time: row.person_b_time,
+    person_b_location: row.person_b_location,
+    person_b_lat: row.person_b_lat,
+    person_b_lng: row.person_b_lng,
+    person_b_chart: row.person_b_chart,
+    created_at: row.created_at,
+  }));
+}
+
+async function insertDbChart(userId: string, chart: SavedChart): Promise<SavedChart | null> {
+  const { data, error } = await supabase
+    .from('saved_charts')
+    .insert({
+      user_id: userId,
+      name: chart.name,
+      chart_type: chart.chart_type,
+      person_a_name: chart.person_a_name,
+      person_a_date: chart.person_a_date,
+      person_a_time: chart.person_a_time,
+      person_a_location: chart.person_a_location,
+      person_a_lat: chart.person_a_lat,
+      person_a_lng: chart.person_a_lng,
+      person_a_chart: chart.person_a_chart,
+      person_b_name: chart.person_b_name,
+      person_b_date: chart.person_b_date,
+      person_b_time: chart.person_b_time,
+      person_b_location: chart.person_b_location,
+      person_b_lat: chart.person_b_lat,
+      person_b_lng: chart.person_b_lng,
+      person_b_chart: chart.person_b_chart,
+    })
+    .select()
+    .single();
+  if (error) {
+    console.error('Failed to save chart to DB:', error);
+    return null;
+  }
+  return data ? { ...chart, id: data.id, created_at: data.created_at } : null;
+}
+
+async function updateDbChart(chartId: string, chart: Partial<SavedChart>): Promise<boolean> {
+  const { error } = await supabase
+    .from('saved_charts')
+    .update({
+      name: chart.name,
+      chart_type: chart.chart_type,
+      person_a_name: chart.person_a_name,
+      person_a_date: chart.person_a_date,
+      person_a_time: chart.person_a_time,
+      person_a_location: chart.person_a_location,
+      person_a_lat: chart.person_a_lat,
+      person_a_lng: chart.person_a_lng,
+      person_a_chart: chart.person_a_chart,
+      person_b_name: chart.person_b_name,
+      person_b_date: chart.person_b_date,
+      person_b_time: chart.person_b_time,
+      person_b_location: chart.person_b_location,
+      person_b_lat: chart.person_b_lat,
+      person_b_lng: chart.person_b_lng,
+      person_b_chart: chart.person_b_chart,
+    })
+    .eq('id', chartId);
+  if (error) {
+    console.error('Failed to update chart in DB:', error);
+    return false;
+  }
+  return true;
+}
+
+async function deleteDbChart(chartId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('saved_charts')
+    .delete()
+    .eq('id', chartId);
+  if (error) {
+    console.error('Failed to delete chart from DB:', error);
+    return false;
+  }
+  return true;
+}
+
+// ── Unified API (DB for logged-in, localStorage for logged-out) ─────
+
+/** In-memory cache of charts (avoids re-fetching on every render) */
+let _chartsCache: SavedChart[] | null = null;
+let _chartsCacheUserId: string | null = null;
+
+export async function getSavedChartsAsync(userId?: string | null): Promise<SavedChart[]> {
+  if (userId) {
+    if (_chartsCacheUserId === userId && _chartsCache) return _chartsCache;
+    const charts = await getDbCharts(userId);
+    _chartsCache = charts;
+    _chartsCacheUserId = userId;
+    return charts;
+  }
+  return getLocalCharts();
+}
+
+/** Sync getter for components that can't use async (uses cache or localStorage) */
+export function getSavedCharts(userId?: string | null): SavedChart[] {
+  if (userId && _chartsCacheUserId === userId && _chartsCache) {
+    return _chartsCache;
+  }
+  return getLocalCharts();
+}
+
+export async function deleteSavedChart(id: string, userId?: string | null): Promise<void> {
+  if (userId) {
+    await deleteDbChart(id);
+    // Update cache
+    if (_chartsCache) {
+      _chartsCache = _chartsCache.filter((c) => c.id !== id);
+    }
+  } else {
+    const charts = getLocalCharts().filter((c) => c.id !== id);
+    setLocalCharts(charts);
+  }
+}
+
+/** Invalidate cache so next getSavedChartsAsync fetches fresh from DB */
+export function invalidateChartsCache() {
+  _chartsCache = null;
+  _chartsCacheUserId = null;
+}
+
+// ── Duplicate / name helpers ─────────────────────────────────────────
+
+function findExactDuplicateIn(charts: SavedChart[], personA: PersonInfo, personB?: PersonInfo | null): SavedChart | null {
   return charts.find((c) => {
     const matchA = c.person_a_date === personA.date
       && c.person_a_time === personA.time
@@ -67,16 +220,16 @@ function findExactDuplicate(personA: PersonInfo, personB?: PersonInfo | null): S
         && c.person_b_lat === personB.lat
         && c.person_b_lng === personB.lng;
     }
-    return !c.person_b_date; // natal-only match
+    return !c.person_b_date;
   }) || null;
 }
 
-/** Find saved chart(s) with the same name */
-function findByName(name: string): SavedChart[] {
-  const charts = getSavedCharts();
+function findByNameIn(charts: SavedChart[], name: string): SavedChart[] {
   const lower = name.toLowerCase().trim();
   return charts.filter((c) => c.name.toLowerCase().trim() === lower);
 }
+
+// ── Component ────────────────────────────────────────────────────────
 
 interface SaveChartButtonProps {
   personA: PersonInfo;
@@ -89,22 +242,33 @@ export function SaveChartButton({ personA, personB, hasSynastry }: SaveChartButt
   const [chartName, setChartName] = useState('');
   const [saved, setSaved] = useState(false);
   const [nameConflict, setNameConflict] = useState<SavedChart | null>(null);
+  const [charts, setCharts] = useState<SavedChart[]>([]);
+  const [saving, setSaving] = useState(false);
   const { isPaid } = useSubscription();
+  const { user } = useAuth();
+  const userId = user?.id || null;
 
-  // Check for exact duplicate (same birth data already saved)
-  const exactDupe = useMemo(
-    () => findExactDuplicate(personA, personB),
-    [personA.date, personA.time, personA.lat, personA.lng,
-     personB?.date, personB?.time, personB?.lat, personB?.lng]
-  );
+  // Load charts on mount and when user changes
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const loaded = await getSavedChartsAsync(userId);
+      if (!cancelled) setCharts(loaded);
+    })();
+    return () => { cancelled = true; };
+  }, [userId]);
 
-  const isAlreadySaved = !!exactDupe && !saved;
+  // Check for exact duplicate
+  const isAlreadySaved = useMemo(() => {
+    if (saved) return false;
+    return !!findExactDuplicateIn(charts, personA, personB);
+  }, [charts, personA.date, personA.time, personA.lat, personA.lng,
+      personB?.date, personB?.time, personB?.lat, personB?.lng, saved]);
 
   const handleClick = () => {
     if (isAlreadySaved) return;
 
-    const existing = getSavedCharts();
-    if (!isPaid && existing.length >= FREE_CHART_LIMIT) {
+    if (!isPaid && charts.length >= FREE_CHART_LIMIT) {
       toast.error(`Free accounts can save up to ${FREE_CHART_LIMIT} charts. Upgrade to Pro for unlimited saves.`);
       return;
     }
@@ -117,10 +281,9 @@ export function SaveChartButton({ personA, personB, hasSynastry }: SaveChartButt
     setShowNameInput(true);
   };
 
-  const doSave = (name: string, updateId?: string) => {
+  const doSave = useCallback(async (name: string, updateId?: string) => {
     if (!personA.lat) return;
-
-    const existing = getSavedCharts();
+    setSaving(true);
 
     const chart: SavedChart = {
       id: updateId || crypto.randomUUID(),
@@ -143,57 +306,78 @@ export function SaveChartButton({ personA, personB, hasSynastry }: SaveChartButt
       created_at: new Date().toISOString(),
     };
 
-    let updated: SavedChart[];
-    if (updateId) {
-      // Replace existing entry in-place
-      updated = existing.map((c) => c.id === updateId ? chart : c);
-    } else {
-      updated = [chart, ...existing];
+    try {
+      if (userId) {
+        // Save to DB
+        if (updateId) {
+          const ok = await updateDbChart(updateId, chart);
+          if (!ok) { toast.error('Failed to update chart'); return; }
+        } else {
+          const saved = await insertDbChart(userId, chart);
+          if (!saved) { toast.error('Failed to save chart'); return; }
+          chart.id = saved.id;
+          chart.created_at = saved.created_at;
+        }
+        // Refresh cache
+        invalidateChartsCache();
+        const fresh = await getSavedChartsAsync(userId);
+        setCharts(fresh);
+      } else {
+        // Save to localStorage
+        const existing = getLocalCharts();
+        let updated: SavedChart[];
+        if (updateId) {
+          updated = existing.map((c) => c.id === updateId ? chart : c);
+        } else {
+          updated = [chart, ...existing];
+        }
+        const max = isPaid ? 50 : FREE_CHART_LIMIT;
+        if (updated.length > max) updated.length = max;
+        setLocalCharts(updated);
+        setCharts(updated);
+      }
+
+      setSaved(true);
+      setShowNameInput(false);
+      setNameConflict(null);
+      toast.success(updateId ? 'Chart updated' : 'Chart saved');
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save chart');
+    } finally {
+      setSaving(false);
     }
+  }, [personA, personB, userId, isPaid]);
 
-    const max = isPaid ? 50 : FREE_CHART_LIMIT;
-    if (updated.length > max) updated.length = max;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-
-    setSaved(true);
-    setShowNameInput(false);
-    setNameConflict(null);
-    toast.success(updateId ? 'Chart updated' : 'Chart saved');
-    setTimeout(() => setSaved(false), 3000);
-  };
-
-  const handleSave = () => {
+  const handleSave = useCallback(async () => {
     const trimmed = (chartName || '').trim();
     if (!trimmed) {
       toast.error('Please enter a chart name');
       return;
     }
 
-    const existing = getSavedCharts();
-    if (!isPaid && existing.length >= FREE_CHART_LIMIT) {
+    if (!isPaid && charts.length >= FREE_CHART_LIMIT) {
       toast.error(`Free accounts can save up to ${FREE_CHART_LIMIT} charts. Upgrade to Pro for unlimited saves.`);
       return;
     }
 
     // Check for name conflict
-    const dupes = findByName(trimmed);
+    const dupes = findByNameIn(charts, trimmed);
     if (dupes.length > 0) {
       setNameConflict(dupes[0]);
       return;
     }
 
-    doSave(trimmed);
-  };
+    await doSave(trimmed);
+  }, [chartName, charts, isPaid, doSave]);
 
-  const handleUpdateExisting = () => {
+  const handleUpdateExisting = useCallback(async () => {
     if (!nameConflict) return;
-    doSave(chartName.trim(), nameConflict.id);
-  };
+    await doSave(chartName.trim(), nameConflict.id);
+  }, [nameConflict, chartName, doSave]);
 
-  const handleSaveAsNew = () => {
-    // Append (2), (3), etc. to make unique
+  const handleSaveAsNew = useCallback(async () => {
     const trimmed = chartName.trim();
-    const charts = getSavedCharts();
     let suffix = 2;
     let newName = `${trimmed} (${suffix})`;
     const names = new Set(charts.map((c) => c.name.toLowerCase().trim()));
@@ -203,8 +387,8 @@ export function SaveChartButton({ personA, personB, hasSynastry }: SaveChartButt
     }
     setChartName(newName);
     setNameConflict(null);
-    doSave(newName);
-  };
+    await doSave(newName);
+  }, [chartName, charts, doSave]);
 
   return (
     <div className="relative">
@@ -212,7 +396,7 @@ export function SaveChartButton({ personA, personB, hasSynastry }: SaveChartButt
         size="sm"
         variant="outline"
         onClick={handleClick}
-        disabled={isAlreadySaved}
+        disabled={isAlreadySaved || saving}
         className={`gap-2 ${isAlreadySaved ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
         {saved ? <Check className="w-4 h-4 text-emerald-500" /> : <Save className="w-4 h-4" />}
@@ -234,8 +418,8 @@ export function SaveChartButton({ personA, personB, hasSynastry }: SaveChartButt
               autoFocus
             />
             <div className="flex items-center gap-2 mt-3">
-              <Button size="sm" onClick={handleSave} className="flex-1">
-                Save
+              <Button size="sm" onClick={handleSave} disabled={saving} className="flex-1">
+                {saving ? 'Saving...' : 'Save'}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setShowNameInput(false)}>
                 Cancel
@@ -253,7 +437,7 @@ export function SaveChartButton({ personA, personB, hasSynastry }: SaveChartButt
             <div className="flex items-start gap-2 mb-3">
               <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium">A chart named "{nameConflict.name}" already exists</p>
+                <p className="text-sm font-medium">A chart named &ldquo;{nameConflict.name}&rdquo; already exists</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Saved {new Date(nameConflict.created_at).toLocaleDateString()} &middot; {nameConflict.person_a_name}
                   {nameConflict.person_b_name ? ` & ${nameConflict.person_b_name}` : ''}
@@ -261,10 +445,10 @@ export function SaveChartButton({ personA, personB, hasSynastry }: SaveChartButt
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <Button size="sm" onClick={handleUpdateExisting} className="w-full">
-                Update Existing
+              <Button size="sm" onClick={handleUpdateExisting} disabled={saving} className="w-full">
+                {saving ? 'Updating...' : 'Update Existing'}
               </Button>
-              <Button size="sm" variant="outline" onClick={handleSaveAsNew} className="w-full">
+              <Button size="sm" variant="outline" onClick={handleSaveAsNew} disabled={saving} className="w-full">
                 Save as New
               </Button>
               <Button size="sm" variant="ghost" onClick={() => { setNameConflict(null); setShowNameInput(false); }} className="w-full">

@@ -8,15 +8,6 @@ import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { useScrollProgress } from '@/hooks/useScrollProgress';
 import { useWebGLSupport } from '@/hooks/useWebGLSupport';
 import { CSSFallback } from '@/components/landing/CSSFallback';
-import {
-  NatalChartVisual,
-  SynastryVisual,
-  ProfectionsVisual,
-  TransitTimelineVisual,
-  ThemeShowcaseVisual,
-  CompositeChartVisual,
-  AsteroidsVisual,
-} from '@/components/landing/ChartVisuals';
 
 const SpaceScene = lazy(() => import('@/components/landing/SpaceScene'));
 
@@ -312,8 +303,9 @@ function GalacticSectionVisual() {
         <div className="absolute -inset-12 bg-gradient-to-br from-indigo-500/[0.12] via-purple-500/[0.08] to-pink-500/[0.06] rounded-[3rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
         <div className="absolute -inset-[2px] rounded-2xl bg-gradient-to-br from-indigo-500/30 via-purple-500/20 to-pink-500/30 opacity-60" />
         <img
-          src="/galactic.png"
+          src="/galactic.webp"
           alt="Galactic Mode — 3D natal chart visualization"
+          loading="lazy"
           className="w-full h-auto relative rounded-2xl drop-shadow-2xl"
         />
       </div>
@@ -355,7 +347,7 @@ export default function HomePage() {
         <div className="fixed inset-0 z-0" style={{ opacity: sceneOpacity }} aria-hidden="true">
           {show3D && !prefersReducedMotion ? (
             <Suspense fallback={<CSSFallback />}>
-              <SpaceScene scrollProgress={scrollProgress} visible={sceneVisible} />
+              <SpaceScene scrollProgress={scrollProgress} visible={sceneVisible} reduced={isMobile} />
             </Suspense>
           ) : (
             <CSSFallback />
@@ -439,7 +431,7 @@ export default function HomePage() {
           visual={
             <div className="relative group">
               <div className="absolute -inset-10 bg-gradient-to-br from-amber-500/[0.07] to-orange-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
-              <img src="/natal.png" alt="Natal chart wheel" className="w-full h-auto relative drop-shadow-2xl rounded-2xl" />
+              <img src="/natal.webp" alt="Natal chart wheel" loading="lazy" className="w-full h-auto relative drop-shadow-2xl rounded-2xl" />
             </div>
           }
         />
@@ -452,7 +444,7 @@ export default function HomePage() {
           visual={
             <div className="relative group">
               <div className="absolute -inset-10 bg-gradient-to-br from-blue-500/[0.07] to-violet-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
-              <img src="/synastry.png" alt="Synastry biwheel chart" className="w-full h-auto relative drop-shadow-2xl rounded-2xl" />
+              <img src="/synastry.webp" alt="Synastry biwheel chart" loading="lazy" className="w-full h-auto relative drop-shadow-2xl rounded-2xl" />
             </div>
           }
         />
@@ -464,7 +456,7 @@ export default function HomePage() {
           visual={
             <div className="relative group">
               <div className="absolute -inset-10 bg-gradient-to-br from-emerald-500/[0.07] to-teal-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
-              <img src="/profections.png" alt="Profections current year card" className="w-full max-w-[691px] sm:max-w-[761px] mx-auto h-auto relative drop-shadow-2xl rounded-2xl" />
+              <img src="/profections.webp" alt="Profections current year card" loading="lazy" className="w-full max-w-[691px] sm:max-w-[761px] mx-auto h-auto relative drop-shadow-2xl rounded-2xl" />
             </div>
           }
         />
@@ -478,7 +470,7 @@ export default function HomePage() {
           visual={
             <div className="relative group">
               <div className="absolute -inset-10 bg-gradient-to-br from-teal-500/[0.07] to-cyan-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
-              <img src="/agedegree.png" alt="Age-Degree Activations timeline" className="w-full h-auto relative drop-shadow-2xl rounded-2xl" />
+              <img src="/agedegree.webp" alt="Age-Degree Activations timeline" loading="lazy" className="w-full h-auto relative drop-shadow-2xl rounded-2xl" />
             </div>
           }
         />
@@ -491,7 +483,7 @@ export default function HomePage() {
           visual={
             <div className="relative group">
               <div className="absolute -inset-10 bg-gradient-to-br from-red-500/[0.07] to-orange-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
-              <img src="/transits.png" alt="Transit timeline" className="w-[60%] mx-auto h-auto relative drop-shadow-2xl rounded-2xl" />
+              <img src="/transits.webp" alt="Transit timeline" loading="lazy" className="w-[60%] mx-auto h-auto relative drop-shadow-2xl rounded-2xl" />
             </div>
           }
         />
@@ -532,7 +524,7 @@ export default function HomePage() {
           visual={
             <div className="relative group">
               <div className="absolute -inset-10 bg-gradient-to-br from-purple-500/[0.08] to-pink-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
-              <img src="/astrocartography.png" alt="Astrocartography planetary lines on world map" className="w-full h-auto relative drop-shadow-2xl rounded-2xl" />
+              <img src="/astrocartography.webp" alt="Astrocartography planetary lines on world map" loading="lazy" className="w-full h-auto relative drop-shadow-2xl rounded-2xl" />
               <div className="absolute -bottom-12 inset-x-0 text-center">
                 <span className="inline-block px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] sm:text-xs font-bold uppercase tracking-[0.15em]">
                   Astrologer Pro
@@ -549,7 +541,7 @@ export default function HomePage() {
           visual={
             <div className="relative group">
               <div className="absolute -inset-10 bg-gradient-to-br from-violet-500/[0.07] to-indigo-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
-              <img src="/toolbar.png" alt="Chart mode switcher toolbar" className="w-full max-w-[300px] sm:max-w-[340px] mx-auto h-auto relative drop-shadow-2xl rounded-2xl" />
+              <img src="/toolbar.webp" alt="Chart mode switcher toolbar" loading="lazy" className="w-full max-w-[300px] sm:max-w-[340px] mx-auto h-auto relative drop-shadow-2xl rounded-2xl" />
             </div>
           }
         />
@@ -561,7 +553,7 @@ export default function HomePage() {
             <div className="flex-[1.4] w-full min-w-0">
               <div className="relative group lg:-ml-16 xl:-ml-24">
                 <div className="absolute -inset-10 bg-gradient-to-br from-amber-500/[0.06] to-violet-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
-                <img src="/themes.png" alt="Chart color themes" className="w-full h-auto relative drop-shadow-2xl rounded-2xl" />
+                <img src="/themes.webp" alt="Chart color themes" loading="lazy" className="w-full h-auto relative drop-shadow-2xl rounded-2xl" />
               </div>
             </div>
             {/* Text */}
@@ -586,7 +578,7 @@ export default function HomePage() {
           visual={
             <div className="relative group">
               <div className="absolute -inset-10 bg-gradient-to-br from-cyan-500/[0.07] to-blue-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
-              <img src="/asteroids.png" alt="Asteroid groups checklist" className="w-full max-w-[761px] sm:max-w-[864px] mx-auto h-auto relative drop-shadow-2xl rounded-2xl" />
+              <img src="/asteroids.webp" alt="Asteroid groups checklist" loading="lazy" className="w-full max-w-[761px] sm:max-w-[864px] mx-auto h-auto relative drop-shadow-2xl rounded-2xl" />
             </div>
           }
         />
@@ -600,7 +592,7 @@ export default function HomePage() {
           visual={
             <div className="relative group">
               <div className="absolute -inset-10 bg-gradient-to-br from-amber-500/[0.07] to-rose-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
-              <img src="/tooltips.png" alt="Planet interpretations and tooltips" className="w-full h-auto relative drop-shadow-2xl rounded-2xl" />
+              <img src="/tooltips.webp" alt="Planet interpretations and tooltips" loading="lazy" className="w-full h-auto relative drop-shadow-2xl rounded-2xl" />
             </div>
           }
         />

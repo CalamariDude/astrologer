@@ -37,7 +37,7 @@ export function getTooltipContainerStyle(opts: TooltipStyleOptions): React.CSSPr
       borderRadius: '12px 12px 0 0',
       padding: '16px 16px 24px',
       zIndex: 1000,
-      maxHeight: '60vh',
+      maxHeight: '40vh',
       overflowY: 'auto',
       boxShadow: '0 -4px 20px rgba(0,0,0,0.2)',
       pointerEvents: 'auto',
