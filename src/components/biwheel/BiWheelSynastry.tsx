@@ -371,6 +371,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   onRelocatedLoadingChange,
   onShowTransitsChange,
   onTransitDateChange,
+  onTransitTimeChange,
   onTransitLoadingChange,
   onAsteroidsChange,
   // Asteroids data fetch
@@ -430,6 +431,9 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     // Solar Arc state (derived from progressed Sun - mutually exclusive with progressed)
     showSolarArc: initialShowSolarArc || false,
   });
+
+  // Debug: log initial relocated state on mount
+  console.log('[BiWheel] Component mount/render. initialRelocatedPerson:', initialRelocatedPerson, 'externalRelocatedLocation:', externalRelocatedLocation, 'state.showRelocated:', state.showRelocated, 'state.relocatedLocation:', state.relocatedLocation, 'relocatedPerson:', relocatedPerson, 'hasOnFetchRelocated:', !!onFetchRelocated);
 
   // Swap A/B state - when true, Person A and B are swapped in the biwheel
   const [swapped, setSwapped] = useState(false);
@@ -912,7 +916,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
   const setTransitTime = useCallback((time: string) => {
     setState(prev => ({ ...prev, transitTime: time }));
-  }, []);
+    onTransitTimeChange?.(time);
+  }, [onTransitTimeChange]);
 
   const setChartMode = useCallback((mode: ChartMode) => {
     setState(prev => ({

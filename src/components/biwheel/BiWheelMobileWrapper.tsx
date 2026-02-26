@@ -120,6 +120,10 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   // Transit state (lifted for mobile drawer access)
   const [showTransits, setShowTransits] = useState(false);
   const [transitDate, setTransitDate] = useState(todayStr);
+  const [transitTime, setTransitTime] = useState(() => {
+    const n = new Date();
+    return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
+  });
   const [transitLoading, setTransitLoading] = useState(false);
 
   // Progressed state (lifted for mobile drawer access)
@@ -534,6 +538,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   }, []);
 
   const handleSetRelocatedPerson = useCallback((person: 'A' | 'B' | 'both' | null) => {
+    console.log('[MobileWrapper] handleSetRelocatedPerson called:', person, { currentLocation: relocatedLocation, user: !!user, isPaid });
     setRelocatedPerson(person);
     if (person) {
       // Clear progressed when enabling relocated
@@ -542,9 +547,11 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
       // On mobile, don't auto-set to birth location (produces identical chart, wastes credit).
       // Instead, auto-open the location picker so the user picks a real location.
       if (!relocatedLocation) {
+        console.log('[MobileWrapper] No location set, checking auth/paid gates...');
         // Only open picker if no location is already set
-        if (!user) { setShowAuthModal(true); return; }
-        if (!isPaid) { setShowUpgradeModal(true); return; }
+        if (!user) { console.log('[MobileWrapper] No user, showing auth modal'); setShowAuthModal(true); return; }
+        if (!isPaid) { console.log('[MobileWrapper] Not paid, showing upgrade modal'); setShowUpgradeModal(true); return; }
+        console.log('[MobileWrapper] Opening location picker...');
         setDrawerOpen(false);
         setTimeout(() => setShowLocationPicker(true), 300); // Delay so drawer closes first
       }
@@ -562,16 +569,19 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   }, [user, isPaid]);
 
   const handleLocationConfirm = useCallback((location: LocationData) => {
+    console.log('[MobileWrapper] handleLocationConfirm called:', location);
+    console.log('[MobileWrapper] Current relocatedPerson:', relocatedPerson);
     setRelocatedLocation(location);
     setShowLocationPicker(false);
-  }, []);
+  }, [relocatedPerson]);
 
   // Generate a key that changes when control state changes
   // This forces BiWheelSynastry to re-mount with new initial values
   const chartKey = useMemo(() => {
     const locKey = relocatedLocation ? `${relocatedLocation.lat},${relocatedLocation.lng}` : 'none';
-    return `${chartMode}-${Array.from(visiblePlanets).sort().join(',')}-${Array.from(visibleAspects).sort().join(',')}-${showHouses}-${showDegreeMarkers}-${Array.from(enabledAsteroidGroups).sort().join(',')}-${showTransits}-${transitDate}-${progressedPerson}-${progressedDate}-${showSolarArc}-${relocatedPerson}-${locKey}-${chartTheme}`;
-  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups, showTransits, transitDate, progressedPerson, progressedDate, showSolarArc, relocatedPerson, relocatedLocation, chartTheme]);
+    console.log('[MobileWrapper] chartKey recomputed. relocatedPerson:', relocatedPerson, 'locKey:', locKey, 'relocatedLocation:', relocatedLocation);
+    return `${chartMode}-${Array.from(visiblePlanets).sort().join(',')}-${Array.from(visibleAspects).sort().join(',')}-${showHouses}-${showDegreeMarkers}-${Array.from(enabledAsteroidGroups).sort().join(',')}-${showTransits}-${transitDate}-${transitTime}-${progressedPerson}-${progressedDate}-${showSolarArc}-${relocatedPerson}-${locKey}-${chartTheme}`;
+  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups, showTransits, transitDate, transitTime, progressedPerson, progressedDate, showSolarArc, relocatedPerson, relocatedLocation, chartTheme]);
 
   return (
     <div ref={containerRef} className="w-full">
@@ -680,6 +690,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
             onMouseLeave: handleMouseLeave,
           } : {})}
         >
+          {(() => { if (isMobile) console.log('[MobileWrapper] Rendering mobile BiWheelSynastry. externalRelocatedLocation:', relocatedLocation, 'externalRelocatedPerson:', relocatedPerson, 'hasOnFetchRelocated:', !!biWheelProps.onFetchRelocated); return null; })()}
           {isMobile ? (
             /* Mobile: no custom zoom transform — native pinch-to-zoom works on the SVG */
             <BiWheelSynastry
@@ -696,6 +707,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
               // Transit initial state
               initialShowTransits={showTransits}
               initialTransitDate={transitDate}
+              initialTransitTime={transitTime}
               // Progressed/Relocated initial state
               initialProgressedPerson={progressedPerson}
               initialProgressedDate={progressedDate}
@@ -709,6 +721,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
               onChartModeChange={(mode) => { setChartMode(mode); biWheelProps.onChartModeChange?.(mode); }}
               onShowTransitsChange={setShowTransits}
               onTransitDateChange={setTransitDate}
+              onTransitTimeChange={setTransitTime}
               onTransitLoadingChange={setTransitLoading}
               onProgressedPersonChange={handleSetProgressedPerson}
               onProgressedDateChange={setProgressedDate}
@@ -819,9 +832,11 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                   enableTransits={biWheelProps.enableTransits}
                   showTransits={showTransits}
                   transitDate={transitDate}
+                  transitTime={transitTime}
                   transitLoading={transitLoading}
                   onSetShowTransits={setShowTransits}
                   onSetTransitDate={setTransitDate}
+                  onSetTransitTime={setTransitTime}
                   enableAsteroids={true}
                   enabledAsteroidGroups={enabledAsteroidGroups}
                   onToggleAsteroidGroup={toggleAsteroidGroup}
