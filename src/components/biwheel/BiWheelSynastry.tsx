@@ -39,6 +39,7 @@ import { AspectTooltip } from './tooltips/AspectTooltip';
 import { SignTooltip } from './tooltips/SignTooltip';
 import { HouseTooltip } from './tooltips/HouseTooltip';
 import { TogglePanel } from './controls/TogglePanel';
+import { calculateDeclination } from '@/lib/declination';
 import type { BiWheelSynastryProps, BiWheelState, ChartDimensions, NatalChart, PlanetData } from './types';
 
 // localStorage key for saved chart defaults
@@ -1065,6 +1066,27 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     angles: chartB.angles,
   }), [planetsWithAnglesB, chartB.houses, chartB.angles]);
 
+  // Compute declination maps for parallel/contraparallel detection
+  const declinationsA = useMemo(() => {
+    const result: Record<string, number> = {};
+    for (const [key, data] of Object.entries(planetsWithAnglesA)) {
+      if (data?.longitude !== undefined) {
+        result[key] = calculateDeclination(data.longitude, data.latitude ?? 0);
+      }
+    }
+    return result;
+  }, [planetsWithAnglesA]);
+
+  const declinationsB = useMemo(() => {
+    const result: Record<string, number> = {};
+    for (const [key, data] of Object.entries(planetsWithAnglesB)) {
+      if (data?.longitude !== undefined) {
+        result[key] = calculateDeclination(data.longitude, data.latitude ?? 0);
+      }
+    }
+    return result;
+  }, [planetsWithAnglesB]);
+
   // Helper: convert TransitPlanet[] to Record<string, PlanetData> for effectiveChart
   const progressedPlanetsToRecord = useCallback((
     progressedPlanets: import('./types').TransitPlanet[],
@@ -1849,6 +1871,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           displayPositionsB={displayPositionsB}
           displayPositions={displayPositions}
           rotationOffset={rotationOffset}
+          declinationsA={declinationsA}
+          declinationsB={declinationsB}
         />
 
         {/* Zodiac ring */}

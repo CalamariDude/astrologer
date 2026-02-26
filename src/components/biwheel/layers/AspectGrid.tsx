@@ -1,6 +1,13 @@
 /**
  * Aspect Grid Layer
- * Renders aspect lines between planets in the center of the chart
+ * Renders immersive aspect lines with energy flow visualization
+ *
+ * Features:
+ * - Curved bezier lines pulled toward chart center
+ * - Animated energy flow particles (bidirectional for harmonious, one-way for challenging)
+ * - Aspect symbol badge at the curve apex
+ * - Glow effects on highlighted aspects
+ * - Parallel aspect (declination) indicators
  *
  * Supports multiple chart modes:
  * - synastry: Lines between outer (A) and inner (B) rings
@@ -30,12 +37,13 @@ interface AspectGridProps {
   selectedAspect: SynastryAspect | null;
   onAspectClick?: (aspect: SynastryAspect, event?: React.MouseEvent) => void;
   onAspectHover?: (aspect: SynastryAspect | null, event?: React.MouseEvent) => void;
-  // Display positions after collision avoidance
   displayPositionsA?: PlanetDisplayPositions;
   displayPositionsB?: PlanetDisplayPositions;
-  // Single-wheel mode display positions (for natal/composite aspects)
   displayPositions?: PlanetDisplayPositions;
   rotationOffset?: number;
+  /** Declination data for parallel/contraparallel detection */
+  declinationsA?: Record<string, number>;
+  declinationsB?: Record<string, number>;
 }
 
 /**
@@ -44,6 +52,72 @@ interface AspectGridProps {
 function isSameAspect(a: SynastryAspect | null, b: SynastryAspect): boolean {
   if (!a) return false;
   return a.planetA === b.planetA && a.planetB === b.planetB && a.aspect.type === b.aspect.type;
+}
+
+/**
+ * Determine energy flow direction based on aspect nature
+ * - harmonious: bidirectional (mutual exchange)
+ * - challenging: A→B one-way (forced/pressured energy)
+ * - neutral: bidirectional (blending)
+ */
+function getFlowType(nature: 'harmonious' | 'challenging' | 'neutral'): 'bidirectional' | 'one-way' {
+  return nature === 'challenging' ? 'one-way' : 'bidirectional';
+}
+
+/**
+ * Calculate quadratic bezier control point pulled toward chart center
+ */
+function getCurveControl(
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  cx: number,
+  cy: number,
+  strength: number
+): { x: number; y: number } {
+  const midX = (start.x + end.x) / 2;
+  const midY = (start.y + end.y) / 2;
+  // Pull toward center proportional to distance from center
+  // Stronger aspects = less pull (straighter), weaker = more curve
+  const pull = 0.25 + (1 - strength) * 0.25;
+  return {
+    x: midX + (cx - midX) * pull,
+    y: midY + (cy - midY) * pull,
+  };
+}
+
+/**
+ * Get point on quadratic bezier at parameter t
+ */
+function bezierPoint(
+  start: { x: number; y: number },
+  ctrl: { x: number; y: number },
+  end: { x: number; y: number },
+  t: number
+): { x: number; y: number } {
+  const mt = 1 - t;
+  return {
+    x: mt * mt * start.x + 2 * mt * t * ctrl.x + t * t * end.x,
+    y: mt * mt * start.y + 2 * mt * t * ctrl.y + t * t * end.y,
+  };
+}
+
+/**
+ * Check if two planets are parallel or contraparallel in declination
+ */
+function getDeclinationAspect(
+  planetA: string,
+  planetB: string,
+  declinationsA?: Record<string, number>,
+  declinationsB?: Record<string, number>
+): 'parallel' | 'contraparallel' | null {
+  const decA = declinationsA?.[planetA];
+  const decB = declinationsB?.[planetB];
+  if (decA === undefined || decB === undefined) return null;
+  const diff = Math.abs(decA - decB);
+  const sum = Math.abs(decA + decB);
+  if (diff <= 1.2) return 'parallel';
+  if (sum <= 1.2) return 'contraparallel';
+  return null;
 }
 
 /**
@@ -68,47 +142,36 @@ function generateAspectLines(
   const isSingleWheel = mode !== 'synastry';
 
   for (const asp of aspects) {
-    // Filter by visible aspect types
     if (!visibleAspects.has(asp.aspect.type)) continue;
-
-    // When an aspect is selected, only show that specific aspect
     if (selectedAspect && !isSameAspect(selectedAspect, asp)) continue;
 
-    // Use display positions based on mode
     let displayLongA: number;
     let displayLongB: number;
 
     if (isSingleWheel) {
-      // Single-wheel: both planets use the same display positions map
       displayLongA = displayPositions?.get(asp.planetA) ?? asp.longA;
       displayLongB = displayPositions?.get(asp.planetB) ?? asp.longB;
     } else {
-      // Synastry: A uses A's positions, B uses B's positions
       displayLongA = displayPositionsA?.get(asp.planetA) ?? asp.longA;
       displayLongB = displayPositionsB?.get(asp.planetB) ?? asp.longB;
     }
 
-    // Calculate positions (planets connect from inner circle edge)
     const startPoint = longitudeToXY(displayLongA, cx, cy, innerCircle, rotationOffset);
     const endPoint = longitudeToXY(displayLongB, cx, cy, innerCircle, rotationOffset);
 
-    // Determine highlighting - use value comparison for reliability
     const isSelected = isSameAspect(selectedAspect, asp);
     const isHovered = isSameAspect(hoveredAspect, asp);
 
-    // Highlighting logic depends on mode
     let isPlanetHovered = false;
     let isPlanetSelected = false;
 
     if (isSingleWheel) {
-      // Single-wheel: both planets are in the same chart
       const chartKey = mode === 'composite' ? 'Composite' : mode === 'personA' ? 'A' : 'B';
       isPlanetHovered = hoveredPlanet?.chart === chartKey &&
         (hoveredPlanet.planet === asp.planetA || hoveredPlanet.planet === asp.planetB);
       isPlanetSelected = selectedPlanet?.chart === chartKey &&
         (selectedPlanet.planet === asp.planetA || selectedPlanet.planet === asp.planetB);
     } else {
-      // Synastry: A's planet aspects B's planet
       isPlanetHovered = hoveredPlanet !== null &&
         ((hoveredPlanet.chart === 'A' && hoveredPlanet.planet === asp.planetA) ||
           (hoveredPlanet.chart === 'B' && hoveredPlanet.planet === asp.planetB));
@@ -118,10 +181,8 @@ function generateAspectLines(
     }
 
     const isHighlighted = isSelected || isHovered || isPlanetHovered || isPlanetSelected;
-    // A planet is "active" (should dim non-related aspects) if hovered OR selected
     const hasPlanetActive = hoveredPlanet || selectedPlanet;
 
-    // Calculate visual properties
     const baseOpacity = getAspectOpacity(asp.aspect.strength);
     const opacity = isHighlighted ? 1 : hasPlanetActive ? baseOpacity * 0.3 : baseOpacity;
     const strokeWidth = isHighlighted
@@ -139,9 +200,11 @@ function generateAspectLines(
     });
   }
 
-  // Sort so highlighted aspects are on top
   return lines.sort((a, b) => a.opacity - b.opacity);
 }
+
+// Unique ID counter for SVG defs
+let defsIdCounter = 0;
 
 export const AspectGrid: React.FC<AspectGridProps> = ({
   dimensions,
@@ -158,9 +221,14 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
   displayPositionsB,
   displayPositions,
   rotationOffset = 0,
+  declinationsA,
+  declinationsB,
 }) => {
   const { cx, cy, planetARing, planetBRing, innerCircle, singlePlanetRing } = dimensions;
   const isSingleWheel = mode !== 'synastry';
+
+  // Stable unique prefix for this component instance
+  const idPrefix = React.useMemo(() => `ag-${++defsIdCounter}`, []);
 
   const aspectLines = React.useMemo(
     () => generateAspectLines(aspects, visibleAspects, dimensions, mode, hoveredPlanet, selectedPlanet, hoveredAspect, selectedAspect, displayPositionsA, displayPositionsB, displayPositions, rotationOffset),
@@ -169,110 +237,311 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
 
   return (
     <g className="aspect-grid">
-      {aspectLines.map((line, index) => {
-        // Calculate midpoint for symbol placement
-        const midX = (line.startPoint.x + line.endPoint.x) / 2;
-        const midY = (line.startPoint.y + line.endPoint.y) / 2;
+      {/* SVG defs for glow filters and flow animations */}
+      <defs>
+        <filter id={`${idPrefix}-glow`} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        <filter id={`${idPrefix}-glow-strong`} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="5" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
 
-        // Check if this is a conjunction (planets are close together)
+      {aspectLines.map((line, index) => {
         const isConjunction = line.aspect.aspect.type === 'conjunction';
+        const nature = line.aspect.aspect.nature;
+        const strength = line.aspect.aspect.strength;
+        const flowType = getFlowType(nature);
+        const isHighlighted = line.opacity >= 0.95;
+
+        // Curve control point
+        const ctrl = getCurveControl(line.startPoint, line.endPoint, cx, cy, strength);
+        // Apex point (t=0.5 on bezier)
+        const apex = bezierPoint(line.startPoint, ctrl, line.endPoint, 0.5);
+        // Path string for quadratic bezier
+        const pathD = `M ${line.startPoint.x} ${line.startPoint.y} Q ${ctrl.x} ${ctrl.y} ${line.endPoint.x} ${line.endPoint.y}`;
+        const pathId = `${idPrefix}-path-${index}`;
+
+        // Check declination aspect
+        const decAspect = getDeclinationAspect(
+          line.aspect.planetA,
+          line.aspect.planetB,
+          isSingleWheel ? declinationsA : declinationsA,
+          isSingleWheel ? declinationsA : declinationsB
+        );
 
         // For conjunctions, calculate position between the actual planet symbols
-        let conjunctionPos = { x: midX, y: midY };
+        let conjunctionPos = { x: apex.x, y: apex.y };
         if (isConjunction) {
-          // Use display positions based on mode
           let displayLongA: number;
           let displayLongB: number;
           let ringRadiusA: number;
           let ringRadiusB: number;
 
           if (isSingleWheel) {
-            // Single-wheel: both planets on the same ring
             displayLongA = displayPositions?.get(line.aspect.planetA) ?? line.aspect.longA;
             displayLongB = displayPositions?.get(line.aspect.planetB) ?? line.aspect.longB;
             ringRadiusA = singlePlanetRing || planetARing;
             ringRadiusB = singlePlanetRing || planetARing;
           } else {
-            // Synastry: A on outer ring, B on inner ring
             displayLongA = displayPositionsA?.get(line.aspect.planetA) ?? line.aspect.longA;
             displayLongB = displayPositionsB?.get(line.aspect.planetB) ?? line.aspect.longB;
             ringRadiusA = planetARing;
             ringRadiusB = planetBRing;
           }
 
-          // Get planet positions on their respective rings
           const planetAPos = longitudeToXY(displayLongA, cx, cy, ringRadiusA, rotationOffset);
           const planetBPos = longitudeToXY(displayLongB, cx, cy, ringRadiusB, rotationOffset);
-          // Position orb text between the two planets
           conjunctionPos = {
             x: (planetAPos.x + planetBPos.x) / 2,
             y: (planetAPos.y + planetBPos.y) / 2,
           };
         }
 
+        // Animation durations based on strength (tighter = faster energy)
+        const flowDuration = 2.5 + (1 - strength) * 3; // 2.5s–5.5s
+
+        // Dash pattern for challenging aspects — jagged/angular feel
+        const dashArray = nature === 'challenging'
+          ? `${4 + strength * 3},${2 + (1 - strength) * 3}`
+          : undefined;
+
         return (
           <g key={`${line.aspect.planetA}-${line.aspect.planetB}-${line.aspect.aspect.type}`}>
-            {/* Aspect line - skip for conjunctions since planets are already close */}
+            {/* Define path for motion animation */}
             {!isConjunction && (
-              <line
-                x1={line.startPoint.x}
-                y1={line.startPoint.y}
-                x2={line.endPoint.x}
-                y2={line.endPoint.y}
-                stroke={line.color}
-                strokeWidth={line.strokeWidth}
-                strokeOpacity={line.opacity}
-                strokeDasharray={line.dashed ? '5,3' : undefined}
-                strokeLinecap="round"
-                style={{ cursor: onAspectClick ? 'pointer' : 'default' }}
-                onClick={(e) => { e.stopPropagation(); onAspectClick?.(line.aspect, e); }}
-                onMouseEnter={(e) => onAspectHover?.(line.aspect, e)}
-                onMouseLeave={() => onAspectHover?.(null)}
-              />
+              <path id={pathId} d={pathD} fill="none" stroke="none" />
             )}
 
-            {/* For non-conjunctions, show aspect symbol at midpoint */}
+            {/* Main aspect curve */}
             {!isConjunction && (
               <>
-                {/* White background circle behind aspect symbol */}
-                <circle
-                  cx={midX}
-                  cy={midY}
-                  r={10}
-                  fill={COLORS.background}
-                  fillOpacity={line.opacity}
+                {/* Glow underlay for highlighted aspects */}
+                {isHighlighted && (
+                  <path
+                    d={pathD}
+                    fill="none"
+                    stroke={line.color}
+                    strokeWidth={line.strokeWidth + 4}
+                    strokeOpacity={0.2}
+                    strokeLinecap="round"
+                    filter={`url(#${idPrefix}-glow-strong)`}
+                  />
+                )}
+
+                {/* Main curve line */}
+                <path
+                  d={pathD}
+                  fill="none"
                   stroke={line.color}
-                  strokeWidth={1}
+                  strokeWidth={line.strokeWidth}
                   strokeOpacity={line.opacity}
+                  strokeDasharray={dashArray}
+                  strokeLinecap="round"
+                  filter={isHighlighted ? `url(#${idPrefix}-glow)` : undefined}
                   style={{ cursor: onAspectClick ? 'pointer' : 'default' }}
                   onClick={(e) => { e.stopPropagation(); onAspectClick?.(line.aspect, e); }}
                   onMouseEnter={(e) => onAspectHover?.(line.aspect, e)}
                   onMouseLeave={() => onAspectHover?.(null)}
                 />
-                {/* Aspect symbol at midpoint */}
+
+                {/* Energy flow particles — A→B */}
+                {line.opacity > 0.25 && (
+                  <circle r={1.5 + strength} fill={line.color} opacity={line.opacity * 0.8}>
+                    <animateMotion
+                      dur={`${flowDuration}s`}
+                      repeatCount="indefinite"
+                      path={pathD}
+                    />
+                  </circle>
+                )}
+
+                {/* Second flow particle — B→A (only for bidirectional/harmonious) */}
+                {flowType === 'bidirectional' && line.opacity > 0.25 && (
+                  <circle r={1.5 + strength} fill={line.color} opacity={line.opacity * 0.8}>
+                    <animateMotion
+                      dur={`${flowDuration}s`}
+                      repeatCount="indefinite"
+                      path={pathD}
+                      keyPoints="1;0"
+                      keyTimes="0;1"
+                      calcMode="linear"
+                    />
+                  </circle>
+                )}
+
+                {/* One-way flow arrow indicator for challenging aspects */}
+                {flowType === 'one-way' && line.opacity > 0.35 && (() => {
+                  // Arrow at ~70% along the path (toward B)
+                  const arrowT = 0.72;
+                  const arrowTip = bezierPoint(line.startPoint, ctrl, line.endPoint, arrowT);
+                  const arrowBack = bezierPoint(line.startPoint, ctrl, line.endPoint, arrowT - 0.04);
+                  // Direction vector
+                  const dx = arrowTip.x - arrowBack.x;
+                  const dy = arrowTip.y - arrowBack.y;
+                  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+                  const nx = dx / len;
+                  const ny = dy / len;
+                  // Perpendicular
+                  const px = -ny;
+                  const py = nx;
+                  const sz = 3 + strength * 2;
+                  const p1 = `${arrowTip.x},${arrowTip.y}`;
+                  const p2 = `${arrowTip.x - nx * sz * 2 + px * sz},${arrowTip.y - ny * sz * 2 + py * sz}`;
+                  const p3 = `${arrowTip.x - nx * sz * 2 - px * sz},${arrowTip.y - ny * sz * 2 - py * sz}`;
+                  return (
+                    <polygon
+                      points={`${p1} ${p2} ${p3}`}
+                      fill={line.color}
+                      fillOpacity={line.opacity * 0.7}
+                    />
+                  );
+                })()}
+              </>
+            )}
+
+            {/* Aspect symbol badge at apex */}
+            {!isConjunction && (
+              <g
+                style={{ cursor: onAspectClick ? 'pointer' : 'default' }}
+                onClick={(e) => { e.stopPropagation(); onAspectClick?.(line.aspect, e); }}
+                onMouseEnter={(e) => onAspectHover?.(line.aspect, e)}
+                onMouseLeave={() => onAspectHover?.(null)}
+              >
+                {/* Badge background */}
+                <circle
+                  cx={apex.x}
+                  cy={apex.y}
+                  r={11}
+                  fill={COLORS.background}
+                  fillOpacity={Math.max(line.opacity, 0.7)}
+                  stroke={line.color}
+                  strokeWidth={isHighlighted ? 1.5 : 1}
+                  strokeOpacity={line.opacity}
+                  filter={isHighlighted ? `url(#${idPrefix}-glow)` : undefined}
+                />
+                {/* Aspect symbol */}
                 <text
-                  x={midX}
-                  y={midY}
+                  x={apex.x}
+                  y={apex.y}
                   fill={line.color}
-                  fillOpacity={line.opacity}
+                  fillOpacity={Math.max(line.opacity, 0.6)}
                   fontSize={13}
                   fontWeight="bold"
                   textAnchor="middle"
                   dominantBaseline="central"
-                  style={{ userSelect: 'none', cursor: onAspectClick ? 'pointer' : 'default' }}
-                  onClick={(e) => { e.stopPropagation(); onAspectClick?.(line.aspect, e); }}
-                  onMouseEnter={(e) => onAspectHover?.(line.aspect, e)}
-                  onMouseLeave={() => onAspectHover?.(null)}
+                  style={{ userSelect: 'none' }}
                 >
                   {line.aspect.aspect.symbol}
                 </text>
-                {/* Orb labels removed - too cluttered with asteroids, visible in tooltip on hover */}
-              </>
+                {/* Orb degree — small text below symbol */}
+                {isHighlighted && (
+                  <text
+                    x={apex.x}
+                    y={apex.y + 16}
+                    fill={line.color}
+                    fillOpacity={0.7}
+                    fontSize={8}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    style={{ userSelect: 'none' }}
+                  >
+                    {line.aspect.aspect.exactOrb.toFixed(1)}°
+                  </text>
+                )}
+                {/* Declination spark indicator */}
+                {decAspect && (
+                  <text
+                    x={apex.x + 13}
+                    y={apex.y - 8}
+                    fill={decAspect === 'parallel' ? '#fbbf24' : '#f97316'}
+                    fillOpacity={Math.max(line.opacity, 0.5)}
+                    fontSize={9}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    style={{ userSelect: 'none' }}
+                    title={decAspect === 'parallel' ? 'Parallel in declination' : 'Contraparallel in declination'}
+                  >
+                    {decAspect === 'parallel' ? '\u2225' : '\u2AF6'}
+                  </text>
+                )}
+              </g>
+            )}
+
+            {/* Conjunction: show symbol between planets (no line) */}
+            {isConjunction && (
+              <g
+                style={{ cursor: onAspectClick ? 'pointer' : 'default' }}
+                onClick={(e) => { e.stopPropagation(); onAspectClick?.(line.aspect, e); }}
+                onMouseEnter={(e) => onAspectHover?.(line.aspect, e)}
+                onMouseLeave={() => onAspectHover?.(null)}
+              >
+                <circle
+                  cx={conjunctionPos.x}
+                  cy={conjunctionPos.y}
+                  r={11}
+                  fill={COLORS.background}
+                  fillOpacity={Math.max(line.opacity, 0.7)}
+                  stroke={line.color}
+                  strokeWidth={isHighlighted ? 1.5 : 1}
+                  strokeOpacity={line.opacity}
+                  filter={isHighlighted ? `url(#${idPrefix}-glow)` : undefined}
+                />
+                <text
+                  x={conjunctionPos.x}
+                  y={conjunctionPos.y}
+                  fill={line.color}
+                  fillOpacity={Math.max(line.opacity, 0.6)}
+                  fontSize={13}
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  style={{ userSelect: 'none' }}
+                >
+                  {line.aspect.aspect.symbol}
+                </text>
+                {isHighlighted && (
+                  <text
+                    x={conjunctionPos.x}
+                    y={conjunctionPos.y + 16}
+                    fill={line.color}
+                    fillOpacity={0.7}
+                    fontSize={8}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    style={{ userSelect: 'none' }}
+                  >
+                    {line.aspect.aspect.exactOrb.toFixed(1)}°
+                  </text>
+                )}
+                {decAspect && (
+                  <text
+                    x={conjunctionPos.x + 13}
+                    y={conjunctionPos.y - 8}
+                    fill={decAspect === 'parallel' ? '#fbbf24' : '#f97316'}
+                    fillOpacity={Math.max(line.opacity, 0.5)}
+                    fontSize={9}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    style={{ userSelect: 'none' }}
+                  >
+                    {decAspect === 'parallel' ? '\u2225' : '\u2AF6'}
+                  </text>
+                )}
+              </g>
             )}
           </g>
         );
       })}
-
     </g>
   );
 };

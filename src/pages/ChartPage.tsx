@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, Link } from 'react-router-dom';
-import { Loader2, MapPin, Plus, X, Pencil, ClipboardPaste, FolderOpen, LogIn, User, Calendar, Clock, Search, Sparkles, Grid3X3, RotateCcw, Gauge, Table2, TrendingUp, CalendarClock, ArrowUpDown, StickyNote } from 'lucide-react';
+import { useLocation, useSearchParams, Link } from 'react-router-dom';
+import { Loader2, MapPin, Plus, X, Pencil, ClipboardPaste, FolderOpen, LogIn, User, Calendar, Clock, Search, Sparkles, Grid3X3, RotateCcw, Gauge, Table2, TrendingUp, CalendarClock, ArrowUpDown, StickyNote, Download, CreditCard, LogOut, ChevronDown } from 'lucide-react';
 import { SaveChartButton } from '@/components/charts/SaveChartButton';
 import { getSavedCharts, type SavedChart } from '@/components/charts/SaveChartButton';
 import { toast } from 'sonner';
@@ -11,9 +11,16 @@ import { BiWheelMobileWrapper } from '@/components/biwheel';
 import { swissEphemeris } from '@/api/swissEphemeris';
 import { getThemeCSSVariables, isThemeDark } from '@/lib/chartThemeCSS';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { SavedChartsList } from '@/components/charts/SavedChartsList';
 import { AstroComImport, type ParsedPerson } from '@/components/charts/AstroComImport';
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
+  DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
+import { supabase } from '@/lib/supabase';
 import type { TransitData, CompositeData, ProgressedData, RelocatedData, AsteroidsParam } from '@/components/biwheel/types';
 import { GalacticToggle } from '@/components/galactic';
 import { useWebGLSupport } from '@/hooks/useWebGLSupport';
@@ -358,16 +365,27 @@ function parseNatalResponse(data: any): NatalChart {
 
 export default function ChartPage() {
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const routeState = location.state as { personA: PersonData; personB: PersonData | null } | null;
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const { isPaid, openPortal } = useSubscription();
+
+  // Restore session state on mount
+  const sessionRestore = useMemo(() => {
+    try {
+      const raw = sessionStorage.getItem('astrologer_session');
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return null;
+  }, []);
 
   // Birth data inputs
-  const [personAData, setPersonAData] = useState<BirthData>(emptyBirth());
-  const [personBData, setPersonBData] = useState<BirthData | null>(null);
+  const [personAData, setPersonAData] = useState<BirthData>(sessionRestore?.personAData ?? emptyBirth());
+  const [personBData, setPersonBData] = useState<BirthData | null>(sessionRestore?.personBData ?? null);
 
   // Calculated charts
-  const [chartA, setChartA] = useState<NatalChart | null>(null);
-  const [chartB, setChartB] = useState<NatalChart | null>(null);
+  const [chartA, setChartA] = useState<NatalChart | null>(sessionRestore?.chartA ?? null);
+  const [chartB, setChartB] = useState<NatalChart | null>(sessionRestore?.chartB ?? null);
 
   // Full person data for chart (combines birth data + chart)
   const personA: PersonData | null = chartA ? { ...personAData, natalChart: chartA } : null;
@@ -376,11 +394,12 @@ export default function ChartPage() {
   const hasSynastry = !!chartB && !!personBData;
 
   // UI state
-  const [editing, setEditing] = useState(true);
+  const [editing, setEditing] = useState(sessionRestore?.chartA ? false : true);
   const [loading, setLoading] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
   const [showAstroImport, setShowAstroImport] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const [pageTheme, setPageTheme] = useState(() => localStorage.getItem('astrologer_theme') || 'classic');
   const [activeTab, setActiveTab] = useState('aspect-grid');
   const [showGalactic, setShowGalactic] = useState(false);
@@ -394,6 +413,27 @@ export default function ChartPage() {
     new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition'])
   );
   const themeVars = useMemo(() => getThemeCSSVariables(pageTheme) as React.CSSProperties, [pageTheme]);
+
+  // Load theme from user profile on login
+  useEffect(() => {
+    if (!user) return;
+    supabase.from('astrologer_profiles').select('theme').eq('id', user.id).single()
+      .then(({ data }) => {
+        if (data?.theme && data.theme !== pageTheme) {
+          setPageTheme(data.theme);
+          localStorage.setItem('astrologer_theme', data.theme);
+        }
+      });
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Save theme to profile when changed
+  const handleThemeChange = useCallback((t: string) => {
+    setPageTheme(t);
+    localStorage.setItem('astrologer_theme', t);
+    if (user) {
+      supabase.from('astrologer_profiles').update({ theme: t }).eq('id', user.id).then(() => {});
+    }
+  }, [user]);
 
   // Build unique saved persons from saved charts for name autocomplete
   const savedPersons = useMemo<SavedPerson[]>(() => {
@@ -434,6 +474,60 @@ export default function ChartPage() {
       window.history.replaceState({}, '');
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load from URL query params (shared chart links)
+  useEffect(() => {
+    const date = searchParams.get('date');
+    const lat = searchParams.get('lat');
+    const lng = searchParams.get('lng');
+    if (!date || !lat || !lng) return;
+    // Don't override if we already have a chart from route state
+    if (routeState?.personA) return;
+
+    const birthData: BirthData = {
+      name: searchParams.get('name') || '',
+      date,
+      time: searchParams.get('time') || '12:00',
+      location: searchParams.get('loc') || '',
+      lat: parseFloat(lat),
+      lng: parseFloat(lng),
+    };
+    setPersonAData(birthData);
+    setEditing(false);
+    setLoading(true);
+
+    // Clear query params from URL
+    setSearchParams({}, { replace: true });
+
+    // Auto-calculate chart
+    swissEphemeris.natal({
+      birth_date: birthData.date,
+      birth_time: birthData.time,
+      lat: birthData.lat!,
+      lng: birthData.lng,
+    }).then(data => {
+      setChartA(parseNatalResponse(data));
+    }).catch(err => {
+      toast.error(err.message || 'Failed to calculate shared chart');
+      setEditing(true);
+    }).finally(() => {
+      setLoading(false);
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist chart state to sessionStorage
+  useEffect(() => {
+    if (chartA) {
+      try {
+        sessionStorage.setItem('astrologer_session', JSON.stringify({
+          personAData,
+          personBData,
+          chartA,
+          chartB,
+        }));
+      } catch {}
+    }
+  }, [personAData, personBData, chartA, chartB]);
 
   // ─── Calculate ──────────────────────────────────────────────
 
@@ -679,27 +773,75 @@ export default function ChartPage() {
           <Link to="/" className="text-sm md:text-base font-bold tracking-tight shrink-0">Astrologer</Link>
           <div className="flex-1" />
 
-          {/* Action buttons — gated behind auth */}
           {user ? (
-            <>
-              <button
-                onClick={() => setShowAstroImport(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                title="Import from Astro.com"
-              >
-                <ClipboardPaste className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Import from Astro.com</span>
-              </button>
-              <button
-                onClick={() => setShowSaved(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                title="Load saved chart"
-              >
-                <FolderOpen className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">My Charts</span>
-              </button>
+            <div className="flex items-center gap-2">
               {hasChart && personA && <SaveChartButton personA={personA} personB={personB} />}
-            </>
+
+              {!isPaid && (
+                <Button size="sm" variant="default" onClick={() => setShowUpgrade(true)} className="gap-1.5 text-xs bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white border-0">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Upgrade
+                </Button>
+              )}
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
+                      <User className="w-3.5 h-3.5 text-primary" />
+                    </div>
+                    <span className="hidden sm:inline max-w-[120px] truncate">{user.email?.split('@')[0]}</span>
+                    <ChevronDown className="w-3 h-3 opacity-50" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="text-xs text-muted-foreground truncate">{user.email}</div>
+                    {isPaid && <div className="text-[10px] text-emerald-500 font-medium mt-0.5">Pro</div>}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setShowSaved(true)}>
+                    <FolderOpen className="w-4 h-4 mr-2" />
+                    My Charts
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowAstroImport(true)}>
+                    <ClipboardPaste className="w-4 h-4 mr-2" />
+                    Import from Astro.com
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    const charts = getSavedCharts();
+                    if (charts.length === 0) { toast.error('No saved charts to export'); return; }
+                    const blob = new Blob([JSON.stringify(charts, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = 'astrologer-charts.json';
+                    document.body.appendChild(a); a.click();
+                    document.body.removeChild(a); URL.revokeObjectURL(url);
+                    toast.success(`Exported ${charts.length} chart${charts.length === 1 ? '' : 's'}`);
+                  }}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Charts
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {isPaid ? (
+                    <DropdownMenuItem onClick={() => openPortal()}>
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Manage Subscription
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={() => setShowUpgrade(true)}>
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Upgrade to Pro
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => signOut()}>
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           ) : (
             <Button size="sm" variant="outline" onClick={() => setShowAuth(true)} className="gap-1.5 text-xs">
               <LogIn className="w-3.5 h-3.5" />
@@ -773,7 +915,7 @@ export default function ChartPage() {
       {/* ── Chart Content ───────────────────────────────────── */}
       {hasChart && personA ? (
         <div className="container py-4 md:py-6 space-y-4 md:space-y-6 px-2 md:px-6">
-          <Card className="p-2 md:p-6">
+          <div>
             {/* Galactic Mode toggle */}
             {webglSupported && !hasSynastry && (
               <div className="flex justify-end mb-2">
@@ -812,16 +954,24 @@ export default function ChartPage() {
                 onFetchProgressed={handleFetchProgressed}
                 onFetchRelocated={handleFetchRelocated}
                 onFetchAsteroidData={handleFetchAsteroidData}
-                onThemeChange={(t: string) => { setPageTheme(t); localStorage.setItem('astrologer_theme', t); }}
+                onThemeChange={handleThemeChange}
                 originalLocation={originalLocationA}
                 locationB={originalLocationB}
                 birthDateA={personA.date}
                 birthTimeA={personA.time}
                 onVisiblePlanetsChange={setSharedVisiblePlanets}
                 onVisibleAspectsChange={setSharedVisibleAspects}
+                shareBirthData={personAData.lat !== null ? {
+                  name: personA.name || '',
+                  date: personA.date,
+                  time: personA.time,
+                  lat: personA.lat!,
+                  lng: personA.lng!,
+                  location: personAData.location,
+                } : undefined}
               />
             )}
-          </Card>
+          </div>
 
           {/* Astro Tools Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -856,28 +1006,28 @@ export default function ChartPage() {
               })}
             </TabsList>
 
-            <TabsContent value="aspect-grid" className="mt-4">
+            <TabsContent value="aspect-grid" className="mt-4 min-h-[400px]">
               <AspectGridTable chartA={personA.natalChart} chartB={hasSynastry ? personB!.natalChart : undefined} nameA={personA.name || 'Person A'} nameB={hasSynastry ? (personB!.name || 'Person B') : undefined} />
             </TabsContent>
-            <TabsContent value="profections" className="mt-4">
+            <TabsContent value="profections" className="mt-4 min-h-[400px]">
               <ProfectionsPanel natalChart={personA.natalChart} birthDate={personA.date} name={personA.name || 'Person A'} />
             </TabsContent>
-            <TabsContent value="age-degree" className="mt-4">
+            <TabsContent value="age-degree" className="mt-4 min-h-[400px]">
               <AgeDegreePanel natalChart={personA.natalChart} birthDate={personA.date} name={personA.name || 'Person A'} />
             </TabsContent>
-            <TabsContent value="ephemeris" className="mt-4">
+            <TabsContent value="ephemeris" className="mt-4 min-h-[400px]">
               <EphemerisTable natalChart={personA.natalChart} birthDate={personA.date} birthTime={personA.time} lat={personA.lat ?? 33.89} lng={personA.lng ?? 35.50} name={personA.name || 'Person A'} />
             </TabsContent>
-            <TabsContent value="graphic-eph" className="mt-4">
+            <TabsContent value="graphic-eph" className="mt-4 min-h-[400px]">
               <GraphicEphemeris natalChart={personA.natalChart} birthDate={personA.date} birthTime={personA.time} lat={personA.lat ?? 33.89} lng={personA.lng ?? 35.50} name={personA.name || 'Person A'} />
             </TabsContent>
-            <TabsContent value="transits" className="mt-4">
+            <TabsContent value="transits" className="mt-4 min-h-[400px]">
               <TransitTimeline natalChart={personA.natalChart} birthInfo={{ date: personA.date, time: personA.time, lat: personA.lat ?? 33.89, lng: personA.lng ?? 35.50 }} personName={personA.name || 'Person A'} />
             </TabsContent>
-            <TabsContent value="declination" className="mt-4">
+            <TabsContent value="declination" className="mt-4 min-h-[400px]">
               <DeclinationPanel chartA={personA.natalChart} chartB={hasSynastry ? personB!.natalChart : undefined} nameA={personA.name || 'Person A'} nameB={hasSynastry ? (personB!.name || 'Person B') : undefined} />
             </TabsContent>
-            <TabsContent value="notes" className="mt-4">
+            <TabsContent value="notes" className="mt-4 min-h-[400px]">
               <ChartNotes
                 chartKey={`${personAData.date}-${personAData.time}-${personAData.lat}`}
                 chartTitle={hasSynastry ? `${personA.name || 'Person A'} & ${personB!.name || 'Person B'}` : (personA.name || 'Person A')}
@@ -904,6 +1054,7 @@ export default function ChartPage() {
       <SavedChartsList isOpen={showSaved} onClose={() => setShowSaved(false)} onLoad={handleLoadChart} />
       <AstroComImport isOpen={showAstroImport} onClose={() => setShowAstroImport(false)} onImport={handleAstroImport} />
       <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} />
+      <UpgradeModal isOpen={showUpgrade} onClose={() => setShowUpgrade(false)} />
     </div>
   );
 }
