@@ -1228,6 +1228,11 @@ export default function ChartPage() {
               })}
             </TabsList>
 
+            <React.Suspense fallback={
+              <div className="mt-4 min-h-[400px] flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            }>
             <TabsContent value="aspect-grid" className="mt-4 min-h-[400px]">
               <AspectGridTable chartA={personA.natalChart} chartB={hasSynastry ? personB!.natalChart : undefined} nameA={personA.name || 'Person A'} nameB={hasSynastry ? (personB!.name || 'Person B') : undefined} />
             </TabsContent>
@@ -1266,6 +1271,7 @@ export default function ChartPage() {
                 }}
               />
             </TabsContent>
+            </React.Suspense>
           </Tabs>
         </div>
       ) : (
