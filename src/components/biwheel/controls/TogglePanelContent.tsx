@@ -61,6 +61,21 @@ interface TogglePanelContentProps {
   onToggleAsteroidGroup?: (group: AsteroidGroup) => void;
   onEnableAllAsteroids?: () => void;
   onDisableAllAsteroids?: () => void;
+  // Progressed chart controls
+  enableProgressed?: boolean;
+  progressedPerson?: 'A' | 'B' | 'both' | null;
+  progressedDate?: string;
+  progressedLoading?: boolean;
+  showSolarArc?: boolean;
+  onSetProgressedPerson?: (person: 'A' | 'B' | 'both' | null) => void;
+  onSetProgressedDate?: (date: string) => void;
+  onSetShowSolarArc?: (show: boolean) => void;
+  // Relocated chart controls
+  enableRelocated?: boolean;
+  relocatedPerson?: 'A' | 'B' | 'both' | null;
+  relocatedLoading?: boolean;
+  onSetRelocatedPerson?: (person: 'A' | 'B' | 'both' | null) => void;
+  onOpenLocationPicker?: () => void;
   // Save defaults
   onSaveDefaults?: () => void;
 }
@@ -350,6 +365,21 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
   onToggleAsteroidGroup,
   onEnableAllAsteroids,
   onDisableAllAsteroids,
+  // Progressed controls
+  enableProgressed = false,
+  progressedPerson = null,
+  progressedDate = '',
+  progressedLoading = false,
+  showSolarArc = false,
+  onSetProgressedPerson,
+  onSetProgressedDate,
+  onSetShowSolarArc,
+  // Relocated controls
+  enableRelocated = false,
+  relocatedPerson = null,
+  relocatedLoading = false,
+  onSetRelocatedPerson,
+  onOpenLocationPicker,
   onSaveDefaults,
 }) => {
   const [saveFlash, setSaveFlash] = useState(false);
@@ -496,6 +526,215 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Progressed Chart - per person toggles */}
+          {enableProgressed && onSetProgressedPerson && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: isMobile ? 12 : 10, color: COLORS.textMuted, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ color: '#FFD700', fontWeight: 'bold' }}>P</span> Progressed
+                {progressedLoading && <span style={{ fontSize: isMobile ? 12 : 10, color: '#FFD700' }}>Loading...</span>}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {(() => {
+                  const isProgressedA = progressedPerson === 'A' || progressedPerson === 'both';
+                  const isProgressedB = progressedPerson === 'B' || progressedPerson === 'both';
+                  return (
+                    <>
+                      <button
+                        onClick={() => {
+                          if (isProgressedA) {
+                            onSetProgressedPerson(isProgressedB ? 'B' : null);
+                          } else {
+                            onSetProgressedPerson(isProgressedB ? 'both' : 'A');
+                          }
+                        }}
+                        style={{
+                          padding: isMobile ? '10px 12px' : '5px 8px',
+                          fontSize: isMobile ? 13 : 10,
+                          background: isProgressedA ? '#FFD700' : COLORS.backgroundAlt2,
+                          color: isProgressedA ? '#1a1a1a' : COLORS.textSecondary,
+                          border: `1px solid ${isProgressedA ? '#FFD700' : COLORS.gridLineFaint}`,
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          fontWeight: isProgressedA ? 600 : 400,
+                        }}
+                      >
+                        P {nameA.split(' ')[0]}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (isProgressedB) {
+                            onSetProgressedPerson(isProgressedA ? 'A' : null);
+                          } else {
+                            onSetProgressedPerson(isProgressedA ? 'both' : 'B');
+                          }
+                        }}
+                        style={{
+                          padding: isMobile ? '10px 12px' : '5px 8px',
+                          fontSize: isMobile ? 13 : 10,
+                          background: isProgressedB ? COLORS.personB : COLORS.backgroundAlt2,
+                          color: isProgressedB ? '#ffffff' : COLORS.textSecondary,
+                          border: `1px solid ${isProgressedB ? COLORS.personB : COLORS.gridLineFaint}`,
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          fontWeight: isProgressedB ? 600 : 400,
+                        }}
+                      >
+                        P {nameB.split(' ')[0]}
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
+              {/* Date picker for progressed */}
+              {progressedPerson && onSetProgressedDate && (
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ fontSize: isMobile ? 11 : 9, color: COLORS.textMuted, marginBottom: 4 }}>
+                    Progress to date:
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6 }}>
+                    <button
+                      onClick={() => {
+                        const d = new Date(progressedDate + 'T12:00:00');
+                        d.setFullYear(d.getFullYear() - 1);
+                        onSetProgressedDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+                      }}
+                      style={{ padding: isMobile ? '8px 12px' : '4px 8px', fontSize: isMobile ? 14 : 12, background: COLORS.backgroundAlt2, border: `1px solid ${COLORS.gridLineFaint}`, borderRadius: 6, cursor: 'pointer', color: '#FFD700', fontWeight: 'bold' }}
+                    >
+                      ◀
+                    </button>
+                    <button
+                      onClick={() => {
+                        const n = new Date();
+                        onSetProgressedDate(`${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`);
+                      }}
+                      style={{ flex: 1, padding: isMobile ? '8px 6px' : '4px 6px', fontSize: isMobile ? 13 : 10, background: COLORS.backgroundAlt2, border: `1px solid ${COLORS.gridLineFaint}`, borderRadius: 6, cursor: 'pointer', color: COLORS.textSecondary }}
+                    >
+                      Today
+                    </button>
+                    <button
+                      onClick={() => {
+                        const d = new Date(progressedDate + 'T12:00:00');
+                        d.setFullYear(d.getFullYear() + 1);
+                        onSetProgressedDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+                      }}
+                      style={{ padding: isMobile ? '8px 12px' : '4px 8px', fontSize: isMobile ? 14 : 12, background: COLORS.backgroundAlt2, border: `1px solid ${COLORS.gridLineFaint}`, borderRadius: 6, cursor: 'pointer', color: '#FFD700', fontWeight: 'bold' }}
+                    >
+                      ▶
+                    </button>
+                  </div>
+                  <input
+                    type="date"
+                    value={progressedDate}
+                    onChange={(e) => onSetProgressedDate(e.target.value)}
+                    style={{ width: '100%', padding: isMobile ? '10px 12px' : '4px 6px', fontSize: isMobile ? 14 : 11, border: `1px solid ${COLORS.gridLineFaint}`, borderRadius: 6, color: COLORS.textSecondary }}
+                  />
+                </div>
+              )}
+              {/* Solar Arc toggle */}
+              {progressedPerson && onSetShowSolarArc && (
+                <button
+                  onClick={() => onSetShowSolarArc(!showSolarArc)}
+                  style={{
+                    marginTop: 8,
+                    width: '100%',
+                    padding: isMobile ? '10px 12px' : '5px 8px',
+                    fontSize: isMobile ? 13 : 10,
+                    background: showSolarArc ? '#FF8C00' : COLORS.backgroundAlt2,
+                    color: showSolarArc ? '#1a1a1a' : COLORS.textSecondary,
+                    border: `1px solid ${showSolarArc ? '#FF8C00' : COLORS.gridLineFaint}`,
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    fontWeight: showSolarArc ? 600 : 400,
+                  }}
+                >
+                  Solar Arc {showSolarArc ? 'ON' : 'OFF'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Relocated Chart - per person toggles */}
+          {enableRelocated && onSetRelocatedPerson && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: isMobile ? 12 : 10, color: COLORS.textMuted, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ color: COLORS.personA, fontWeight: 'bold' }}>R</span> Relocated
+                {relocatedLoading && <span style={{ fontSize: isMobile ? 12 : 10, color: COLORS.personA }}>Loading...</span>}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {(() => {
+                  const isRelocatedA = relocatedPerson === 'A' || relocatedPerson === 'both';
+                  const isRelocatedB = relocatedPerson === 'B' || relocatedPerson === 'both';
+                  return (
+                    <>
+                      <button
+                        onClick={() => {
+                          if (isRelocatedA) {
+                            onSetRelocatedPerson(isRelocatedB ? 'B' : null);
+                          } else {
+                            onSetRelocatedPerson(isRelocatedB ? 'both' : 'A');
+                          }
+                        }}
+                        style={{
+                          padding: isMobile ? '10px 12px' : '5px 8px',
+                          fontSize: isMobile ? 13 : 10,
+                          background: isRelocatedA ? COLORS.personA : COLORS.backgroundAlt2,
+                          color: isRelocatedA ? '#ffffff' : COLORS.textSecondary,
+                          border: `1px solid ${isRelocatedA ? COLORS.personA : COLORS.gridLineFaint}`,
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          fontWeight: isRelocatedA ? 600 : 400,
+                        }}
+                      >
+                        R {nameA.split(' ')[0]}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (isRelocatedB) {
+                            onSetRelocatedPerson(isRelocatedA ? 'A' : null);
+                          } else {
+                            onSetRelocatedPerson(isRelocatedA ? 'both' : 'B');
+                          }
+                        }}
+                        style={{
+                          padding: isMobile ? '10px 12px' : '5px 8px',
+                          fontSize: isMobile ? 13 : 10,
+                          background: isRelocatedB ? COLORS.personB : COLORS.backgroundAlt2,
+                          color: isRelocatedB ? '#ffffff' : COLORS.textSecondary,
+                          border: `1px solid ${isRelocatedB ? COLORS.personB : COLORS.gridLineFaint}`,
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          fontWeight: isRelocatedB ? 600 : 400,
+                        }}
+                      >
+                        R {nameB.split(' ')[0]}
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
+              {/* Change location button */}
+              {(relocatedPerson) && onOpenLocationPicker && (
+                <button
+                  onClick={onOpenLocationPicker}
+                  style={{
+                    marginTop: 8,
+                    width: '100%',
+                    padding: isMobile ? '10px 12px' : '6px 8px',
+                    fontSize: isMobile ? 13 : 10,
+                    fontWeight: 600,
+                    background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
+                    color: '#1a1a1a',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Pick Location on Map
+                </button>
+              )}
             </div>
           )}
         </Section>

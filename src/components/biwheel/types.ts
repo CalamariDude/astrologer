@@ -181,11 +181,22 @@ export interface BiWheelSynastryProps {
   // Birth data for Person A (used for astrocartography in location picker)
   birthDateA?: string;
   birthTimeA?: string;
+  // Initial progressed/relocated state (for mobile wrapper lifting state)
+  initialProgressedPerson?: 'A' | 'B' | 'both' | null;
+  initialProgressedDate?: string;
+  initialShowSolarArc?: boolean;
+  initialRelocatedPerson?: 'A' | 'B' | 'both' | null;
   // Mode change callbacks (for parent sync)
   /** Current theme from parent (DB source of truth). When set, overrides local saved defaults. */
   initialTheme?: string;
   onThemeChange?: (theme: string) => void;
   onChartModeChange?: (mode: ChartMode) => void;
+  onProgressedPersonChange?: (person: 'A' | 'B' | 'both' | null) => void;
+  onProgressedDateChange?: (date: string) => void;
+  onShowSolarArcChange?: (show: boolean) => void;
+  onRelocatedPersonChange?: (person: 'A' | 'B' | 'both' | null) => void;
+  onProgressedLoadingChange?: (loading: boolean) => void;
+  onRelocatedLoadingChange?: (loading: boolean) => void;
   onShowTransitsChange?: (show: boolean) => void;
   onAsteroidsChange?: (asteroids: AsteroidsParam) => void;
   // Asteroids data fetch callback - called when asteroid groups are enabled to fetch positions

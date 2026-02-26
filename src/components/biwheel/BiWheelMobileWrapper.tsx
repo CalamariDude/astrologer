@@ -106,6 +106,21 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   );
   const [chartMode, setChartMode] = useState<ChartMode>(biWheelProps.initialChartMode || 'synastry');
 
+  // Progressed state (lifted for mobile drawer access)
+  const [progressedPerson, setProgressedPerson] = useState<'A' | 'B' | 'both' | null>(null);
+  const now2 = new Date();
+  const todayStr = `${now2.getFullYear()}-${String(now2.getMonth() + 1).padStart(2, '0')}-${String(now2.getDate()).padStart(2, '0')}`;
+  const [progressedDate, setProgressedDate] = useState(todayStr);
+  const [progressedLoading, setProgressedLoading] = useState(false);
+  const [showSolarArc, setShowSolarArc] = useState(false);
+
+  // Relocated state (lifted for mobile drawer access)
+  const [relocatedPerson, setRelocatedPerson] = useState<'A' | 'B' | 'both' | null>(null);
+  const [relocatedLoading, setRelocatedLoading] = useState(false);
+
+  // Theme state (lifted for mobile drawer access)
+  const [chartTheme, setChartTheme] = useState<string>(biWheelProps.initialTheme || 'classic');
+
   // Sync visibility changes up to parent (for galactic mode linking)
   useEffect(() => {
     onVisiblePlanetsChange?.(visiblePlanets);
@@ -485,8 +500,8 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   // Generate a key that changes when control state changes
   // This forces BiWheelSynastry to re-mount with new initial values
   const chartKey = useMemo(() => {
-    return `${chartMode}-${Array.from(visiblePlanets).sort().join(',')}-${Array.from(visibleAspects).sort().join(',')}-${showHouses}-${showDegreeMarkers}-${Array.from(enabledAsteroidGroups).sort().join(',')}`;
-  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups]);
+    return `${chartMode}-${Array.from(visiblePlanets).sort().join(',')}-${Array.from(visibleAspects).sort().join(',')}-${showHouses}-${showDegreeMarkers}-${Array.from(enabledAsteroidGroups).sort().join(',')}-${progressedPerson}-${progressedDate}-${showSolarArc}-${relocatedPerson}-${chartTheme}`;
+  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups, progressedPerson, progressedDate, showSolarArc, relocatedPerson, chartTheme]);
 
   return (
     <div ref={containerRef} className="w-full">
@@ -608,7 +623,19 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
               initialShowHouses={showHouses}
               initialShowDegreeMarkers={showDegreeMarkers}
               initialChartMode={chartMode}
+              initialProgressedPerson={progressedPerson}
+              initialProgressedDate={progressedDate}
+              initialShowSolarArc={showSolarArc}
+              initialRelocatedPerson={relocatedPerson}
+              initialTheme={chartTheme}
               onChartModeChange={(mode) => { setChartMode(mode); biWheelProps.onChartModeChange?.(mode); }}
+              onProgressedPersonChange={setProgressedPerson}
+              onProgressedDateChange={setProgressedDate}
+              onShowSolarArcChange={setShowSolarArc}
+              onRelocatedPersonChange={setRelocatedPerson}
+              onProgressedLoadingChange={setProgressedLoading}
+              onRelocatedLoadingChange={setRelocatedLoading}
+              onThemeChange={(theme) => { setChartTheme(theme); biWheelProps.onThemeChange?.(theme); }}
             />
           ) : (
             <div
@@ -702,6 +729,23 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                   onToggleAsteroidGroup={toggleAsteroidGroup}
                   onEnableAllAsteroids={enableAllAsteroids}
                   onDisableAllAsteroids={disableAllAsteroids}
+                  // Progressed controls
+                  enableProgressed={biWheelProps.enableProgressed}
+                  progressedPerson={progressedPerson}
+                  progressedDate={progressedDate}
+                  progressedLoading={progressedLoading}
+                  showSolarArc={showSolarArc}
+                  onSetProgressedPerson={setProgressedPerson}
+                  onSetProgressedDate={setProgressedDate}
+                  onSetShowSolarArc={setShowSolarArc}
+                  // Relocated controls
+                  enableRelocated={biWheelProps.enableRelocated}
+                  relocatedPerson={relocatedPerson}
+                  relocatedLoading={relocatedLoading}
+                  onSetRelocatedPerson={setRelocatedPerson}
+                  // Theme controls
+                  chartTheme={chartTheme as any}
+                  onThemeChange={(theme) => { setChartTheme(theme); biWheelProps.onThemeChange?.(theme); }}
                   onSaveDefaults={saveDefaults}
                 />
               </div>

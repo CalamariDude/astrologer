@@ -353,10 +353,21 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   // Birth data for Person A (used for astrocartography in location picker)
   birthDateA,
   birthTimeA,
+  // Initial progressed/relocated state (for mobile wrapper)
+  initialProgressedPerson,
+  initialProgressedDate,
+  initialShowSolarArc,
+  initialRelocatedPerson,
   // Mode change callbacks
   initialTheme,
   onThemeChange,
   onChartModeChange,
+  onProgressedPersonChange,
+  onProgressedDateChange,
+  onShowSolarArcChange,
+  onRelocatedPersonChange,
+  onProgressedLoadingChange,
+  onRelocatedLoadingChange,
   onShowTransitsChange,
   onAsteroidsChange,
   // Asteroids data fetch
@@ -399,13 +410,13 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     compositeData: null,
     compositeLoading: false,
     // Progressed state
-    showProgressed: false,
-    progressedDate: today,
+    showProgressed: !!initialProgressedPerson,
+    progressedDate: initialProgressedDate || today,
     progressedData: null,
     progressedDataOther: null,
     progressedLoading: false,
     // Relocated state
-    showRelocated: false,
+    showRelocated: !!initialRelocatedPerson,
     relocatedLocation: null,
     relocatedData: null,
     relocatedDataOther: null,
@@ -414,7 +425,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     // Asteroids state
     enabledAsteroidGroups: savedDefaults ? new Set(savedDefaults.enabledAsteroidGroups as AsteroidGroup[]) : new Set<AsteroidGroup>(),
     // Solar Arc state (derived from progressed Sun - mutually exclusive with progressed)
-    showSolarArc: false,
+    showSolarArc: initialShowSolarArc || false,
   });
 
   // Swap A/B state - when true, Person A and B are swapped in the biwheel
@@ -505,10 +516,10 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   const [zodiacVantage, setZodiacVantage] = useState<number | null>(null);
 
   // Progressed person state - which person(s) progressed chart to show
-  const [progressedPerson, setProgressedPerson] = useState<'A' | 'B' | 'both' | null>(null);
+  const [progressedPerson, setProgressedPerson] = useState<'A' | 'B' | 'both' | null>(initialProgressedPerson ?? null);
 
   // Relocated person state - which person(s) relocated chart to show
-  const [relocatedPerson, setRelocatedPerson] = useState<'A' | 'B' | 'both' | null>(null);
+  const [relocatedPerson, setRelocatedPerson] = useState<'A' | 'B' | 'both' | null>(initialRelocatedPerson ?? null);
 
   // Sync external relocated location/person from parent (e.g., map selection)
   useEffect(() => {
@@ -783,6 +794,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       const otherPerson = primaryPerson === 'A' ? 'B' : 'A';
       console.log('[Progressed] Starting fetch for person:', primaryPerson, '(mode:', progressedPerson, ') date:', state.progressedDate);
       setState(prev => ({ ...prev, progressedLoading: true }));
+      onProgressedLoadingChange?.(true);
       try {
         // Fetch progressed chart for the primary person
         const data = await onFetchProgressed(primaryPerson, state.progressedDate, computedAsteroids);
@@ -793,6 +805,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         });
         // Set primary data immediately so the wheel updates right away
         setState(prev => ({ ...prev, progressedData: data, progressedLoading: false }));
+        onProgressedLoadingChange?.(false);
 
         // Then fetch the other person's progressed data for house ring consistency
         try {
@@ -807,6 +820,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       } catch (error) {
         console.error('[Progressed] Failed to fetch:', error);
         setState(prev => ({ ...prev, progressedLoading: false, progressedData: null, progressedDataOther: null }));
+        onProgressedLoadingChange?.(false);
       }
     };
 
@@ -842,6 +856,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       const otherPerson = primaryPerson === 'A' ? 'B' : 'A';
       console.log('[Relocated] Starting fetch for person:', primaryPerson, '(mode:', relocatedPerson, ') location:', state.relocatedLocation);
       setState(prev => ({ ...prev, relocatedLoading: true }));
+      onRelocatedLoadingChange?.(true);
       try {
         // Fetch primary person's relocated data first
         const data = await onFetchRelocated(primaryPerson, state.relocatedLocation!.lat, state.relocatedLocation!.lng, computedAsteroids);
@@ -852,6 +867,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         });
         // Set primary data immediately so the wheel updates right away
         setState(prev => ({ ...prev, relocatedData: data, relocatedLoading: false }));
+        onRelocatedLoadingChange?.(false);
 
         // Then fetch the other person's relocated data for house ring consistency
         try {
@@ -866,6 +882,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       } catch (error) {
         console.error('[Relocated] Failed to fetch:', error);
         setState(prev => ({ ...prev, relocatedLoading: false, relocatedData: null, relocatedDataOther: null }));
+        onRelocatedLoadingChange?.(false);
       }
     };
 
@@ -907,12 +924,16 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       // Disable relocated when enabling progressed (mutually exclusive)
       ...(show ? { showRelocated: false, relocatedData: null, relocatedDataOther: null, relocatedLocation: null, progressedDataOther: null } : {}),
     }));
-    if (show) setRelocatedPerson(null);
-  }, []);
+    if (show) {
+      setRelocatedPerson(null);
+      onRelocatedPersonChange?.(null);
+    }
+  }, [onRelocatedPersonChange]);
 
   const setProgressedDate = useCallback((date: string) => {
     setState(prev => ({ ...prev, progressedDate: date }));
-  }, []);
+    onProgressedDateChange?.(date);
+  }, [onProgressedDateChange]);
 
   // Solar Arc toggle - mutually exclusive with progressed (reuses progressed data)
   const setShowSolarArc = useCallback((show: boolean) => {
@@ -922,7 +943,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       // Solar arc and progressed are mutually exclusive for display
       showProgressed: show ? false : prev.showProgressed,
     }));
-  }, []);
+    onShowSolarArcChange?.(show);
+  }, [onShowSolarArcChange]);
 
   // Relocated chart handlers - mutually exclusive with progressed
   const setShowRelocated = useCallback((show: boolean) => {
@@ -932,8 +954,11 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       // Disable progressed when enabling relocated (mutually exclusive)
       ...(show ? { showProgressed: false, progressedData: null, progressedDataOther: null } : {}),
     }));
-    if (show) setProgressedPerson(null);
-  }, []);
+    if (show) {
+      setProgressedPerson(null);
+      onProgressedPersonChange?.(null);
+    }
+  }, [onProgressedPersonChange]);
 
   const setRelocatedLocation = useCallback((location: LocationData | null) => {
     setState(prev => ({ ...prev, relocatedLocation: location }));
