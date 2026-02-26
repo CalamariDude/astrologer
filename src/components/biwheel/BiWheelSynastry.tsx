@@ -2250,7 +2250,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         <text x={22} y={36} fill={COLORS.textSecondary} fontSize={30} fontWeight={200} fontFamily="'Inter', system-ui, sans-serif" letterSpacing="0.12em" opacity={0.7} style={{ textTransform: 'uppercase' as const }}>
           ASTROLOGER
         </text>
-        <text x={22} y={54} fill={COLORS.textSecondary} fontSize={14} fontWeight={300} fontFamily="'Inter', system-ui, sans-serif" letterSpacing="0.08em" opacity={0.5}>
+        <text x={22} y={56} fill={COLORS.textSecondary} fontSize={20} fontWeight={300} fontFamily="'Inter', system-ui, sans-serif" letterSpacing="0.08em" opacity={0.5}>
           astrologerapp.org
         </text>
       </svg>

@@ -259,7 +259,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
           background: COLORS.background,
           borderRadius: 12,
           boxShadow: '0 25px 50px rgba(0, 0, 0, 0.3)',
-          overflow: 'hidden',
+          overflow: 'hidden auto',
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -402,12 +402,12 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
         )}
 
         {/* Map Container */}
-        <div style={{ height: '400px', minHeight: '400px', position: 'relative' }}>
+        <div style={{ height: 'clamp(250px, 45vh, 400px)', minHeight: '250px', position: 'relative', flexShrink: 0 }}>
           <MapContainer
             key={`${defaultCenter.lat}-${defaultCenter.lng}-${mapStyle}`}
             center={[defaultCenter.lat, defaultCenter.lng]}
             zoom={5}
-            style={{ height: '400px', width: '100%' }}
+            style={{ height: '100%', width: '100%' }}
             zoomControl={true}
           >
             <TileLayer

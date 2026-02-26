@@ -8,7 +8,8 @@ import { BiWheelSynastry } from './BiWheelSynastry';
 import { TogglePanelContent } from './controls/TogglePanelContent';
 import type { BiWheelSynastryProps, AsteroidGroup, ChartMode, LocationData } from './types';
 import { ASTEROID_GROUPS } from './types';
-import { ASTEROIDS, ASTEROID_GROUP_INFO } from './utils/constants';
+import { ASTEROIDS, ASTEROID_GROUP_INFO, applyTheme } from './utils/constants';
+import { THEMES, type ThemeName } from './utils/themes';
 import { Drawer } from 'vaul';
 import { Settings2, Download, Image, FileText, Mail, Loader2, Share2, Link2, Check } from 'lucide-react';
 // Lazy-import chart export (pulls in jsPDF ~357KB) — only needed on export button click
@@ -140,7 +141,11 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   const { isPaid } = useSubscription();
 
   // Theme state (lifted for mobile drawer access)
-  const [chartTheme, setChartTheme] = useState<string>(biWheelProps.initialTheme || 'classic');
+  const [chartTheme, setChartTheme] = useState<string>(() => {
+    const theme = biWheelProps.initialTheme || 'classic';
+    applyTheme(theme as ThemeName); // Sync global COLORS immediately
+    return theme;
+  });
 
   // Sync visibility changes up to parent (for galactic mode linking)
   useEffect(() => {
@@ -734,10 +739,22 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
         <Drawer.Root open={drawerOpen} onOpenChange={setDrawerOpen}>
           <Drawer.Portal>
             <Drawer.Overlay className="fixed inset-0 bg-black/40 z-50" />
-            <Drawer.Content className="fixed bottom-0 left-0 right-0 bg-white rounded-t-xl z-50 max-h-[85vh] flex flex-col">
+            <Drawer.Content
+              className="fixed bottom-0 left-0 right-0 rounded-t-xl z-50 max-h-[85vh] flex flex-col"
+              style={{
+                backgroundColor: THEMES[chartTheme as ThemeName]?.background || '#ffffff',
+                color: THEMES[chartTheme as ThemeName]?.textPrimary || '#000000',
+              }}
+            >
               <div className="p-4 flex-1 overflow-y-auto">
-                <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-muted-foreground/30 mb-4" />
-                <Drawer.Title className="text-lg font-semibold mb-4">
+                <div
+                  className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full mb-4"
+                  style={{ backgroundColor: THEMES[chartTheme as ThemeName]?.gridLineFaint || '#999' }}
+                />
+                <Drawer.Title
+                  className="text-lg font-semibold mb-4"
+                  style={{ color: THEMES[chartTheme as ThemeName]?.textPrimary || '#000' }}
+                >
                   Chart Options
                 </Drawer.Title>
                 <TogglePanelContent
@@ -823,7 +840,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                   onOpenLocationPicker={handleOpenLocationPicker}
                   // Theme controls
                   chartTheme={chartTheme as any}
-                  onThemeChange={(theme) => { setChartTheme(theme); biWheelProps.onThemeChange?.(theme); }}
+                  onThemeChange={(theme) => { applyTheme(theme); setChartTheme(theme); biWheelProps.onThemeChange?.(theme); }}
                   onSaveDefaults={saveDefaults}
                 />
               </div>

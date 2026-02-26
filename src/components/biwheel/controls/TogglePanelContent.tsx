@@ -536,58 +536,79 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
                 <span style={{ color: '#FFD700', fontWeight: 'bold' }}>P</span> Progressed
                 {progressedLoading && <span style={{ fontSize: isMobile ? 12 : 10, color: '#FFD700' }}>Loading...</span>}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {(() => {
-                  const isProgressedA = progressedPerson === 'A' || progressedPerson === 'both';
-                  const isProgressedB = progressedPerson === 'B' || progressedPerson === 'both';
-                  return (
-                    <>
-                      <button
-                        onClick={() => {
-                          if (isProgressedA) {
-                            onSetProgressedPerson(isProgressedB ? 'B' : null);
-                          } else {
-                            onSetProgressedPerson(isProgressedB ? 'both' : 'A');
-                          }
-                        }}
-                        style={{
-                          padding: isMobile ? '10px 12px' : '5px 8px',
-                          fontSize: isMobile ? 13 : 10,
-                          background: isProgressedA ? '#FFD700' : COLORS.backgroundAlt2,
-                          color: isProgressedA ? '#1a1a1a' : COLORS.textSecondary,
-                          border: `1px solid ${isProgressedA ? '#FFD700' : COLORS.gridLineFaint}`,
-                          borderRadius: 6,
-                          cursor: 'pointer',
-                          fontWeight: isProgressedA ? 600 : 400,
-                        }}
-                      >
-                        P {nameA.split(' ')[0]}
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (isProgressedB) {
-                            onSetProgressedPerson(isProgressedA ? 'A' : null);
-                          } else {
-                            onSetProgressedPerson(isProgressedA ? 'both' : 'B');
-                          }
-                        }}
-                        style={{
-                          padding: isMobile ? '10px 12px' : '5px 8px',
-                          fontSize: isMobile ? 13 : 10,
-                          background: isProgressedB ? COLORS.personB : COLORS.backgroundAlt2,
-                          color: isProgressedB ? '#ffffff' : COLORS.textSecondary,
-                          border: `1px solid ${isProgressedB ? COLORS.personB : COLORS.gridLineFaint}`,
-                          borderRadius: 6,
-                          cursor: 'pointer',
-                          fontWeight: isProgressedB ? 600 : 400,
-                        }}
-                      >
-                        P {nameB.split(' ')[0]}
-                      </button>
-                    </>
-                  );
-                })()}
-              </div>
+              {enableComposite ? (
+                /* Two charts: show A and B columns */
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {(() => {
+                    const isProgressedA = progressedPerson === 'A' || progressedPerson === 'both';
+                    const isProgressedB = progressedPerson === 'B' || progressedPerson === 'both';
+                    return (
+                      <>
+                        <button
+                          onClick={() => {
+                            if (isProgressedA) {
+                              onSetProgressedPerson(isProgressedB ? 'B' : null);
+                            } else {
+                              onSetProgressedPerson(isProgressedB ? 'both' : 'A');
+                            }
+                          }}
+                          style={{
+                            padding: isMobile ? '10px 12px' : '5px 8px',
+                            fontSize: isMobile ? 13 : 10,
+                            background: isProgressedA ? '#FFD700' : COLORS.backgroundAlt2,
+                            color: isProgressedA ? '#1a1a1a' : COLORS.textSecondary,
+                            border: `1px solid ${isProgressedA ? '#FFD700' : COLORS.gridLineFaint}`,
+                            borderRadius: 6,
+                            cursor: 'pointer',
+                            fontWeight: isProgressedA ? 600 : 400,
+                          }}
+                        >
+                          P {nameA.split(' ')[0]}
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (isProgressedB) {
+                              onSetProgressedPerson(isProgressedA ? 'A' : null);
+                            } else {
+                              onSetProgressedPerson(isProgressedA ? 'both' : 'B');
+                            }
+                          }}
+                          style={{
+                            padding: isMobile ? '10px 12px' : '5px 8px',
+                            fontSize: isMobile ? 13 : 10,
+                            background: isProgressedB ? COLORS.personB : COLORS.backgroundAlt2,
+                            color: isProgressedB ? '#ffffff' : COLORS.textSecondary,
+                            border: `1px solid ${isProgressedB ? COLORS.personB : COLORS.gridLineFaint}`,
+                            borderRadius: 6,
+                            cursor: 'pointer',
+                            fontWeight: isProgressedB ? 600 : 400,
+                          }}
+                        >
+                          P {nameB.split(' ')[0]}
+                        </button>
+                      </>
+                    );
+                  })()}
+                </div>
+              ) : (
+                /* Single chart: one toggle button */
+                <button
+                  onClick={() => onSetProgressedPerson(progressedPerson ? null : 'A')}
+                  style={{
+                    width: '100%',
+                    padding: isMobile ? '10px 12px' : '5px 8px',
+                    fontSize: isMobile ? 13 : 10,
+                    background: progressedPerson ? '#FFD700' : COLORS.backgroundAlt2,
+                    color: progressedPerson ? '#1a1a1a' : COLORS.textSecondary,
+                    border: `1px solid ${progressedPerson ? '#FFD700' : COLORS.gridLineFaint}`,
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    fontWeight: progressedPerson ? 600 : 400,
+                  }}
+                >
+                  Progressed {progressedPerson ? 'ON' : 'OFF'}
+                </button>
+              )}
               {/* Date picker for progressed */}
               {progressedPerson && onSetProgressedDate && (
                 <div style={{ marginTop: 8 }}>
@@ -663,58 +684,79 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
                 <span style={{ color: COLORS.personA, fontWeight: 'bold' }}>R</span> Relocated
                 {relocatedLoading && <span style={{ fontSize: isMobile ? 12 : 10, color: COLORS.personA }}>Loading...</span>}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {(() => {
-                  const isRelocatedA = relocatedPerson === 'A' || relocatedPerson === 'both';
-                  const isRelocatedB = relocatedPerson === 'B' || relocatedPerson === 'both';
-                  return (
-                    <>
-                      <button
-                        onClick={() => {
-                          if (isRelocatedA) {
-                            onSetRelocatedPerson(isRelocatedB ? 'B' : null);
-                          } else {
-                            onSetRelocatedPerson(isRelocatedB ? 'both' : 'A');
-                          }
-                        }}
-                        style={{
-                          padding: isMobile ? '10px 12px' : '5px 8px',
-                          fontSize: isMobile ? 13 : 10,
-                          background: isRelocatedA ? COLORS.personA : COLORS.backgroundAlt2,
-                          color: isRelocatedA ? '#ffffff' : COLORS.textSecondary,
-                          border: `1px solid ${isRelocatedA ? COLORS.personA : COLORS.gridLineFaint}`,
-                          borderRadius: 6,
-                          cursor: 'pointer',
-                          fontWeight: isRelocatedA ? 600 : 400,
-                        }}
-                      >
-                        R {nameA.split(' ')[0]}
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (isRelocatedB) {
-                            onSetRelocatedPerson(isRelocatedA ? 'A' : null);
-                          } else {
-                            onSetRelocatedPerson(isRelocatedA ? 'both' : 'B');
-                          }
-                        }}
-                        style={{
-                          padding: isMobile ? '10px 12px' : '5px 8px',
-                          fontSize: isMobile ? 13 : 10,
-                          background: isRelocatedB ? COLORS.personB : COLORS.backgroundAlt2,
-                          color: isRelocatedB ? '#ffffff' : COLORS.textSecondary,
-                          border: `1px solid ${isRelocatedB ? COLORS.personB : COLORS.gridLineFaint}`,
-                          borderRadius: 6,
-                          cursor: 'pointer',
-                          fontWeight: isRelocatedB ? 600 : 400,
-                        }}
-                      >
-                        R {nameB.split(' ')[0]}
-                      </button>
-                    </>
-                  );
-                })()}
-              </div>
+              {enableComposite ? (
+                /* Two charts: show A and B columns */
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {(() => {
+                    const isRelocatedA = relocatedPerson === 'A' || relocatedPerson === 'both';
+                    const isRelocatedB = relocatedPerson === 'B' || relocatedPerson === 'both';
+                    return (
+                      <>
+                        <button
+                          onClick={() => {
+                            if (isRelocatedA) {
+                              onSetRelocatedPerson(isRelocatedB ? 'B' : null);
+                            } else {
+                              onSetRelocatedPerson(isRelocatedB ? 'both' : 'A');
+                            }
+                          }}
+                          style={{
+                            padding: isMobile ? '10px 12px' : '5px 8px',
+                            fontSize: isMobile ? 13 : 10,
+                            background: isRelocatedA ? COLORS.personA : COLORS.backgroundAlt2,
+                            color: isRelocatedA ? '#ffffff' : COLORS.textSecondary,
+                            border: `1px solid ${isRelocatedA ? COLORS.personA : COLORS.gridLineFaint}`,
+                            borderRadius: 6,
+                            cursor: 'pointer',
+                            fontWeight: isRelocatedA ? 600 : 400,
+                          }}
+                        >
+                          R {nameA.split(' ')[0]}
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (isRelocatedB) {
+                              onSetRelocatedPerson(isRelocatedA ? 'A' : null);
+                            } else {
+                              onSetRelocatedPerson(isRelocatedA ? 'both' : 'B');
+                            }
+                          }}
+                          style={{
+                            padding: isMobile ? '10px 12px' : '5px 8px',
+                            fontSize: isMobile ? 13 : 10,
+                            background: isRelocatedB ? COLORS.personB : COLORS.backgroundAlt2,
+                            color: isRelocatedB ? '#ffffff' : COLORS.textSecondary,
+                            border: `1px solid ${isRelocatedB ? COLORS.personB : COLORS.gridLineFaint}`,
+                            borderRadius: 6,
+                            cursor: 'pointer',
+                            fontWeight: isRelocatedB ? 600 : 400,
+                          }}
+                        >
+                          R {nameB.split(' ')[0]}
+                        </button>
+                      </>
+                    );
+                  })()}
+                </div>
+              ) : (
+                /* Single chart: one toggle button */
+                <button
+                  onClick={() => onSetRelocatedPerson(relocatedPerson ? null : 'A')}
+                  style={{
+                    width: '100%',
+                    padding: isMobile ? '10px 12px' : '5px 8px',
+                    fontSize: isMobile ? 13 : 10,
+                    background: relocatedPerson ? COLORS.personA : COLORS.backgroundAlt2,
+                    color: relocatedPerson ? '#ffffff' : COLORS.textSecondary,
+                    border: `1px solid ${relocatedPerson ? COLORS.personA : COLORS.gridLineFaint}`,
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    fontWeight: relocatedPerson ? 600 : 400,
+                  }}
+                >
+                  Relocated {relocatedPerson ? 'ON' : 'OFF'}
+                </button>
+              )}
               {/* Change location button */}
               {(relocatedPerson) && onOpenLocationPicker && (
                 <button
