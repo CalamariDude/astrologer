@@ -432,9 +432,6 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     showSolarArc: initialShowSolarArc || false,
   });
 
-  // Debug: log initial relocated state on mount
-  console.log('[BiWheel] Component mount/render. initialRelocatedPerson:', initialRelocatedPerson, 'externalRelocatedLocation:', externalRelocatedLocation, 'state.showRelocated:', state.showRelocated, 'state.relocatedLocation:', state.relocatedLocation, 'relocatedPerson:', relocatedPerson, 'hasOnFetchRelocated:', !!onFetchRelocated);
-
   // Swap A/B state - when true, Person A and B are swapped in the biwheel
   const [swapped, setSwapped] = useState(false);
 
@@ -527,6 +524,9 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
   // Relocated person state - which person(s) relocated chart to show
   const [relocatedPerson, setRelocatedPerson] = useState<'A' | 'B' | 'both' | null>(initialRelocatedPerson ?? null);
+
+  // Debug relocated state
+  console.log('[BiWheel] Render. relocatedPerson:', relocatedPerson, 'showRelocated:', state.showRelocated, 'relocatedLocation:', state.relocatedLocation, 'externalRelocatedLocation:', externalRelocatedLocation, 'externalRelocatedPerson:', externalRelocatedPerson, 'hasOnFetchRelocated:', !!onFetchRelocated);
 
   // Sync external relocated location/person from parent (e.g., map selection)
   useEffect(() => {
