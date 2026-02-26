@@ -37,6 +37,7 @@ import { TransitTimeline } from '@/components/astro-tools/TransitTimeline';
 import { AgeDegreePanel } from '@/components/astro-tools/AgeDegreePanel';
 import { DeclinationPanel } from '@/components/astro-tools/DeclinationPanel';
 import { ChartNotes } from '@/components/astro-tools/ChartNotes';
+import { AIReading } from '@/components/astro-tools/AIReading';
 
 const ZODIAC_SIGNS = [
   'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
@@ -368,7 +369,7 @@ export default function ChartPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const routeState = location.state as { personA: PersonData; personB: PersonData | null } | null;
   const { user, signOut } = useAuth();
-  const { isPaid, openPortal } = useSubscription();
+  const { isPaid, openPortal, relocatedRemaining, useRelocatedCredit } = useSubscription();
 
   // Restore session state on mount
   const sessionRestore = useMemo(() => {
@@ -731,13 +732,21 @@ export default function ChartPage() {
   const handleFetchRelocated = useCallback(async (
     person: 'A' | 'B', newLat: number, newLng: number, asteroids?: AsteroidsParam
   ): Promise<RelocatedData> => {
+    // Credit gating: free users get 3/month, paid users get unlimited
+    if (relocatedRemaining === 0) {
+      throw new Error('You\'ve used all 3 free relocated charts this month. Upgrade to Pro for unlimited.');
+    }
+    const creditOk = await useRelocatedCredit();
+    if (!creditOk) {
+      throw new Error('Unable to use relocated credit. Please sign in.');
+    }
     const src = person === 'A' ? personAData : personBData;
     if (!src?.lat) throw new Error(`Person ${person} birth info not available`);
     const body: Record<string, unknown> = { birth_date: src.date, birth_time: src.time || '12:00', original_lat: src.lat, original_lng: src.lng, original_name: src.location || 'Birth Location', relocated_lat: newLat, relocated_lng: newLng };
     if (asteroids) body.asteroids = asteroids;
     const data = await swissEphemeris.relocated(body);
     return { original_location: data.original_location || { lat: src.lat, lng: src.lng!, name: src.location || 'Birth Location' }, relocated_location: data.relocated_location || { lat: newLat, lng: newLng, name: 'Relocated Location' }, relocated_planets: data.relocated_planets || [], houses: data.houses || { cusps: [], ascendant: 0, mc: 0 }, ascendantSign: data.ascendantSign || '' };
-  }, [personAData, personBData]);
+  }, [personAData, personBData, relocatedRemaining, useRelocatedCredit]);
 
   const handleFetchAsteroidData = useCallback(async (asteroids: string[]): Promise<{ chartA: Record<string, any>; chartB: Record<string, any> }> => {
     const resA: Record<string, any> = {}; const resB: Record<string, any> = {};
@@ -775,13 +784,14 @@ export default function ChartPage() {
 
           {user ? (
             <div className="flex items-center gap-2">
-              {hasChart && personA && <SaveChartButton personA={personA} personB={personB} />}
-
               {!isPaid && (
-                <Button size="sm" variant="default" onClick={() => setShowUpgrade(true)} className="gap-1.5 text-xs bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white border-0">
+                <button
+                  onClick={() => setShowUpgrade(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
                   <Sparkles className="w-3.5 h-3.5" />
-                  Upgrade
-                </Button>
+                  <span className="hidden sm:inline">Pro</span>
+                </button>
               )}
 
               <DropdownMenu>
@@ -916,12 +926,13 @@ export default function ChartPage() {
       {hasChart && personA ? (
         <div className="container py-4 md:py-6 space-y-4 md:space-y-6 px-2 md:px-6">
           <div>
-            {/* Galactic Mode toggle */}
-            {webglSupported && !hasSynastry && (
-              <div className="flex justify-end mb-2">
+            {/* Chart toolbar: save + galactic toggle */}
+            <div className="flex items-center justify-between mb-2">
+              <SaveChartButton personA={personA} personB={personB} />
+              {webglSupported && !hasSynastry && (
                 <GalacticToggle active={showGalactic} onToggle={() => setShowGalactic(v => !v)} />
-              </div>
-            )}
+              )}
+            </div>
 
             {showGalactic && webglSupported && !hasSynastry ? (
               <React.Suspense fallback={
@@ -984,6 +995,7 @@ export default function ChartPage() {
                 { value: 'graphic-eph', icon: TrendingUp, label: 'Graphic Eph.' },
                 { value: 'transits', icon: CalendarClock, label: 'Transits' },
                 { value: 'declination', icon: ArrowUpDown, label: 'Declination' },
+                { value: 'ai-reading', icon: Sparkles, label: 'AI Reading' },
                 { value: 'notes', icon: StickyNote, label: 'Notes' },
               ].map(tab => {
                 const Icon = tab.icon;
@@ -1027,6 +1039,9 @@ export default function ChartPage() {
             <TabsContent value="declination" className="mt-4 min-h-[400px]">
               <DeclinationPanel chartA={personA.natalChart} chartB={hasSynastry ? personB!.natalChart : undefined} nameA={personA.name || 'Person A'} nameB={hasSynastry ? (personB!.name || 'Person B') : undefined} />
             </TabsContent>
+            <TabsContent value="ai-reading" className="mt-4 min-h-[400px]">
+              <AIReading chartA={personA.natalChart} chartB={hasSynastry ? personB!.natalChart : undefined} nameA={personA.name || 'Person A'} nameB={hasSynastry ? (personB!.name || 'Person B') : undefined} />
+            </TabsContent>
             <TabsContent value="notes" className="mt-4 min-h-[400px]">
               <ChartNotes
                 chartKey={`${personAData.date}-${personAData.time}-${personAData.lat}`}
@@ -1043,12 +1058,33 @@ export default function ChartPage() {
             </TabsContent>
           </Tabs>
         </div>
-      ) : !editing ? (
-        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
-          <p>Enter birth data above to generate a chart.</p>
-          <Button variant="outline" onClick={() => setEditing(true)}>Enter Birth Data</Button>
+      ) : (
+        <div className="container py-8 md:py-12 px-2 md:px-6">
+          {/* Empty chart placeholder */}
+          <div className="flex flex-col items-center justify-center">
+            <div className="relative w-[300px] h-[300px] md:w-[400px] md:h-[400px] mb-6">
+              {/* Outer circle */}
+              <svg viewBox="0 0 400 400" className="w-full h-full text-muted-foreground/15">
+                <circle cx="200" cy="200" r="190" fill="none" stroke="currentColor" strokeWidth="2" />
+                <circle cx="200" cy="200" r="155" fill="none" stroke="currentColor" strokeWidth="1" />
+                <circle cx="200" cy="200" r="100" fill="none" stroke="currentColor" strokeWidth="1" />
+                {/* House lines */}
+                {Array.from({ length: 12 }, (_, i) => {
+                  const angle = (i * 30 - 90) * (Math.PI / 180);
+                  return <line key={i} x1={200 + 100 * Math.cos(angle)} y1={200 + 100 * Math.sin(angle)} x2={200 + 190 * Math.cos(angle)} y2={200 + 190 * Math.sin(angle)} stroke="currentColor" strokeWidth="1" />;
+                })}
+                {/* Center cross */}
+                <line x1="195" y1="200" x2="205" y2="200" stroke="currentColor" strokeWidth="1.5" />
+                <line x1="200" y1="195" x2="200" y2="205" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">Enter birth data to generate a chart</p>
+            {!editing && (
+              <Button variant="outline" onClick={() => setEditing(true)}>Enter Birth Data</Button>
+            )}
+          </div>
         </div>
-      ) : null}
+      )}
 
       {/* ── Modals ──────────────────────────────────────────── */}
       <SavedChartsList isOpen={showSaved} onClose={() => setShowSaved(false)} onLoad={handleLoadChart} />
