@@ -627,6 +627,139 @@ export default function HomePage() {
           }
         />
 
+        {/* ── Chart Tabs ── */}
+        <FeatureShowcase
+          tag="Multi-Chart Workspace"
+          headline={<>Ten charts.<br className="hidden sm:block" /> One workspace.</>}
+          body="Open multiple natal, synastry, and composite charts side by side. Switch between clients instantly — no page reloads, no lost state. Each tab preserves its full chart configuration."
+          visual={
+            <div className="relative group flex items-center justify-center">
+              <div className="absolute -inset-10 bg-gradient-to-br from-sky-500/[0.07] to-violet-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
+              <div className="relative bg-[#0d1117] rounded-2xl border border-white/10 p-5 sm:p-6 w-full max-w-sm drop-shadow-2xl">
+                {/* Tab bar */}
+                <div className="flex items-center gap-1 mb-4">
+                  {[
+                    { name: 'Sarah', type: 'Natal', active: true },
+                    { name: 'John & Maya', type: 'Synastry', active: false },
+                    { name: 'New Chart', type: '', active: false },
+                  ].map((tab) => (
+                    <div
+                      key={tab.name}
+                      className={`group/tab relative flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                        tab.active
+                          ? 'bg-violet-500/15 border border-violet-500/30 text-white/90'
+                          : 'bg-white/[0.03] border border-white/[0.06] text-white/35 hover:text-white/50'
+                      }`}
+                    >
+                      <span className="truncate max-w-[80px]">{tab.name}</span>
+                      {tab.type && <span className="text-[9px] uppercase tracking-wider text-white/20">{tab.type}</span>}
+                      <span className="text-white/15 text-xs ml-0.5 opacity-0 group-hover/tab:opacity-100 transition-opacity cursor-pointer">&times;</span>
+                    </div>
+                  ))}
+                  {/* Add tab button */}
+                  <div className="w-8 h-8 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-white/25 hover:text-white/40 transition-colors cursor-pointer text-lg leading-none">
+                    +
+                  </div>
+                </div>
+                {/* Active chart area */}
+                <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center text-[10px] text-white font-bold">S</div>
+                      <div>
+                        <div className="text-xs text-white/70 font-medium">Sarah Mitchell</div>
+                        <div className="text-[10px] text-white/25">Mar 17, 1998 · 2:34 AM</div>
+                      </div>
+                    </div>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-300/60 uppercase tracking-wider font-bold">Natal</span>
+                  </div>
+                  {/* Mini chart placeholder */}
+                  <div className="relative w-full aspect-square max-w-[140px] mx-auto">
+                    <div className="absolute inset-0 rounded-full border border-white/[0.08]" />
+                    <div className="absolute inset-3 rounded-full border border-white/[0.06]" />
+                    <div className="absolute inset-6 rounded-full border border-white/[0.04]" />
+                    {/* Planet dots */}
+                    {[
+                      { top: '15%', left: '60%', color: '#f59e0b' },
+                      { top: '30%', left: '80%', color: '#ec4899' },
+                      { top: '70%', left: '25%', color: '#6366f1' },
+                      { top: '50%', left: '75%', color: '#22c55e' },
+                      { top: '80%', left: '55%', color: '#ef4444' },
+                    ].map((p, i) => (
+                      <div key={i} className="absolute w-2 h-2 rounded-full" style={{ top: p.top, left: p.left, backgroundColor: p.color, boxShadow: `0 0 6px ${p.color}50` }} />
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between mt-3">
+                  <span className="text-[10px] text-white/20">3 charts open</span>
+                  <span className="text-[10px] text-white/20">⌘1–9 to switch</span>
+                </div>
+              </div>
+            </div>
+          }
+        />
+
+        {/* ── Chart Presets ── */}
+        <FeatureShowcase
+          tag="Display Presets"
+          headline={<>Your setup.<br className="hidden sm:block" /> Saved in one click.</>}
+          body="Configure your ideal chart view — which planets, aspects, asteroid groups, and visual options to show — then save it as a preset. Load any preset instantly. Up to 10 per account, synced across devices."
+          reversed
+          visual={
+            <div className="relative group flex items-center justify-center">
+              <div className="absolute -inset-10 bg-gradient-to-br from-amber-500/[0.07] to-orange-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
+              <div className="relative bg-[#0d1117] rounded-2xl border border-white/10 p-5 sm:p-6 w-full max-w-sm drop-shadow-2xl">
+                <div className="text-xs text-white/40 font-bold uppercase tracking-wider mb-4">Display Presets</div>
+                {/* Preset list */}
+                <div className="space-y-2 mb-4">
+                  {[
+                    { name: 'Traditional 7', active: true, dots: ['#f59e0b', '#c0c0c0', '#ec4899', '#ef4444', '#f97316', '#6366f1', '#22c55e'] },
+                    { name: 'Full Outer', active: false, dots: ['#f59e0b', '#c0c0c0', '#ec4899', '#ef4444', '#f97316', '#6366f1', '#22c55e', '#06b6d4', '#8b5cf6', '#3b82f6'] },
+                    { name: 'Asteroids Only', active: false, dots: ['#a855f7', '#f43f5e', '#14b8a6', '#eab308'] },
+                  ].map((preset) => (
+                    <div
+                      key={preset.name}
+                      className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
+                        preset.active
+                          ? 'bg-amber-500/10 border border-amber-500/25'
+                          : 'bg-white/[0.03] border border-white/[0.06]'
+                      }`}
+                    >
+                      {/* Radio indicator */}
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                        preset.active ? 'border-amber-400' : 'border-white/15'
+                      }`}>
+                        {preset.active && <div className="w-2 h-2 rounded-full bg-amber-400" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-sm font-medium ${preset.active ? 'text-white/85' : 'text-white/40'}`}>{preset.name}</div>
+                        {/* Planet dots */}
+                        <div className="flex items-center gap-1 mt-1">
+                          {preset.dots.map((color, i) => (
+                            <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color, opacity: preset.active ? 0.8 : 0.3 }} />
+                          ))}
+                        </div>
+                      </div>
+                      {preset.active && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300/70 uppercase tracking-wider font-bold">Active</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {/* Save preset button */}
+                <div className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-white/10 text-white/25 hover:text-white/40 hover:border-white/20 transition-colors cursor-pointer">
+                  <span className="text-lg leading-none">+</span>
+                  <span className="text-sm">Save Current as Preset</span>
+                </div>
+                <div className="flex items-center justify-between mt-3">
+                  <span className="text-[10px] text-white/20">3 of 10 presets used</span>
+                  <span className="text-[10px] text-white/20">Synced across devices</span>
+                </div>
+              </div>
+            </div>
+          }
+        />
+
         {/* Themes — custom layout for oversized image */}
         <section className="py-24 sm:py-32 md:py-40 px-4 sm:px-6 overflow-hidden bg-[#07050F]">
           <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-12 sm:gap-16 lg:gap-10">
