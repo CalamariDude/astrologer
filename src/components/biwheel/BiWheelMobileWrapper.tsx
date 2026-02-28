@@ -10,6 +10,7 @@ import type { BiWheelSynastryProps, AsteroidGroup, ChartMode, LocationData } fro
 import { ASTEROID_GROUPS } from './types';
 import { ASTEROIDS, ASTEROID_GROUP_INFO, DEFAULT_VISIBLE_PLANETS, applyTheme } from './utils/constants';
 import { THEMES, type ThemeName } from './utils/themes';
+import { BirthTimeShiftKnob } from './controls/BirthTimeShiftKnob';
 import { Drawer } from 'vaul';
 import { Settings2, Download, Image, FileText, Mail, Loader2, Share2, Link2, Check, Plus, X, Bookmark } from 'lucide-react';
 import { type ChartPreset, loadPresets, savePreset, deletePreset, buildPresetFromState, loadPresetsFromProfile, savePresetsToProfile } from './utils/presets';
@@ -197,6 +198,9 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   // Birth time shift state (lifted for mobile drawer access)
   const [showBirthTimeShift, setShowBirthTimeShift] = useState(false);
+  const [timeShiftA, setTimeShiftA] = useState(0);
+  const [timeShiftB, setTimeShiftB] = useState(0);
+  const [birthTimeShiftLoading, setBirthTimeShiftLoading] = useState(false);
 
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -353,6 +357,9 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
       showEffects: mobileShowEffects,
       showRetrogrades,
       showDecans,
+      showBirthTimeShift,
+      timeShiftA,
+      timeShiftB,
       scale,
       translateX: translate.x,
       translateY: translate.y,
@@ -360,7 +367,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     console.log('[BiWheelWrapper] Broadcasting via lifted-state effect', { chartMode, planets: visiblePlanets.size, asteroids: enabledAsteroidGroups.size });
     onStateChangeRef.current('state_snapshot' as any, snapshot);
     if (stateRef) stateRef.current = snapshot;
-  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, showTransits, transitDate, transitTime, progressedPerson, progressedDate, showSolarArc, relocatedPerson, relocatedLocationA, relocatedLocationB, enabledAsteroidGroups, chartTheme, rotateToAscendant, zodiacVantage, straightAspects, mobileShowEffects, showRetrogrades, showDecans, scale, translate.x, translate.y, externalState, stateRef]);
+  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, showTransits, transitDate, transitTime, progressedPerson, progressedDate, showSolarArc, relocatedPerson, relocatedLocationA, relocatedLocationB, enabledAsteroidGroups, chartTheme, rotateToAscendant, zodiacVantage, straightAspects, mobileShowEffects, showRetrogrades, showDecans, showBirthTimeShift, timeShiftA, timeShiftB, scale, translate.x, translate.y, externalState, stateRef]);
 
   // Calculate responsive chart size
   const chartSize = useMemo(() => {
@@ -1165,16 +1172,43 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
               // Birth time shift
               initialShowBirthTimeShift: showBirthTimeShift,
               onShowBirthTimeShiftChange: setShowBirthTimeShift,
+              initialTimeShiftA: timeShiftA,
+              initialTimeShiftB: timeShiftB,
+              onTimeShiftAChange: (offset: number) => { setTimeShiftA(offset); biWheelProps.onTimeShiftAChange?.(offset); },
+              onTimeShiftBChange: (offset: number) => { setTimeShiftB(offset); biWheelProps.onTimeShiftBChange?.(offset); },
             };
 
             return isMobile ? (
               /* Mobile: no custom zoom transform — native pinch-to-zoom works on the SVG */
-              <BiWheelSynastry
-                key={chartKey}
-                {...sharedSynastryProps}
-                showTogglePanel={false}
-                hideZoomControls
-              />
+              <>
+                <BiWheelSynastry
+                  key={chartKey}
+                  {...sharedSynastryProps}
+                  showTogglePanel={false}
+                  hideZoomControls
+                />
+                {/* Birth time shift knobs — mobile: centered row below chart */}
+                {showBirthTimeShift && biWheelProps.enableBirthTimeShift && chartMode !== 'composite' && (
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 24, padding: '8px 0 4px' }}>
+                    <BirthTimeShiftKnob
+                      label="A"
+                      timeShiftMinutes={timeShiftA}
+                      onTimeShiftChange={(offset) => { setTimeShiftA(offset); biWheelProps.onTimeShiftAChange?.(offset); }}
+                      onReset={() => { setTimeShiftA(0); biWheelProps.onTimeShiftAChange?.(0); }}
+                      size={80}
+                    />
+                    {biWheelProps.birthTimeB && (chartMode === 'synastry' || chartMode === 'personB') && (
+                      <BirthTimeShiftKnob
+                        label="B"
+                        timeShiftMinutes={timeShiftB}
+                        onTimeShiftChange={(offset) => { setTimeShiftB(offset); biWheelProps.onTimeShiftBChange?.(offset); }}
+                        onReset={() => { setTimeShiftB(0); biWheelProps.onTimeShiftBChange?.(0); }}
+                        size={80}
+                      />
+                    )}
+                  </div>
+                )}
+              </>
             ) : (
               <div
                 style={{
@@ -1319,7 +1353,10 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                   // Birth time shift (natal knobs)
                   enableBirthTimeShift={biWheelProps.enableBirthTimeShift}
                   showBirthTimeShift={showBirthTimeShift}
-                  onSetShowBirthTimeShift={setShowBirthTimeShift}
+                  onSetShowBirthTimeShift={(show) => {
+                    setShowBirthTimeShift(show);
+                    if (!show) { setTimeShiftA(0); setTimeShiftB(0); biWheelProps.onTimeShiftAChange?.(0); biWheelProps.onTimeShiftBChange?.(0); }
+                  }}
                   onSaveDefaults={saveDefaults}
                   // Presets
                   presets={presets.map(p => ({ id: p.id, name: p.name }))}

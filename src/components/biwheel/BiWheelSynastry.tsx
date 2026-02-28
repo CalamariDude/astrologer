@@ -475,6 +475,13 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     birthTimeShiftLoading: false,
   });
 
+  // Sync birth time shift visibility from external prop (mobile drawer toggle)
+  useEffect(() => {
+    if (initialShowBirthTimeShift !== undefined && initialShowBirthTimeShift !== state.showBirthTimeShift) {
+      setState(prev => ({ ...prev, showBirthTimeShift: initialShowBirthTimeShift }));
+    }
+  }, [initialShowBirthTimeShift]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Delayed transit loading — only true if transitLoading persists >500ms
   const [transitLoadingSlow, setTransitLoadingSlow] = useState(false);
   useEffect(() => {
@@ -2785,29 +2792,6 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       )}
       </div>
 
-      {/* Birth time shift knobs — mobile: below chart in a row */}
-      {!showTogglePanel && enableBirthTimeShift && state.showBirthTimeShift && state.chartMode !== 'composite' && (
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 24, padding: '8px 0' }}>
-          <BirthTimeShiftKnob
-            label="A"
-            timeShiftMinutes={state.timeShiftA}
-            onTimeShiftChange={setTimeShiftA}
-            onReset={resetTimeShiftA}
-            loading={state.birthTimeShiftLoading && state.timeShiftA !== 0}
-            size={80}
-          />
-          {birthTimeB && (state.chartMode === 'synastry' || state.chartMode === 'personB') && (
-            <BirthTimeShiftKnob
-              label="B"
-              timeShiftMinutes={state.timeShiftB}
-              onTimeShiftChange={setTimeShiftB}
-              onReset={resetTimeShiftB}
-              loading={state.birthTimeShiftLoading && state.timeShiftB !== 0}
-              size={80}
-            />
-          )}
-        </div>
-      )}
 
       {/* Toggle Panel - flex sibling next to SVG wrapper */}
       {showTogglePanel && (
