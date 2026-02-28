@@ -222,6 +222,15 @@ export interface BiWheelSynastryProps {
   onFetchAsteroidData?: (asteroids: string[]) => Promise<{ chartA: Record<string, any>; chartB: Record<string, any> }>;
   // Full state change callback — fires whenever any chart setting changes (for session broadcast)
   onInternalStateChange?: (state: Record<string, any>) => void;
+  // Birth time shift (rectification) props
+  enableBirthTimeShift?: boolean;
+  onFetchShiftedNatal?: (person: 'A' | 'B', shiftedDate: string, shiftedTime: string, asteroids?: AsteroidsParam) => Promise<NatalChart>;
+  initialShowBirthTimeShift?: boolean;
+  initialTimeShiftA?: number;
+  initialTimeShiftB?: number;
+  onShowBirthTimeShiftChange?: (show: boolean) => void;
+  onTimeShiftAChange?: (offset: number) => void;
+  onTimeShiftBChange?: (offset: number) => void;
 }
 
 // Available asteroid groups - matches constants.ts ASTEROIDS groups
@@ -284,6 +293,13 @@ export interface BiWheelState {
   // Aspect line display options
   straightAspects: boolean;   // Straight lines instead of curves
   showEffects: boolean;       // Animated flow particles
+  // Birth time shift (rectification) state
+  showBirthTimeShift: boolean;
+  timeShiftA: number;
+  timeShiftB: number;
+  shiftedChartA: NatalChart | null;
+  shiftedChartB: NatalChart | null;
+  birthTimeShiftLoading: boolean;
 }
 
 // Context value

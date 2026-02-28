@@ -177,6 +177,126 @@ export interface ForwardTrace {
   next?: ForwardTrace;
 }
 
+// ─── Analysis Mode ─────────────────────────────────────────────────
+
+export type AnalysisMode = 'natal_a' | 'natal_b' | 'synastry';
+
+// ─── Synastry Types ────────────────────────────────────────────────
+
+/** Cross-chart aspect (synastry vantage tree) */
+export interface SynastryTreeAspect {
+  source_person: 'A' | 'B';
+  source_planet: string;
+  source_longitude: number;
+  target_person: 'A' | 'B';
+  target_planet: string;
+  target_longitude: number;
+  target_sign: string;
+  target_house: number;
+  target_retrograde: boolean;
+  type: string;
+  name: string;
+  symbol: string;
+  angle: number;
+  orb: number;
+  strength: number;
+  nature: 'harmonious' | 'challenging' | 'neutral';
+  energy_flow: string;
+}
+
+/** Tree group — labels a set of trees for the UI */
+export interface TreeGroup {
+  id: string;
+  label: string;
+  trees: ChartReadingTree[];
+  synastry_summary?: {
+    total_aspects: number;
+    harmonious: number;
+    challenging: number;
+    neutral: number;
+    top_aspects: SynastryTreeAspect[];
+  };
+}
+
+// ─── Transit Keyword Detection ───────────────────────────────────
+
+export const TRANSIT_KEYWORDS = [
+  'right now', 'currently', 'this month', 'this week', 'this year',
+  'lately', 'recently', 'timing', 'when will', 'when should',
+  'what\'s happening', 'going through', 'phase', 'period', 'season',
+  'moment', 'today', 'will i', 'will my', 'upcoming',
+  'near future', 'soon', 'next few', 'these days',
+];
+
+export function isTransitQuestion(question: string): boolean {
+  return TRANSIT_KEYWORDS.some(kw => question.toLowerCase().includes(kw));
+}
+
+// ─── Transit Types ───────────────────────────────────────────────
+
+export interface TransitAspectContext {
+  transit_planet: string;
+  transit_longitude: number;
+  transit_sign: string;
+  transit_retrograde: boolean;
+  natal_planet: string;
+  natal_longitude: number;
+  aspect_type: string;
+  aspect_name: string;
+  orb: number;
+  applying: boolean;
+  days_to_exact: number | null;
+  daily_motion: number;
+}
+
+export interface TransitContext {
+  transit_date: string;
+  transit_time: string;
+  active_transits: TransitAspectContext[];
+  vantage_transits: TransitAspectContext[];
+}
+
+// ─── Profection Context ──────────────────────────────────────────
+
+export interface ProfectionContext {
+  current_age: number;
+  yearly: {
+    house: number;
+    sign: string;
+    sign_symbol: string;
+    time_lord: string;
+    time_lord_name: string;
+    time_lord_symbol: string;
+    topics: string;
+  };
+  monthly: {
+    house: number;
+    sign: string;
+    sign_symbol: string;
+    time_lord: string;
+    time_lord_name: string;
+    time_lord_symbol: string;
+  };
+  is_year_lord: boolean;
+  is_month_lord: boolean;
+}
+
+// ─── Age-Degree Planetary Activations ────────────────────────────
+
+export interface AgeDegreeActivation {
+  planet: string;
+  planet_name: string;
+  planet_symbol: string;
+  degree_in_sign: number;
+  natal_sign: string;
+  cycle: number;
+  cycle_sign: string;
+  activation_age: number;
+  is_current: boolean;
+  is_recent: boolean;
+  years_ago: number;
+}
+
 // ─── Vantage Tree ──────────────────────────────────────────────────
 
 export interface VantageTree {
@@ -184,6 +304,9 @@ export interface VantageTree {
   co_tenants: PlanetAnalysis[];
   backward_trace: BackwardTrace;
   forward_trace: ForwardTrace;
+  transit_context?: TransitContext;
+  profection_context?: ProfectionContext;
+  activations?: AgeDegreeActivation[];
 }
 
 // ─── Derived House Config ──────────────────────────────────────────
@@ -238,6 +361,36 @@ export interface CompactChartSummary {
   planets: CompactPlanetSummary[];
 }
 
+// ─── Conversation Entry ───────────────────────────────────────────
+
+export interface ConversationEntry {
+  id: string;
+  question: string;
+  reading: string;
+  technical: string;
+  trees: ChartReadingTree[];
+  vantageAnalyses: VantageAnalysis[];
+  hasTransitData: boolean;
+  hasProfectionData: boolean;
+  hasActivationData: boolean;
+  isStreaming: boolean;
+  activeTab: 'reading' | 'technical' | 'energy';
+  debugSystemPrompt: string;
+  debugUserPrompt: string;
+  showPipeline: boolean;
+  showChartData: boolean;
+  activeTreeIdx: number;
+  activeVantageIdx: number;
+  analysisMode?: AnalysisMode;
+  treeGroups?: TreeGroup[];
+  activeGroupIdx?: number;
+}
+
+export interface VantageAnalysis {
+  planet: string;
+  analysis: string;
+}
+
 // ─── Full Chart Reading Tree ───────────────────────────────────────
 
 export interface ChartReadingTree {
@@ -247,5 +400,13 @@ export interface ChartReadingTree {
   rising_longitude: number;
   vantages: VantageTree[];
   parameters: ChartReadingParams;
+  transit_context?: TransitContext;
   derived?: DerivedHouseConfig;
+  profection_context?: ProfectionContext;
+  all_activations?: AgeDegreeActivation[];
+  synastry_context?: {
+    source_person: 'A' | 'B';
+    host_person: 'A' | 'B';
+    mode: 'a_in_b' | 'b_in_a' | 'composite';
+  };
 }

@@ -224,7 +224,7 @@ export function GalacticScene({
       )}
 
       {/* Earth Disc */}
-      {showFlatEarth && houseSectors.length > 0 && (
+      {showFlatEarth && (
         <FlatEarthDisc3D
           sectors={houseSectors}
           ascendant={ascendant}

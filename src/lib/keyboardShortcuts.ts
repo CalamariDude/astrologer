@@ -4,8 +4,9 @@ export interface ShortcutDef {
   id: string;
   key: string;
   meta?: boolean;
+  alt?: boolean;
   label: string;
-  category: 'Navigation' | 'Chart' | 'View' | 'General';
+  category: 'Navigation' | 'Chart' | 'Chart Tabs' | 'View' | 'General';
 }
 
 /** Ordered tab values — indices 0–8 map to keys 1–9 */
@@ -35,6 +36,13 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'prev-tab', key: '[', label: 'Previous tab', category: 'Navigation' },
   { id: 'next-tab', key: ']', label: 'Next tab', category: 'Navigation' },
 
+  // Chart Tabs
+  { id: 'new-tab', key: 'T', alt: true, label: 'New chart tab', category: 'Chart Tabs' },
+  { id: 'close-tab', key: 'W', alt: true, label: 'Close chart tab', category: 'Chart Tabs' },
+  { id: 'dup-tab', key: 'D', alt: true, label: 'Duplicate chart tab', category: 'Chart Tabs' },
+  { id: 'prev-chart-tab', key: '←', alt: true, label: 'Previous chart tab', category: 'Chart Tabs' },
+  { id: 'next-chart-tab', key: '→', alt: true, label: 'Next chart tab', category: 'Chart Tabs' },
+
   // Chart
   { id: 'spotlight', key: 'K', meta: true, label: 'Quick switch chart', category: 'Chart' },
   { id: 'calculate', key: 'Enter', meta: true, label: 'Calculate chart', category: 'Chart' },
@@ -58,6 +66,7 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(na
 /** Format a shortcut for display — shows ⌘ on Mac, Ctrl on Windows/Linux */
 export function formatShortcut(shortcut: ShortcutDef): string {
   const meta = shortcut.meta ? (isMac ? '⌘' : 'Ctrl+') : '';
+  const alt = shortcut.alt ? (isMac ? '⌥' : 'Alt+') : '';
   const key = shortcut.key === 'Enter' ? '↵' : shortcut.key;
-  return `${meta}${key}`;
+  return `${alt}${meta}${key}`;
 }

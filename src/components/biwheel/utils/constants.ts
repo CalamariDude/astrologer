@@ -198,6 +198,8 @@ export const ASTEROID_GROUP_INFO = {
 export const DEFAULT_VISIBLE_PLANETS = new Set([
   'sun', 'moon', 'mercury', 'venus', 'mars',
   'jupiter', 'saturn', 'uranus', 'neptune', 'pluto',
+  'northnode', 'southnode',
+  'chiron', 'lilith', 'juno', 'ceres', 'pallas', 'vesta',
   'ascendant', 'descendant', 'midheaven', 'ic',
 ]);
 

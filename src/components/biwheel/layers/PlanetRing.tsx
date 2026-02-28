@@ -19,6 +19,10 @@ import type { SynastryAspect } from '../utils/aspectCalculations';
 
 // Element colors resolved at render time via getElementColor()
 
+// Smooth animation timing (matches TransitRing)
+const SMOOTH_EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
+const SMOOTH_DURATION = '0.6s';
+
 
 interface PlanetRingProps {
   dimensions: ChartDimensions;
@@ -35,6 +39,7 @@ interface PlanetRingProps {
   onPlanetHover: (planet: { planet: string; chart: 'A' | 'B' | 'Composite' } | null, event?: React.MouseEvent) => void;
   onPlanetClick?: (planet: string, chart: 'A' | 'B' | 'Composite', event?: React.MouseEvent) => void;
   rotationOffset?: number;
+  smoothTransitions?: boolean; // When true, planet positions animate smoothly (for birth time shift)
 }
 
 /**
@@ -342,6 +347,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
   onPlanetHover,
   onPlanetClick,
   rotationOffset = 0,
+  smoothTransitions = false,
 }) => {
   const {
     cx, cy,
@@ -350,6 +356,11 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
     singlePlanetRing, singleDegreeRing, singleSignRing, singleMinuteRing,
     decanInner, tickBToA
   } = dimensions;
+
+  // Smooth transition style for birth time shift animation
+  const smoothStyle: React.CSSProperties = smoothTransitions
+    ? { transition: `x ${SMOOTH_DURATION} ${SMOOTH_EASE}, y ${SMOOTH_DURATION} ${SMOOTH_EASE}` }
+    : {};
 
   // Determine which ring radius to use based on mode
   const isSingleWheel = mode === 'personA' || mode === 'personB' || mode === 'composite';
@@ -626,7 +637,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
                 fontWeight="bold"
                 textAnchor="middle"
                 dominantBaseline="central"
-                style={{ userSelect: 'none' }}
+                style={{ userSelect: 'none', ...smoothStyle }}
               >
                 {degInSign}°
               </text>
@@ -643,7 +654,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
                 fontWeight="bold"
                 textAnchor="middle"
                 dominantBaseline="central"
-                style={{ userSelect: 'none', transition: 'font-size 0.15s ease-out' }}
+                style={{ userSelect: 'none', transition: `font-size 0.15s ease-out${smoothTransitions ? `, x ${SMOOTH_DURATION} ${SMOOTH_EASE}, y ${SMOOTH_DURATION} ${SMOOTH_EASE}` : ''}` }}
               >
                 {deg.degreeSymbol}
               </text>
@@ -659,7 +670,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
                 fontFamily="Arial, sans-serif"
                 textAnchor="middle"
                 dominantBaseline="central"
-                style={{ userSelect: 'none' }}
+                style={{ userSelect: 'none', ...smoothStyle }}
               >
                 {minutes.toString().padStart(2, '0')}'
               </text>
@@ -675,7 +686,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
               fontWeight="900"
               textAnchor="middle"
               dominantBaseline="central"
-              style={{ userSelect: 'none', transition: 'font-size 0.15s ease-out' }}
+              style={{ userSelect: 'none', transition: `font-size 0.15s ease-out${smoothTransitions ? `, x ${SMOOTH_DURATION} ${SMOOTH_EASE}, y ${SMOOTH_DURATION} ${SMOOTH_EASE}` : ''}` }}
               stroke={planetColor}
               strokeWidth={isAsteroid(planet.key) ? 0.3 : 0.5}
               {...(textRotation ? { transform: `rotate(${textRotation}, ${planetPos.x}, ${planetPos.y})` } : {})}
@@ -879,7 +890,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
                 fontWeight="bold"
                 textAnchor="middle"
                 dominantBaseline="central"
-                style={{ userSelect: 'none' }}
+                style={{ userSelect: 'none', ...smoothStyle }}
               >
                 {degInSign}°
               </text>
@@ -896,7 +907,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
                 fontWeight="bold"
                 textAnchor="middle"
                 dominantBaseline="central"
-                style={{ userSelect: 'none', transition: 'font-size 0.15s ease-out' }}
+                style={{ userSelect: 'none', transition: `font-size 0.15s ease-out${smoothTransitions ? `, x ${SMOOTH_DURATION} ${SMOOTH_EASE}, y ${SMOOTH_DURATION} ${SMOOTH_EASE}` : ''}` }}
               >
                 {deg.degreeSymbol}
               </text>
@@ -912,7 +923,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
                 fontFamily="Arial, sans-serif"
                 textAnchor="middle"
                 dominantBaseline="central"
-                style={{ userSelect: 'none' }}
+                style={{ userSelect: 'none', ...smoothStyle }}
               >
                 {minutes.toString().padStart(2, '0')}'
               </text>
@@ -928,7 +939,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
               fontWeight="900"
               textAnchor="middle"
               dominantBaseline="central"
-              style={{ userSelect: 'none', transition: 'font-size 0.15s ease-out' }}
+              style={{ userSelect: 'none', transition: `font-size 0.15s ease-out${smoothTransitions ? `, x ${SMOOTH_DURATION} ${SMOOTH_EASE}, y ${SMOOTH_DURATION} ${SMOOTH_EASE}` : ''}` }}
               stroke={planetColor}
               strokeWidth={isAsteroid(planet.key) ? 0.3 : 0.5}
               {...(textRotation ? { transform: `rotate(${textRotation}, ${planetPos.x}, ${planetPos.y})` } : {})}

@@ -18,14 +18,140 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
   });
 }
 
+// ─── Phase 0: Smart Vantage Selection ─────────────────────────────
+
+async function phase0SmartSelection(
+  chartSummary: any,
+  question: string,
+): Promise<string[]> {
+  const systemPrompt = `You are an astrologer selecting which planets to analyze for a chart reading question.
+Given a compact chart summary and a question, return a JSON array of 3-5 planet keys that are most relevant to answering this question.
+
+Consider:
+- Which planets rule the themes in the question?
+- Which planets have the most aspects (more connected = more relevant)?
+- Which houses relate to the question topic?
+
+Return ONLY a JSON array of lowercase planet key strings. Example: ["venus", "moon", "saturn"]
+Valid keys: sun, moon, mercury, venus, mars, jupiter, saturn, uranus, neptune, pluto, northnode, chiron`;
+
+  const userPrompt = `Question: "${question}"
+
+Chart summary:
+${JSON.stringify(chartSummary, null, 2)}
+
+Return the JSON array of planet keys to analyze.`;
+
+  const response = await fetch("https://api.x.ai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${XAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "grok-4-1-fast",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.3,
+      max_tokens: 100,
+      stream: false,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Grok phase0 error:", response.status, errorText);
+    throw new Error(`Grok phase0 API error: ${response.status}`);
+  }
+
+  const result = await response.json();
+  const content = result.choices?.[0]?.message?.content || "[]";
+
+  const jsonMatch = content.match(/\[[\s\S]*?\]/);
+  if (!jsonMatch) return ["sun", "moon", "venus"];
+
+  try {
+    const planets = JSON.parse(jsonMatch[0]);
+    if (Array.isArray(planets) && planets.length > 0) {
+      return planets.map((p: string) => p.toLowerCase()).slice(0, 5);
+    }
+  } catch {
+    // fallback
+  }
+  return ["sun", "moon", "venus"];
+}
+
 // ─── Per-Vantage Deep Analysis ────────────────────────────────────
 
 async function analyzeVantage(
   vantage: any,
   category: string,
+  hasTransits: boolean = false,
   derived?: { label: string; house: number } | null,
+  synastryContext?: { source_person: string; host_person: string; mode: string; sourcePersonName?: string; hostPersonName?: string } | null,
 ): Promise<string> {
-  const systemPrompt = `You are analyzing a single energy center in a natal chart. Walk through every data point systematically in the order below. Be thorough — every detail matters. Use full astrological language freely — this is an internal analysis that will be synthesized later.
+  let systemPrompt: string;
+
+  if (synastryContext && synastryContext.mode === 'composite') {
+    // ── Composite mode prompt ──
+    systemPrompt = `You are analyzing the COMPOSITE (midpoint) chart — the relationship entity itself. Every planet represents how BOTH people TOGETHER create a combined dynamic. This is not about individuals — it's about the relationship as its own living pattern.
+
+INTERPRETATION ORDER — follow this EXACT sequence:
+
+1. PLANET — what dynamic does this planet represent IN THE RELATIONSHIP?
+   - Not what it means for one person, but what it means for the COUPLE as a unit.
+
+2. HOUSE — the domain of relationship life where this energy operates
+
+3. SPARK — the degree-based sub-sign (most specific coloring of this shared energy)
+
+4. DECAN — the 10° sub-ruler (mid-level coloring)
+
+5. SIGN — the broadest zodiac coloring of how the relationship expresses this energy
+
+6. ASPECTS — how this relationship energy connects to OTHER relationship dynamics
+   - These are COMPOSITE aspects (within the composite chart, not cross-chart)
+
+7. FORWARD TRACE — dispositor chain through the composite chart
+
+8. BACKWARD TRACE — what relationship themes feed into this energy
+
+9. CO-TENANTS — other relationship energies in the same domain
+
+Be specific and analytical. Frame everything as "the relationship" or "together they" — never as one individual.`;
+  } else if (synastryContext && (synastryContext.mode === 'a_in_b' || synastryContext.mode === 'b_in_a')) {
+    // ── Synastry (A in B / B in A) mode prompt ──
+    const sourceName = synastryContext.sourcePersonName || `Person ${synastryContext.source_person}`;
+    const hostName = synastryContext.hostPersonName || `Person ${synastryContext.host_person}`;
+
+    systemPrompt = `You are analyzing how one person's planet operates inside another person's chart. This is SYNASTRY — ${sourceName}'s planet placed in ${hostName}'s house system.
+
+INTERPRETATION ORDER — follow this EXACT sequence:
+
+1. PLANET — What energy does ${sourceName} bring through this planet?
+
+2. HOUSE IN PARTNER'S CHART — What area of ${hostName}'s life does this activate?
+   - This planet lands in ${hostName}'s house system. Which domain does it stir?
+
+3. CROSS-CHART ASPECTS — How does this planet interact with ${hostName}'s natal planets?
+   - These are SYNASTRY aspects — one person's planet touching another person's planet.
+   - Tight orbs (under 2°) = powerful, unmissable chemistry or friction.
+   - energy_flow shows who initiates.
+
+4. SPARK / DECAN / SIGN — The layers of how ${sourceName} expresses this energy
+
+5. FORWARD TRACE — Ruler chain through ${hostName}'s chart
+
+6. BACKWARD TRACE — What themes ${sourceName} brings from their own chart
+
+7. CO-TENANTS — ${hostName}'s planets that share this house
+
+Be specific and interpersonal. Every observation should be about the DYNAMIC BETWEEN these two people.`;
+  } else {
+    // ── Standard natal prompt ──
+    systemPrompt = `You are analyzing a single energy center in a natal chart. Walk through every data point systematically in the order below. Be thorough — every detail matters. Use full astrological language freely — this is an internal analysis that will be synthesized later.
 
 INTERPRETATION ORDER — follow this EXACT sequence:
 
@@ -38,39 +164,103 @@ INTERPRETATION ORDER — follow this EXACT sequence:
    - Fusion cusp: if present, the planet straddles two houses and operates in BOTH domains simultaneously.
 
 3. SPARK — the degree-based sub-sign (most specific coloring)
-   - The spark.sign is the most granular zodiac layer — it shows the very specific flavor at this exact degree.
 
 4. DECAN — the 10° sub-ruler (mid-level coloring)
-   - The decan.sign tells you which sign co-rules this 10° portion of the zodiac.
-   - Decan number (1, 2, 3) shows early/middle/late expression within the sign.
 
 5. SIGN — the broadest zodiac coloring
-   - The main sign is the most general layer. Interpret it LAST of the three layers (Spark → Decan → Sign, specific to general).
 
 6. ASPECTS (interpret in the order given — sorted tightest orb first = strongest influence first)
    - For each aspect:
      * "forced: false" = TRUE aspect — sign distance matches the aspect type. Clean, reliable connection.
-     * "forced: true" = FORCED aspect — angular distance qualifies but sign distance doesn't match. Real but operates with tension/ambiguity.
-     * energy_flow ("planet_a -> planet_b") shows who initiates: left planet pushes energy toward right planet.
+     * "forced: true" = FORCED aspect — angular distance qualifies but sign distance doesn't match.
+     * energy_flow shows who initiates: left planet pushes energy toward right planet.
      * orb: smaller = stronger. Under 1° is exact and dominant. 1-3° is strong. 3-6° is moderate.
    - Interpret EVERY aspect. Do not skip any.
 
 7. RULER / FORWARD TRACE — the dispositor chain
-   - What sign is on the cusp of this planet's house? Who rules that sign?
-   - Where does that ruler sit? Follow the chain — this shows where this planet's energy FLOWS NEXT.
 
 8. BACKWARD TRACE — what feeds into this energy
-   - What houses does this planet rule? What planets sit in those houses?
-   - This shows the SOURCE MATERIAL feeding into this energy center.
 
 9. CO-TENANTS — who shares this space
-   - Who else shares this house? How does each co-tenant interact with the vantage planet?
 
 Be specific and analytical. Every detail you note will help create a better reading.`;
+  }
+
+  // ── Timing blocks ──
+  if (hasTransits) {
+    systemPrompt += `
+
+10. TRANSIT ASPECTS (current planetary weather hitting this energy center)
+   - Transit energy is EXTERNAL pressure arriving from outside, interacting with the natal pattern
+   - For each transit aspect:
+     * "applying: true" = approaching exactitude — energy BUILDING, anticipatory, not yet peak
+     * "applying: false" = separating — peak PASSED, integrating/releasing
+     * "days_to_exact" = days until (positive) or since (negative) peak moment
+     * "daily_motion" = speed of transit planet — Moon (~13°/day) = brief intense hit; Pluto (~0.004°/day) = months-long pressure
+     * "transit_retrograde" = revisiting, re-processing, bringing back unfinished themes
+
+   TRANSIT PRINCIPLES:
+   - APPLYING: Person moving INTO this energy. Building tension, anticipation, emerging awareness.
+   - SEPARATING: Peak passed. Processing, integrating, releasing. Lesson being absorbed.
+   - LEAD PLANET: When multiple transits hit same natal planet, FASTER planet leads (its themes arrive first). Slower planet = backdrop.
+   - HANDOFF: Fast transit separating while slow transit applying to same natal planet = brief emotional hit gives way to deeper structural pressure.
+   - TURNOVER: When a faster planet overtakes a slower one in a multi-planet transit, the thematic lead changes — what was background becomes foreground.
+   - Connect transits to the natal vantage tree: a transit TO this planet activates the entire tree — backward trace sources get stirred, forward trace outlets get pressured.`;
+  }
+
+  const hasProfection = !!vantage.profection_context;
+  if (hasProfection) {
+    const pc = vantage.profection_context;
+    systemPrompt += `
+
+${hasTransits ? '11' : '10'}. PROFECTION TIMING (current life chapter)
+   - YEARLY PROFECTION: House ${pc.yearly.house} (${pc.yearly.sign}) — Year Lord: ${pc.yearly.time_lord_name}
+     * Topics activated this year: ${pc.yearly.topics}
+   - MONTHLY PROFECTION: House ${pc.monthly.house} (${pc.monthly.sign}) — Month Lord: ${pc.monthly.time_lord_name}
+   ${pc.is_year_lord ? `- ⚡ THIS PLANET IS THE CURRENT YEAR LORD — it is the PROTAGONIST of this person's current life chapter.` : ''}
+   ${pc.is_month_lord ? `- ⚡ THIS PLANET IS THE CURRENT MONTH LORD — it carries extra weight this month.` : ''}
+
+   PROFECTION PRINCIPLES:
+   - Year Lord's natal condition = quality of the year.
+   - Transits TO the Year Lord are especially potent — they "activate the activator"`;
+  }
+
+  const hasActivations = vantage.activations && vantage.activations.length > 0;
+  if (hasActivations) {
+    const activationList = vantage.activations.map((a: any) =>
+      `${a.planet_name} at ${a.degree_in_sign.toFixed(1)}° ${a.natal_sign} → age ${a.activation_age.toFixed(1)} (cycle ${a.cycle}/${a.cycle_sign})${a.is_current ? ' [ACTIVE NOW]' : ' [recent]'}`
+    ).join('\n     ');
+
+    const stepNum = (hasTransits ? 1 : 0) + (hasProfection ? 1 : 0) + 10;
+    systemPrompt += `
+
+${stepNum}. AGE-DEGREE PLANETARY ACTIVATIONS
+   Planet's degree in its sign = the age at which it "wakes up." Repeats every 30 years in 4 cycles.
+
+   Active/recent activations for this planet:
+     ${activationList}
+
+   ACTIVATION PRINCIPLES:
+   - [ACTIVE NOW] = this planet's energy is at peak activation
+   - [recent] = echo period — the activation peaked recently
+   - Cycle 1 (Aries, ages 0-30): raw, initiating energy
+   - Cycle 2 (Taurus, ages 30-60): stabilizing, materializing
+   - Cycle 3 (Gemini, ages 60-90): communicating, connecting
+   - Cycle 4 (Cancer, ages 90-120): nurturing, legacy
+   - When activated planet is ALSO Year Lord or has active transits = convergence`;
+  }
 
   let categoryContext = `Category context: ${category}`;
   if (derived) {
     categoryContext = `Category context: ${category} (${derived.label} — turned chart, house ${derived.house} as house 1)`;
+  } else if (synastryContext) {
+    const sourceName = synastryContext.sourcePersonName || `Person ${synastryContext.source_person}`;
+    const hostName = synastryContext.hostPersonName || `Person ${synastryContext.host_person}`;
+    if (synastryContext.mode === 'composite') {
+      categoryContext = `Category context: composite chart analysis`;
+    } else {
+      categoryContext = `Category context: synastry — ${sourceName}'s planet in ${hostName}'s chart`;
+    }
   }
 
   const userPrompt = `${categoryContext}
@@ -87,13 +277,14 @@ Analyze this energy pattern thoroughly.`;
       Authorization: `Bearer ${XAI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: "grok-3-fast",
+      model: "grok-4-1-fast",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
       temperature: 0.6,
-      max_tokens: 1500,
+      max_tokens: 2000,
+      stream: false,
     }),
   });
 
@@ -101,165 +292,6 @@ Analyze this energy pattern thoroughly.`;
     const errText = await response.text();
     console.error(`Vantage analysis error for ${vantage.planet?.planet}:`, response.status, errText);
     throw new Error(`AI vantage analysis error: ${response.status}`);
-  }
-
-  const result = await response.json();
-  return result.choices?.[0]?.message?.content || "";
-}
-
-// ─── Synthesis ────────────────────────────────────────────────────
-
-async function synthesize(
-  vantageAnalyses: { planet: string; analysis: string }[],
-  question: string,
-  risingSign: string,
-  categories: string,
-  isSynastry: boolean,
-  personName?: string,
-  personNameB?: string,
-  hasDerived?: boolean,
-): Promise<string> {
-  let systemPrompt: string;
-
-  if (isSynastry) {
-    const nameA = personName || 'Person A';
-    const nameB = personNameB || 'Person B';
-    systemPrompt = `You are a wise, perceptive relationship advisor. You have detailed analysis of the dynamic BETWEEN ${nameA} and ${nameB} — how they affect each other, what they trigger in one another, and what their relationship creates as its own entity.
-
-You produce TWO sections in this exact format:
-
-[Plain language reading about their relationship dynamic — all the rules below apply.
-Write in flowing paragraphs with behavioral micro-scenarios involving BOTH people by name.]
-
-${SEPARATOR}
-
-[Technical synastry summary for an astrologer. Use proper planet names,
-sign names, house overlays, cross-chart aspects with orbs.
-Structure with markdown headers per perspective.]
-
-RULES FOR THE READING SECTION (before ${SEPARATOR}):
-- NEVER use astrology terminology — no planet names, sign names, house numbers, aspect names, "retrograde", "chart", "synastry", "composite", "natal"
-- Describe the DYNAMIC between ${nameA} and ${nameB} using their actual names
-- Show how they interact, what they bring out in each other, where they clash, where they flow
-- Use behavioral micro-scenarios that both people would recognize:
-  * "When ${nameA} starts a sentence with 'I was thinking...' ${nameB} already knows something ambitious is coming — and ${nameB}'s first instinct is to find the flaw in the plan, not because they don't believe in it, but because they want to make sure it's bulletproof."
-  * "${nameB} is the one who'll quietly take care of logistics while ${nameA} is still debating the vision. They'll never say 'you're welcome' — they'll just hand ${nameA} the keys and say 'I moved the car so it's easier to leave.'"
-- Every major dynamic should include at least one two-person micro-scenario
-- Address their question directly about the relationship
-- NO preamble, NO "let's explore...", NO "based on...". Dive straight into the reading.
-- NO closing summary paragraph restating everything. End on a specific insight, not a recap.
-
-RULES FOR THE TECHNICAL SECTION (after ${SEPARATOR}):
-- Use full synastry/composite terminology
-- Structure with ## headers per major theme
-- Note tight cross-chart aspects with orbs
-- Be concise but thorough`;
-  } else {
-    systemPrompt = `You are a wise, perceptive advisor who understands people deeply. You have access to detailed analysis of this person's inner patterns — personality layers, emotional tendencies, relationship dynamics, career drives, and life timing.
-
-You produce TWO sections in this exact format:
-
-[Plain language reading — all the rules below apply to this section.
-Write in flowing paragraphs with behavioral micro-scenarios.]
-
-${SEPARATOR}
-
-[Technical astrology summary for an astrologer. Use proper planet names,
-sign names, house numbers, aspect types. Structure with markdown headers
-per major theme. Be concise but precise.]
-
-RULES FOR THE READING SECTION (before ${SEPARATOR}):
-- NEVER use astrology terminology: no planet names (Saturn, Venus, Mars, Jupiter, Mercury, Moon, Sun, Uranus, Neptune, Pluto, etc.), no sign names (Aries, Taurus, Gemini, Cancer, Leo, Virgo, Libra, Scorpio, Sagittarius, Capricorn, Aquarius, Pisces), no house numbers, no aspect names (conjunction, trine, square, opposition, sextile, quincunx), no "retrograde", no "cusp", no "natal", no "chart", no "decan", no "ruling planet"
-- Translate everything into plain human language: personality traits, tendencies, strengths, challenges, timing patterns, relationship dynamics
-- Use the analysis data to inform your answer but the reader should never know the source is astrology
-- Be specific and concrete to THIS person — avoid generic advice
-- Write in flowing paragraphs, not bullet lists
-- Address the question directly and personally
-- NO preamble, NO "let's dive in...", NO "based on your chart...". Start directly with the first insight.
-- NO closing summary paragraph that restates everything. End on a specific, forward-looking insight, not a recap.
-
-EXPLANATION STYLE — use "behavioral micro-scenarios":
-Don't just state traits abstractly. Show each pattern through a tiny, hyper-specific moment from everyday life that makes the person say "that's literally me." These vignettes are your primary tool.
-
-Examples:
-
-ABSTRACT (avoid): "You tend to be impulsive in conversation and then regret it."
-VIGNETTE (do this): "You're the type who'll blurt out 'I honestly love cheese' completely randomly mid-conversation, immediately feel weird about it, then quietly scan everyone's face to see if anyone found it funny — and if they didn't laugh, you'll replay that exact moment at 2am wondering why you're like this."
-
-ABSTRACT (avoid): "You crave deep connection but fear vulnerability."
-VIGNETTE (do this): "You'll spend three hours in deep conversation with someone at a party, feel like you've found your actual soul twin — then leave without exchanging numbers because something in you decided it was 'too much too fast.' Two weeks later you'll still be thinking about them."
-
-Every major insight should include at least one micro-scenario like this. Mix vignettes with analysis — don't just list scenarios.
-
-RULES FOR THE TECHNICAL SECTION (after ${SEPARATOR}):
-- Use full astrological terminology: planet names, sign names, house numbers, aspect names with orbs
-- Structure with markdown headers (##) per major theme
-- Include specific placements (e.g. "Venus in Scorpio in the 8th house")
-- Note significant aspects with orbs
-- Be concise but thorough`;
-  }
-
-  const analysesText = vantageAnalyses
-    .map(a => `=== ${a.planet.toUpperCase()} ===\n${a.analysis}`)
-    .join("\n\n");
-
-  let userPrompt: string;
-
-  if (isSynastry) {
-    const nameA = personName || 'Person A';
-    const nameB = personNameB || 'Person B';
-    userPrompt = `The question about ${nameA} and ${nameB}: "${question}"
-
-Categories analyzed: ${categories}
-${nameA}'s rising pattern: ${risingSign}
-
-Deep analyses of their charts:
-
-${analysesText}
-
-Synthesize these into a cohesive answer about ${nameA} and ${nameB}, with TWO sections separated by "${SEPARATOR}".
-The first section is the plain-language relationship reading using both names (no astrology terms).
-The second section is the technical astrology summary.`;
-  } else {
-    userPrompt = `The person asked: "${question}"
-
-Categories analyzed: ${categories}
-Rising pattern: ${risingSign}
-
-Deep analyses of this person's key energy patterns:
-
-${analysesText}
-
-Synthesize these into a cohesive answer with TWO sections separated by "${SEPARATOR}".
-The first section is the plain-language reading (no astrology terms).
-The second section is the technical astrology summary.`;
-  }
-
-  if (hasDerived) {
-    userPrompt += `\n\nNOTE: Some analyses use "derived" house perspectives (turned charts). Integrate these perspectives naturally.`;
-  }
-
-  const response = await fetch("https://api.x.ai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${XAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "grok-3-fast",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.7,
-      max_tokens: 6000,
-    }),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    console.error("Synthesis error:", response.status, errText);
-    throw new Error(`AI synthesis error: ${response.status}`);
   }
 
   const result = await response.json();
@@ -303,9 +335,18 @@ serve(async (req) => {
     }
 
     const body = await req.json();
+
+    // ── Phase 0: Smart vantage selection (non-streaming JSON response) ──
+    if (body.phase0) {
+      const planets = await phase0SmartSelection(
+        body.chart_summary,
+        body.question || "General reading",
+      );
+      return jsonResponse({ planets });
+    }
+
     const { trees, treesB, question, readingFocus, personName, personNameB } = body;
 
-    // ── Legacy fallback: if no trees, use old flat format ──
     if (!trees && body.chartData) {
       return jsonResponse({ error: "Please update the app to use the new reading system." });
     }
@@ -382,16 +423,33 @@ serve(async (req) => {
     // ── Collect all vantages from trees ──
     const isSynastry = readingFocus === 'synastry' && Array.isArray(treesB);
     const hasDerived = trees.some((t: any) => t.derived) || (treesB || []).some((t: any) => t.derived);
+    const hasTransitData = trees.some((t: any) => t.transit_context?.active_transits?.length > 0) ||
+      (treesB || []).some((t: any) => t.transit_context?.active_transits?.length > 0);
+    const hasProfectionData = trees.some((t: any) => t.profection_context) ||
+      (treesB || []).some((t: any) => t.profection_context);
+    const hasActivationData = trees.some((t: any) => t.all_activations?.length > 0) ||
+      (treesB || []).some((t: any) => t.all_activations?.length > 0);
 
-    const vantagesWithContext: { vantage: any; category: string; derived?: { label: string; house: number }; label?: string }[] = [];
+    // Check for synastry tree groups
+    const synastryContext = body.synastry_context || null;
+    const hasSynastryContext = !!synastryContext;
+
+    const vantagesWithContext: { vantage: any; category: string; hasTransits: boolean; derived?: { label: string; house: number }; synastryCtx?: any; label?: string }[] = [];
 
     for (const t of trees) {
       for (const v of (t.vantages || [])) {
+        const vantageHasTransits = (v.transit_context?.vantage_transits?.length ?? 0) > 0;
         vantagesWithContext.push({
           vantage: v,
           category: t.category,
+          hasTransits: vantageHasTransits,
           derived: t.derived ? { label: t.derived.label, house: t.derived.derived_from_house } : undefined,
-          label: isSynastry ? `${personName || 'A'}'s ${v.planet?.planet}` : undefined,
+          synastryCtx: t.synastry_context ? {
+            ...t.synastry_context,
+            sourcePersonName: synastryContext?.personAName || personName,
+            hostPersonName: synastryContext?.personBName || personNameB,
+          } : undefined,
+          label: isSynastry || hasSynastryContext ? `${personName || 'A'}'s ${v.planet?.planet}` : undefined,
         });
       }
     }
@@ -399,10 +457,17 @@ serve(async (req) => {
     if (isSynastry && treesB) {
       for (const t of treesB) {
         for (const v of (t.vantages || [])) {
+          const vantageHasTransits = (v.transit_context?.vantage_transits?.length ?? 0) > 0;
           vantagesWithContext.push({
             vantage: v,
             category: t.category,
+            hasTransits: vantageHasTransits,
             derived: t.derived ? { label: t.derived.label, house: t.derived.derived_from_house } : undefined,
+            synastryCtx: t.synastry_context ? {
+              ...t.synastry_context,
+              sourcePersonName: synastryContext?.personBName || personNameB,
+              hostPersonName: synastryContext?.personAName || personName,
+            } : undefined,
             label: `${personNameB || 'B'}'s ${v.planet?.planet}`,
           });
         }
@@ -412,47 +477,374 @@ serve(async (req) => {
     const risingSign = trees[0]?.rising_sign || 'Unknown';
     const categories = [...new Set(trees.map((t: any) => t.category))].join(", ");
 
-    // ── Phase 1: Parallel per-vantage analysis ──
-    console.log(`Starting Phase 1: ${vantagesWithContext.length} vantage analyses...`);
-    const startTime = Date.now();
+    // ── Build synthesis system prompt ──
+    let synthesisSystemPrompt: string;
 
-    const analysisPromises = vantagesWithContext.map(({ vantage, category, derived, label }) =>
-      analyzeVantage(vantage, category, derived).then(analysis => ({
-        planet: label || vantage.planet?.planet || 'unknown',
-        analysis,
-      }))
-    );
+    if (isSynastry || hasSynastryContext) {
+      const nameA = personName || synastryContext?.personAName || 'Person A';
+      const nameB = personNameB || synastryContext?.personBName || 'Person B';
 
-    const vantageAnalyses = await Promise.all(analysisPromises);
-    console.log(`Phase 1 complete in ${Date.now() - startTime}ms`);
+      synthesisSystemPrompt = `You are a wise, perceptive relationship advisor. You have detailed analysis of the dynamic BETWEEN ${nameA} and ${nameB} — how they affect each other, what they trigger in one another, and what their relationship creates as its own entity.
 
-    // ── Phase 2: Synthesis ──
-    console.log("Starting Phase 2: Synthesis...");
-    const synthStart = Date.now();
-    const reading = await synthesize(
-      vantageAnalyses,
-      question || "Give me a comprehensive chart reading",
-      risingSign,
-      categories,
-      isSynastry,
-      personName,
-      personNameB,
-      hasDerived,
-    );
-    console.log(`Phase 2 complete in ${Date.now() - synthStart}ms`);
+You produce TWO sections in this exact format:
 
-    // ── Increment usage ──
-    try {
-      await adminSupabase
-        .from("astrologer_profiles")
-        .update({ ai_credits_used: creditsUsed + 1 })
-        .eq("id", verifiedUser.id);
-    } catch { /* columns may not exist yet */ }
+[Plain language reading about their relationship dynamic — all the rules below apply.
+Write in flowing paragraphs with behavioral micro-scenarios involving BOTH people by name.]
 
-    return jsonResponse({
-      reading,
-      credits_used: creditsUsed + 1,
-      credits_limit: limit,
+${SEPARATOR}
+
+[Technical synastry/composite summary for an astrologer. Use proper planet names,
+sign names, house overlays, cross-chart aspects with orbs, and composite positions.
+Structure with markdown headers per perspective (A in B, B in A, Composite).]
+
+RULES FOR THE READING SECTION (before ${SEPARATOR}):
+- NEVER use astrology terminology — no planet names, sign names, house numbers, aspect names, "retrograde", "chart", "synastry", "composite", "natal"
+- Describe the DYNAMIC between ${nameA} and ${nameB} using their actual names
+- Show how they interact, what they bring out in each other, where they clash, where they flow
+- Use behavioral micro-scenarios that both people would recognize
+- Weave all three perspectives (how A affects B, how B affects A, what they create together) into a coherent narrative
+- Address their question directly about the relationship
+- NO preamble, NO "let's explore...", NO "based on...". Dive straight into the reading.
+- NO closing summary paragraph restating everything.
+
+RULES FOR THE TECHNICAL SECTION (after ${SEPARATOR}):
+- Use full synastry/composite terminology
+- Structure with ## headers per perspective
+- Note tight cross-chart aspects with orbs
+- Be concise but thorough`;
+    } else {
+      synthesisSystemPrompt = `You are a wise, perceptive advisor who understands people deeply. You have access to detailed analysis of this person's inner patterns — personality layers, emotional tendencies, relationship dynamics, career drives, and life timing.
+
+You produce TWO sections in this exact format:
+
+[Plain language reading — all the rules below apply to this section.
+Write in flowing paragraphs with behavioral micro-scenarios.]
+
+${SEPARATOR}
+
+[Technical astrology summary for an astrologer. Use proper planet names,
+sign names, house numbers, aspect types. Structure with markdown headers
+per major theme. Be concise but precise.]
+
+RULES FOR THE READING SECTION (before ${SEPARATOR}):
+- NEVER use astrology terminology: no planet names, no sign names, no house numbers, no aspect names, no "retrograde", no "cusp", no "natal", no "chart", no "transit", no "decan", no "ruling planet"
+- Translate everything into plain human language
+- Use the analysis data to inform your answer but the reader should never know the source is astrology
+- Be specific and concrete to THIS person — avoid generic advice
+- Write in flowing paragraphs, not bullet lists
+- Address the question directly and personally
+- NO preamble, NO "let's dive in...", NO "based on your chart...". Start directly with the first insight.
+- NO closing summary paragraph that restates everything.
+
+EXPLANATION STYLE — use "behavioral micro-scenarios":
+Don't just state traits abstractly. Show each pattern through a tiny, hyper-specific moment from everyday life that makes the person say "that's literally me."
+
+Every major insight should include at least one micro-scenario like this.
+
+RULES FOR THE TECHNICAL SECTION (after ${SEPARATOR}):
+- Use full astrological terminology
+- Structure with markdown headers (##) per major theme
+- Include specific placements
+- Note significant aspects with orbs
+- Be concise but thorough`;
+    }
+
+    // Add timing suffixes
+    if (hasTransitData) {
+      synthesisSystemPrompt += `
+- When timing data is present, weave it naturally into BOTH sections
+- In the reading: "Right now you're in a phase where..." — NEVER mention transits, planets, or aspects
+- In the technical section: list active transits with orbs and applying/separating status`;
+    }
+    if (hasProfectionData) {
+      synthesisSystemPrompt += `
+- Profection timing reveals the current life chapter — the Year Lord planet is the protagonist of this year
+- In the reading: translate the profection year themes into plain language
+- In the technical section: note the profected house, Year Lord, Month Lord`;
+    }
+    if (hasActivationData) {
+      synthesisSystemPrompt += `
+- Age-degree activations show which planets are currently "awake" or recently peaked
+- In the reading: reference the activated themes naturally
+- In the technical section: list active age-degree activations with cycle and degree
+- When profections AND activations AND transits converge on the same planet, emphasize this convergence`;
+    }
+
+    // ── SSE Streaming Response ──
+    const encoder = new TextEncoder();
+
+    const clientStream = new ReadableStream({
+      async start(controller) {
+        try {
+          // === PHASE 1: Per-vantage analysis (parallel) ===
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({
+              phase: "analyzing",
+              index: 0,
+              total: vantagesWithContext.length,
+            })}\n\n`)
+          );
+
+          const analysisPromises = vantagesWithContext.map(({ vantage, category, hasTransits, derived, synastryCtx, label }, idx) =>
+            analyzeVantage(vantage, category, hasTransits, derived, synastryCtx).then(analysis => ({
+              planet: label || vantage.planet?.planet || `vantage_${idx}`,
+              analysis,
+              index: idx,
+            }))
+          );
+
+          const vantageAnalyses: { planet: string; analysis: string }[] = [];
+
+          await Promise.all(
+            analysisPromises.map(p =>
+              p.then(result => {
+                vantageAnalyses.push({ planet: result.planet, analysis: result.analysis });
+
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({
+                    phase: "analyzing_done",
+                    vantage: result.planet,
+                    index: vantageAnalyses.length,
+                    total: vantagesWithContext.length,
+                    analysis: result.analysis,
+                  })}\n\n`)
+                );
+
+                return result;
+              })
+            )
+          );
+
+          // === PHASE 2: Synthesis (streaming) ===
+          const analysesText = vantageAnalyses
+            .map(a => `=== ${a.planet.toUpperCase()} ===\n${a.analysis}`)
+            .join("\n\n");
+
+          let synthesisUserPrompt: string;
+
+          if (isSynastry || hasSynastryContext) {
+            const nameA = personName || synastryContext?.personAName || 'Person A';
+            const nameB = personNameB || synastryContext?.personBName || 'Person B';
+
+            synthesisUserPrompt = `The question about ${nameA} and ${nameB}'s relationship: "${question || 'Give me a comprehensive relationship reading'}"
+
+Categories analyzed: ${categories}
+${nameA}'s rising pattern: ${risingSign}
+
+Deep analyses of their relationship dynamics:
+
+${analysesText}
+
+Synthesize these into a cohesive answer about the DYNAMIC BETWEEN ${nameA} and ${nameB}, with TWO sections separated by "${SEPARATOR}".
+The first section is the plain-language relationship reading using both names (no astrology terms).
+The second section is the technical synastry/composite summary.
+
+IMPORTANT: Weave all three perspectives together:
+- How ${nameA} shows up in ${nameB}'s life
+- How ${nameB} shows up in ${nameA}'s life
+- What the relationship itself creates`;
+          } else {
+            synthesisUserPrompt = `The person asked: "${question || 'Give me a comprehensive chart reading'}"
+
+Categories analyzed: ${categories}
+Rising pattern: ${risingSign}
+
+Deep analyses of this person's key energy patterns:
+
+${analysesText}
+
+Synthesize these into a cohesive answer with TWO sections separated by "${SEPARATOR}".
+The first section is the plain-language reading (no astrology terms).
+The second section is the technical astrology summary.${hasTransitData ? `
+
+NOTE: Current timing data is included in the analyses. Ground your answer in what's happening NOW.` : ''}`;
+          }
+
+          if (hasDerived) {
+            synthesisUserPrompt += `\n\nNOTE: Some analyses use "derived" house perspectives (turned charts). Integrate these perspectives naturally.`;
+          }
+
+          if (hasProfectionData) {
+            const profCtx = trees.find((t: any) => t.profection_context)?.profection_context;
+            if (profCtx) {
+              synthesisUserPrompt += `\n\nPROFECTION TIMING: Age ${profCtx.current_age}. Year: House ${profCtx.yearly.house} (${profCtx.yearly.sign}), Year Lord = ${profCtx.yearly.time_lord_name}. Month: House ${profCtx.monthly.house} (${profCtx.monthly.sign}), Month Lord = ${profCtx.monthly.time_lord_name}.`;
+            }
+          }
+
+          if (hasActivationData) {
+            const allActs = trees.find((t: any) => t.all_activations?.length > 0)?.all_activations;
+            if (allActs && allActs.length > 0) {
+              const actSummary = allActs.map((a: any) =>
+                `${a.planet_name} (${a.is_current ? 'ACTIVE' : 'recent'}, age ${a.activation_age.toFixed(1)}, cycle ${a.cycle})`
+              ).join(', ');
+              synthesisUserPrompt += `\n\nAGE-DEGREE ACTIVATIONS: ${actSummary}. These planets are currently "awake" or recently peaked.`;
+            }
+          }
+
+          // Send debug prompts
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ debug_system_prompt: synthesisSystemPrompt })}\n\n`)
+          );
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ debug_user_prompt: synthesisUserPrompt })}\n\n`)
+          );
+
+          // Signal synthesis starting
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ phase: "synthesizing" })}\n\n`)
+          );
+
+          // Stream synthesis from Grok
+          const grokResponse = await fetch("https://api.x.ai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${XAI_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model: "grok-4-1-fast",
+              messages: [
+                { role: "system", content: synthesisSystemPrompt },
+                { role: "user", content: synthesisUserPrompt },
+              ],
+              temperature: 0.7,
+              max_tokens: 8000,
+              stream: true,
+            }),
+          });
+
+          if (!grokResponse.ok) {
+            const errText = await grokResponse.text();
+            console.error("Synthesis error:", grokResponse.status, errText);
+            throw new Error(`AI synthesis error: ${grokResponse.status}`);
+          }
+
+          const grokReader = grokResponse.body?.getReader();
+          if (!grokReader) {
+            throw new Error("No response body from Grok synthesis");
+          }
+
+          const decoder = new TextDecoder();
+
+          // Separator-based stream splitting state
+          let fullBuffer = "";
+          let separatorFound = false;
+          let separatorSent = false;
+          let readingContentSent = 0;
+
+          while (true) {
+            const { done, value } = await grokReader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data === '[DONE]') continue;
+
+                try {
+                  const parsed = JSON.parse(data);
+                  const content = parsed.choices?.[0]?.delta?.content;
+                  if (content) {
+                    fullBuffer += content;
+
+                    if (!separatorFound) {
+                      const sepIdx = fullBuffer.indexOf(SEPARATOR);
+                      if (sepIdx !== -1) {
+                        separatorFound = true;
+                        const readingPart = fullBuffer.substring(readingContentSent, sepIdx).trimEnd();
+                        if (readingPart) {
+                          controller.enqueue(
+                            encoder.encode(`data: ${JSON.stringify({ content: readingPart })}\n\n`)
+                          );
+                        }
+                        readingContentSent = fullBuffer.length;
+
+                        if (!separatorSent) {
+                          separatorSent = true;
+                          controller.enqueue(
+                            encoder.encode(`data: ${JSON.stringify({ phase: "technical" })}\n\n`)
+                          );
+                        }
+
+                        const techPart = fullBuffer.substring(sepIdx + SEPARATOR.length);
+                        if (techPart.trim()) {
+                          controller.enqueue(
+                            encoder.encode(`data: ${JSON.stringify({ technical: techPart })}\n\n`)
+                          );
+                        }
+                      } else {
+                        // Stream reading content, keep last 20 chars as buffer for separator detection
+                        const safeEnd = Math.max(readingContentSent, fullBuffer.length - 20);
+                        const safePart = fullBuffer.substring(readingContentSent, safeEnd);
+                        if (safePart) {
+                          controller.enqueue(
+                            encoder.encode(`data: ${JSON.stringify({ content: safePart })}\n\n`)
+                          );
+                          readingContentSent = safeEnd;
+                        }
+                      }
+                    } else {
+                      controller.enqueue(
+                        encoder.encode(`data: ${JSON.stringify({ technical: content })}\n\n`)
+                      );
+                    }
+                  }
+                } catch {
+                  // Skip invalid JSON
+                }
+              }
+            }
+          }
+
+          // Flush remaining buffered reading content
+          if (!separatorFound && readingContentSent < fullBuffer.length) {
+            const remaining = fullBuffer.substring(readingContentSent);
+            if (remaining.trim()) {
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ content: remaining })}\n\n`)
+              );
+            }
+          }
+
+          // ── Increment usage ──
+          try {
+            await adminSupabase
+              .from("astrologer_profiles")
+              .update({ ai_credits_used: creditsUsed + 1 })
+              .eq("id", verifiedUser.id);
+          } catch { /* columns may not exist yet */ }
+
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ credits_used: creditsUsed + 1, credits_limit: limit })}\n\n`)
+          );
+
+          controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+          controller.close();
+        } catch (error) {
+          console.error("Stream error:", error);
+          try {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ error: error.message || "Stream error" })}\n\n`)
+            );
+            controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+            controller.close();
+          } catch {
+            controller.error(error);
+          }
+        }
+      },
+    });
+
+    return new Response(clientStream, {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+      },
     });
   } catch (err) {
     console.error("Error:", err);

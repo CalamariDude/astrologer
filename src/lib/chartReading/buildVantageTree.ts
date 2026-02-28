@@ -8,6 +8,7 @@
 
 import { ZODIAC_SIGNS, PLANETS } from '@/components/biwheel/utils/constants';
 import { calculateSpark, calculateDecan } from '@/components/biwheel/utils/chartMath';
+import { calculateProfections } from '@/lib/profections';
 import { classifyAspectsForPlanet } from './aspectClassification';
 import type {
   NatalChart,
@@ -22,6 +23,10 @@ import type {
   DerivedHouseConfig,
   CompactChartSummary,
   CompactPlanetSummary,
+  TransitAspectContext,
+  TransitContext,
+  ProfectionContext,
+  AgeDegreeActivation,
 } from './types';
 import {
   TRADITIONAL_RULERS,
@@ -466,7 +471,7 @@ function buildComprehensiveNatalTree(
 
 // ─── Question-Driven Multi-Tree Builder ─────────────────────────────
 
-const MAX_VANTAGES = 7;
+const MAX_VANTAGES = 15;
 
 export function buildTreesForQuestion(
   chart: NatalChart,
@@ -511,4 +516,281 @@ export function buildTreesForQuestion(
   }
 
   return trees;
+}
+
+// ─── Transit Integration ────────────────────────────────────────────
+
+/** Average daily motion in degrees per day for each planet */
+const AVG_DAILY_MOTION: Record<string, number> = {
+  sun: 0.986, moon: 13.176, mercury: 1.383, venus: 1.2, mars: 0.524,
+  jupiter: 0.083, saturn: 0.034, uranus: 0.012, neptune: 0.006, pluto: 0.004,
+  northnode: 0.053, chiron: 0.02,
+};
+
+/** Standard aspect angles for computing exact target longitude */
+const ASPECT_ANGLES: Record<string, number> = {
+  Conjunction: 0, Opposition: 180, Trine: 120, Square: 90, Sextile: 60,
+  Quincunx: 150, 'Semi-Sextile': 30, 'Semi-Square': 45, Sesquisquare: 135,
+};
+
+/**
+ * Determine if a transit aspect is applying (getting tighter) or separating.
+ */
+function isTransitApplying(
+  transitLong: number,
+  natalLong: number,
+  aspectAngle: number,
+  dailyMotion: number,
+  transitRetrograde: boolean
+): { applying: boolean; daysToExact: number | null } {
+  const target1 = (natalLong + aspectAngle) % 360;
+  const target2 = (natalLong - aspectAngle + 360) % 360;
+
+  const diff1 = ((target1 - transitLong + 540) % 360) - 180;
+  const diff2 = ((target2 - transitLong + 540) % 360) - 180;
+  const closerDiff = Math.abs(diff1) < Math.abs(diff2) ? diff1 : diff2;
+
+  const effectiveDirection = transitRetrograde ? -1 : 1;
+
+  const applying = (closerDiff > 0 && effectiveDirection > 0) ||
+                   (closerDiff < 0 && effectiveDirection < 0);
+
+  const daysToExact = dailyMotion > 0
+    ? Math.abs(closerDiff) / dailyMotion * (applying ? 1 : -1)
+    : null;
+
+  return { applying, daysToExact };
+}
+
+/** Transit API response shape */
+export interface TransitApiResponse {
+  transit_date: string;
+  transit_time: string;
+  transit_planets: Array<{
+    planet: string;
+    longitude: number;
+    sign: string;
+    retrograde: boolean;
+  }>;
+  aspects_to_natal: Array<{
+    planet1: string;
+    planet2: string;
+    aspect: string;
+    angle: number;
+    orb: number;
+    transitPlanet: string;
+    natalPlanet: string;
+  }>;
+}
+
+/**
+ * Build TransitContext from API response + natal chart.
+ * Optionally filter to aspects hitting one specific natal planet.
+ */
+export function buildTransitContext(
+  transitData: TransitApiResponse,
+  chart: NatalChart,
+  filterNatalPlanet?: string
+): TransitContext {
+  const transitPlanetMap: Record<string, { longitude: number; sign: string; retrograde: boolean }> = {};
+  for (const tp of transitData.transit_planets) {
+    transitPlanetMap[tp.planet.toLowerCase()] = {
+      longitude: tp.longitude,
+      sign: tp.sign,
+      retrograde: tp.retrograde,
+    };
+  }
+
+  const aspects: TransitAspectContext[] = [];
+
+  for (const asp of transitData.aspects_to_natal) {
+    const transitKey = asp.transitPlanet.toLowerCase();
+    const natalKey = asp.natalPlanet.toLowerCase();
+
+    if (filterNatalPlanet && natalKey !== filterNatalPlanet.toLowerCase()) continue;
+
+    const transitInfo = transitPlanetMap[transitKey];
+    const natalPlanet = chart.planets[natalKey];
+    if (!transitInfo || !natalPlanet) continue;
+
+    const dailyMotion = AVG_DAILY_MOTION[transitKey] || 0.01;
+    const aspectAngle = ASPECT_ANGLES[asp.aspect] ?? asp.angle;
+
+    const { applying, daysToExact } = isTransitApplying(
+      transitInfo.longitude,
+      natalPlanet.longitude,
+      aspectAngle,
+      dailyMotion,
+      transitInfo.retrograde
+    );
+
+    aspects.push({
+      transit_planet: transitKey,
+      transit_longitude: transitInfo.longitude,
+      transit_sign: transitInfo.sign,
+      transit_retrograde: transitInfo.retrograde,
+      natal_planet: natalKey,
+      natal_longitude: natalPlanet.longitude,
+      aspect_type: asp.aspect.toLowerCase().replace(/[- ]/g, '_'),
+      aspect_name: asp.aspect,
+      orb: asp.orb,
+      applying,
+      days_to_exact: daysToExact !== null ? Math.round(daysToExact * 10) / 10 : null,
+      daily_motion: dailyMotion,
+    });
+  }
+
+  return {
+    transit_date: transitData.transit_date,
+    transit_time: transitData.transit_time,
+    active_transits: aspects,
+    vantage_transits: filterNatalPlanet ? aspects : [],
+  };
+}
+
+/**
+ * Enrich built trees with transit data.
+ */
+export function enrichTreesWithTransits(
+  trees: ChartReadingTree[],
+  transitData: TransitApiResponse,
+  chart: NatalChart
+): ChartReadingTree[] {
+  const fullContext = buildTransitContext(transitData, chart);
+
+  return trees.map(tree => ({
+    ...tree,
+    transit_context: fullContext,
+    vantages: tree.vantages.map(v => ({
+      ...v,
+      transit_context: buildTransitContext(transitData, chart, v.planet.planet),
+    })),
+  }));
+}
+
+// ─── Profection Integration ──────────────────────────────────────
+
+/**
+ * Enrich built trees with profection timing data.
+ */
+export function enrichTreesWithProfections(
+  trees: ChartReadingTree[],
+  chart: NatalChart,
+  birthDate: string
+): ChartReadingTree[] {
+  const profectionData = calculateProfections(birthDate, chart);
+  const currentYear = profectionData.currentYear;
+  const currentMonth = currentYear.months.find(m => m.isCurrent) || currentYear.months[0];
+
+  const profContext: ProfectionContext = {
+    current_age: profectionData.currentAge,
+    yearly: {
+      house: currentYear.house,
+      sign: currentYear.sign,
+      sign_symbol: currentYear.signSymbol,
+      time_lord: currentYear.timeLord.ruler,
+      time_lord_name: currentYear.timeLord.rulerName,
+      time_lord_symbol: currentYear.timeLord.rulerSymbol,
+      topics: currentYear.topics,
+    },
+    monthly: {
+      house: currentMonth.house,
+      sign: currentMonth.sign,
+      sign_symbol: currentMonth.signSymbol,
+      time_lord: currentMonth.timeLord.ruler,
+      time_lord_name: currentMonth.timeLord.rulerName,
+      time_lord_symbol: currentMonth.timeLord.rulerSymbol,
+    },
+    is_year_lord: false,
+    is_month_lord: false,
+  };
+
+  return trees.map(tree => ({
+    ...tree,
+    profection_context: profContext,
+    vantages: tree.vantages.map(v => ({
+      ...v,
+      profection_context: {
+        ...profContext,
+        is_year_lord: v.planet.planet === profContext.yearly.time_lord,
+        is_month_lord: v.planet.planet === profContext.monthly.time_lord,
+      },
+    })),
+  }));
+}
+
+// ─── Age-Degree Activation Integration ───────────────────────────
+
+const CYCLE_SIGNS = ['Aries', 'Taurus', 'Gemini', 'Cancer'];
+
+/**
+ * Compute age-degree activations for all planets in the chart.
+ */
+export function computeAgeDegreeActivations(
+  chart: NatalChart,
+  birthDate: string
+): AgeDegreeActivation[] {
+  const birth = new Date(birthDate);
+  const now = new Date();
+  const ageMs = now.getTime() - birth.getTime();
+  const currentAge = ageMs / (365.25 * 24 * 60 * 60 * 1000);
+
+  const activations: AgeDegreeActivation[] = [];
+
+  const planetKeys = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn',
+    'uranus', 'neptune', 'pluto', 'northnode', 'chiron', 'ascendant', 'midheaven'];
+
+  for (const key of planetKeys) {
+    const planet = chart.planets[key];
+    if (!planet) continue;
+
+    const planetInfo = PLANETS[key as keyof typeof PLANETS];
+    const degreeInSign = planet.longitude % 30;
+    const natalSign = SIGN_NAMES[Math.floor(planet.longitude / 30) % 12];
+
+    for (let cycle = 0; cycle < 4; cycle++) {
+      const activationAge = cycle * 30 + degreeInSign;
+      const diff = currentAge - activationAge;
+      const isCurrent = Math.abs(diff) <= 0.5;
+      const isRecent = diff > 0.5 && diff <= 2;
+
+      if (isCurrent || isRecent) {
+        activations.push({
+          planet: key,
+          planet_name: planetInfo?.name || key,
+          planet_symbol: planetInfo?.symbol || key.slice(0, 2),
+          degree_in_sign: Math.round(degreeInSign * 100) / 100,
+          natal_sign: natalSign,
+          cycle: cycle + 1,
+          cycle_sign: CYCLE_SIGNS[cycle],
+          activation_age: Math.round(activationAge * 100) / 100,
+          is_current: isCurrent,
+          is_recent: isRecent,
+          years_ago: Math.round(diff * 10) / 10,
+        });
+      }
+    }
+  }
+
+  return activations;
+}
+
+/**
+ * Enrich built trees with age-degree activation data.
+ */
+export function enrichTreesWithActivations(
+  trees: ChartReadingTree[],
+  chart: NatalChart,
+  birthDate: string
+): ChartReadingTree[] {
+  const allActivations = computeAgeDegreeActivations(chart, birthDate);
+
+  return trees.map(tree => ({
+    ...tree,
+    all_activations: allActivations,
+    vantages: tree.vantages.map(v => ({
+      ...v,
+      activations: allActivations.filter(a => a.planet === v.planet.planet),
+    })),
+  }));
 }

@@ -100,6 +100,10 @@ interface TogglePanelProps {
   onSetStraightAspects?: (straight: boolean) => void;
   showEffects?: boolean;
   onSetShowEffects?: (show: boolean) => void;
+  // Birth time shift (natal knobs)
+  enableBirthTimeShift?: boolean;
+  showBirthTimeShift?: boolean;
+  onSetShowBirthTimeShift?: (show: boolean) => void;
   // Save defaults
   onSaveDefaults?: () => void;
 }
@@ -446,6 +450,10 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
   onSetStraightAspects,
   showEffects = true,
   onSetShowEffects,
+  // Birth time shift (natal knobs)
+  enableBirthTimeShift = false,
+  showBirthTimeShift = false,
+  onSetShowBirthTimeShift,
   // Save defaults
   onSaveDefaults,
 }) => {
@@ -614,8 +622,8 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
         />
       )}
 
-      {/* Chart Mode - Transit, Composite, Progressed, Relocated controls */}
-      {(enableTransits || enableComposite || enableProgressed || enableRelocated) && (
+      {/* Chart Mode - Transit, Natal Knobs, Composite, Progressed, Relocated controls */}
+      {(enableTransits || enableComposite || enableProgressed || enableRelocated || enableBirthTimeShift) && (
         <Section title="Chart Mode" defaultOpen={true}>
           {/* Transit toggle with date picker */}
           {enableTransits && (
@@ -753,6 +761,18 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Birth time shift (natal knobs) toggle */}
+          {enableBirthTimeShift && (
+            <div style={{ marginBottom: 8, marginTop: enableTransits ? 8 : 0 }}>
+              <Checkbox
+                label="Show Natal Knobs"
+                checked={showBirthTimeShift}
+                onChange={() => onSetShowBirthTimeShift?.(!showBirthTimeShift)}
+                color="#a78bfa"
+              />
             </div>
           )}
 
@@ -1164,7 +1184,7 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
         {onSetZodiacVantage && (
           <div style={{ marginTop: 8 }}>
             <div style={{ fontSize: 10, color: COLORS.textMuted, marginBottom: 4 }}>
-              Zodiac Vantage (1st House)
+              Whole Sign & Fixed ASC (0°Each)
             </div>
             <select
               value={zodiacVantage ?? ''}
@@ -1183,27 +1203,32 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
                 border: `1px solid ${COLORS.gridLineFaint}`,
                 borderRadius: 4,
                 color: COLORS.textSecondary,
-                background: zodiacVantage !== null ? '#fff3e0' : COLORS.background,
+                background: zodiacVantage !== null
+                  ? (COLORS.background < '#333' ? '#3a2a10' : '#fff3e0')
+                  : COLORS.background,
+                color: zodiacVantage !== null
+                  ? (COLORS.background < '#333' ? '#ffb74d' : COLORS.textSecondary)
+                  : COLORS.textSecondary,
                 cursor: 'pointer',
               }}
             >
-              <option value="">Default (ASC)</option>
+              <option value="">Original ASC & MC</option>
               {ZODIAC_SIGNS.map((sign, index) => (
                 <option key={sign.name} value={index}>
-                  {sign.symbol} {sign.name}
+                  0°{sign.name}
                 </option>
               ))}
             </select>
             {zodiacVantage !== null && (
               <div style={{
                 fontSize: 9,
-                color: '#e65100',
+                color: COLORS.background < '#333' ? '#ffb74d' : '#e65100',
                 marginTop: 4,
                 padding: '4px 6px',
-                background: '#fff3e0',
+                background: COLORS.background < '#333' ? '#3a2a10' : '#fff3e0',
                 borderRadius: 4,
               }}>
-                Viewing from {ZODIAC_SIGNS[zodiacVantage].name} as 1st house
+                0°{ZODIAC_SIGNS[zodiacVantage].name}, Original ASC & MC
               </div>
             )}
           </div>

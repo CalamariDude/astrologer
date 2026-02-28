@@ -92,6 +92,30 @@ const emptyBirth = (): BirthData => ({
   lng: null,
 });
 
+interface ChartTab {
+  id: string;
+  personAData: BirthData;
+  personBData: BirthData | null;
+  chartA: NatalChart | null;
+  chartB: NatalChart | null;
+  editing: boolean;
+  timeShiftA?: number;
+  timeShiftB?: number;
+}
+
+function generateTabId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function getTabLabel(tab: ChartTab): string {
+  const nameA = tab.personAData.name?.trim();
+  const nameB = tab.personBData?.name?.trim();
+  if (nameA && nameB) return `${nameA} & ${nameB}`;
+  if (nameA) return nameA;
+  if (tab.chartA) return 'Chart';
+  return 'New Chart';
+}
+
 // ─── Inline Birth Form ─────────────────────────────────────────────
 
 interface SavedPerson {
@@ -413,22 +437,117 @@ export default function ChartPage() {
     return null;
   }, []);
 
-  // Birth data inputs
-  const [personAData, setPersonAData] = useState<BirthData>(sessionRestore?.personAData ?? emptyBirth());
-  const [personBData, setPersonBData] = useState<BirthData | null>(sessionRestore?.personBData ?? null);
+  // ─── Chart Tabs ────────────────────────────────────────────
+  const [tabs, setTabs] = useState<ChartTab[]>(() => {
+    const restored = sessionRestore?.tabs;
+    if (restored?.length) return restored;
+    // Legacy: restore from old single-chart session format
+    if (sessionRestore?.chartA) {
+      return [{
+        id: generateTabId(),
+        personAData: sessionRestore.personAData ?? emptyBirth(),
+        personBData: sessionRestore.personBData ?? null,
+        chartA: sessionRestore.chartA,
+        chartB: sessionRestore.chartB ?? null,
+        editing: false,
+      }];
+    }
+    return [{
+      id: generateTabId(),
+      personAData: emptyBirth(),
+      personBData: null,
+      chartA: null,
+      chartB: null,
+      editing: true,
+    }];
+  });
+  const [activeTabIndex, setActiveTabIndex] = useState(() => {
+    return sessionRestore?.activeTabIndex ?? 0;
+  });
 
-  // Calculated charts
-  const [chartA, setChartA] = useState<NatalChart | null>(sessionRestore?.chartA ?? null);
-  const [chartB, setChartB] = useState<NatalChart | null>(sessionRestore?.chartB ?? null);
+  // Derived values from active chart tab
+  const currentTab = tabs[Math.min(activeTabIndex, tabs.length - 1)];
+  const personAData = currentTab.personAData;
+  const personBData = currentTab.personBData;
+  const chartA = currentTab.chartA;
+  const chartB = currentTab.chartB;
+  const editing = currentTab.editing;
+
+  // Setter helpers — update active tab's field
+  const updateActiveTab = useCallback((updates: Partial<ChartTab>) => {
+    setTabs(prev => prev.map((t, i) => i === activeTabIndex ? { ...t, ...updates } : t));
+  }, [activeTabIndex]);
+
+  const setPersonAData = useCallback((d: BirthData | ((prev: BirthData) => BirthData)) => {
+    setTabs(prev => prev.map((t, i) => i === activeTabIndex
+      ? { ...t, personAData: typeof d === 'function' ? d(t.personAData) : d }
+      : t
+    ));
+  }, [activeTabIndex]);
+
+  const setPersonBData = useCallback((d: BirthData | null | ((prev: BirthData | null) => BirthData | null)) => {
+    setTabs(prev => prev.map((t, i) => i === activeTabIndex
+      ? { ...t, personBData: typeof d === 'function' ? d(t.personBData) : d }
+      : t
+    ));
+  }, [activeTabIndex]);
+
+  const setChartA = useCallback((c: NatalChart | null) => {
+    setTabs(prev => prev.map((t, i) => i === activeTabIndex ? { ...t, chartA: c } : t));
+  }, [activeTabIndex]);
+
+  const setChartB = useCallback((c: NatalChart | null) => {
+    setTabs(prev => prev.map((t, i) => i === activeTabIndex ? { ...t, chartB: c } : t));
+  }, [activeTabIndex]);
+
+  const setEditing = useCallback((v: boolean | ((prev: boolean) => boolean)) => {
+    setTabs(prev => prev.map((t, i) => i === activeTabIndex
+      ? { ...t, editing: typeof v === 'function' ? v(t.editing) : v }
+      : t
+    ));
+  }, [activeTabIndex]);
+
+  // Tab CRUD handlers
+  const handleNewTab = useCallback(() => {
+    if (tabs.length >= 10) return;
+    const newTab: ChartTab = {
+      id: generateTabId(),
+      personAData: emptyBirth(),
+      personBData: null,
+      chartA: null,
+      chartB: null,
+      editing: true,
+    };
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabIndex(tabs.length);
+  }, [tabs.length]);
+
+  const handleCloseTab = useCallback((index: number) => {
+    if (tabs.length <= 1) return;
+    setTabs(prev => prev.filter((_, i) => i !== index));
+    setActiveTabIndex(prev => {
+      if (prev >= index && prev > 0) return prev - 1;
+      return prev;
+    });
+  }, [tabs.length]);
+
+  const handleDuplicateTab = useCallback(() => {
+    if (tabs.length >= 10) return;
+    const source = tabs[activeTabIndex];
+    const dup: ChartTab = { ...source, id: generateTabId() };
+    setTabs(prev => [...prev.slice(0, activeTabIndex + 1), dup, ...prev.slice(activeTabIndex + 1)]);
+    setActiveTabIndex(activeTabIndex + 1);
+  }, [tabs, activeTabIndex]);
+
+  const handleSwitchTab = useCallback((index: number) => {
+    setActiveTabIndex(index);
+  }, []);
 
   // Full person data for chart (combines birth data + chart)
   const personA: PersonData | null = chartA ? { ...personAData, natalChart: chartA } : null;
   const personB: PersonData | null = chartB && personBData ? { ...personBData, natalChart: chartB } : null;
   const hasChart = !!chartA;
   const hasSynastry = !!chartB && !!personBData;
-
-  // UI state
-  const [editing, setEditing] = useState(sessionRestore?.chartA ? false : true);
   const [loading, setLoading] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -532,18 +651,27 @@ export default function ChartPage() {
   const [chartMode, setChartMode] = useState<ChartMode>(hasSynastry ? 'synastry' : 'personA');
   const themeVars = useMemo(() => getThemeCSSVariables(pageTheme) as React.CSSProperties, [pageTheme]);
 
-  // Load theme from user profile on login — DB is source of truth when logged in
+  // Load theme + tabs from user profile on login — DB is source of truth when logged in
+  const profileTabsLoaded = useRef(false);
   useEffect(() => {
     if (!user) {
       setThemeReady(true);
       return;
     }
     setThemeReady(false);
-    supabase.from('astrologer_profiles').select('theme').eq('id', user.id).single()
+    supabase.from('astrologer_profiles').select('theme, chart_tabs').eq('id', user.id).single()
       .then(({ data }) => {
         if (data?.theme) {
           setPageTheme(data.theme);
           localStorage.setItem('astrologer_theme', data.theme);
+        }
+        // Restore tabs from profile if available and no route/session override
+        if (!profileTabsLoaded.current && data?.chart_tabs && Array.isArray(data.chart_tabs) && data.chart_tabs.length > 0 && !routeState?.personA) {
+          setTabs(data.chart_tabs as ChartTab[]);
+          // Find first tab with a chart, or stay at 0
+          const chartIdx = (data.chart_tabs as ChartTab[]).findIndex(t => t.chartA);
+          if (chartIdx >= 0) setActiveTabIndex(chartIdx);
+          profileTabsLoaded.current = true;
         }
         setThemeReady(true);
       })
@@ -666,19 +794,29 @@ export default function ChartPage() {
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Persist chart state to sessionStorage
+  // Persist tabs to sessionStorage (survive refresh)
   useEffect(() => {
-    if (chartA) {
-      try {
-        sessionStorage.setItem('astrologer_session', JSON.stringify({
-          personAData,
-          personBData,
-          chartA,
-          chartB,
-        }));
-      } catch {}
-    }
-  }, [personAData, personBData, chartA, chartB]);
+    try {
+      sessionStorage.setItem('astrologer_session', JSON.stringify({
+        tabs,
+        activeTabIndex,
+      }));
+    } catch {}
+  }, [tabs, activeTabIndex]);
+
+  // Persist tabs to user profile (debounced)
+  const tabsSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!user?.id) return;
+    if (tabsSaveTimerRef.current) clearTimeout(tabsSaveTimerRef.current);
+    tabsSaveTimerRef.current = setTimeout(() => {
+      supabase.from('astrologer_profiles')
+        .update({ chart_tabs: tabs })
+        .eq('id', user.id)
+        .then(() => {});
+    }, 2000);
+    return () => { if (tabsSaveTimerRef.current) clearTimeout(tabsSaveTimerRef.current); };
+  }, [tabs, user?.id]);
 
   // ─── Broadcast chart swap to guests during live session ─────
   const broadcastChartSwap = useCallback((cA: NatalChart, bA: BirthData, cB: NatalChart | null, bB: BirthData | null) => {
@@ -815,22 +953,40 @@ export default function ChartPage() {
   const handleLoadChart = useCallback((chart: any) => {
     analytics.trackChartLoaded({ chart_type: chart.person_b_chart ? 'synastry' : 'natal' });
     const bA: BirthData = { name: chart.person_a_name || '', date: chart.person_a_date, time: chart.person_a_time, location: chart.person_a_location || '', lat: chart.person_a_lat, lng: chart.person_a_lng };
-    setPersonAData(bA);
-    setChartA(chart.person_a_chart);
     let bB: BirthData | null = null;
     if (chart.person_b_chart) {
       bB = { name: chart.person_b_name || '', date: chart.person_b_date, time: chart.person_b_time, location: chart.person_b_location || '', lat: chart.person_b_lat, lng: chart.person_b_lng };
-      setPersonBData(bB);
-      setChartB(chart.person_b_chart);
-    } else {
-      setPersonBData(null);
-      setChartB(null);
     }
-    setEditing(false);
+
+    // If current tab has a chart, load into a new tab so we don't lose it
+    if (hasChart && tabs.length < 10) {
+      const newTab: ChartTab = {
+        id: generateTabId(),
+        personAData: bA,
+        personBData: bB,
+        chartA: chart.person_a_chart,
+        chartB: chart.person_b_chart || null,
+        editing: false,
+      };
+      setTabs(prev => [...prev, newTab]);
+      setActiveTabIndex(tabs.length);
+    } else {
+      // Load into current tab
+      setPersonAData(bA);
+      setChartA(chart.person_a_chart);
+      if (bB) {
+        setPersonBData(bB);
+        setChartB(chart.person_b_chart);
+      } else {
+        setPersonBData(null);
+        setChartB(null);
+      }
+      setEditing(false);
+    }
 
     // Broadcast to guests if session is active
     broadcastChartSwap(chart.person_a_chart, bA, chart.person_b_chart || null, bB);
-  }, [broadcastChartSwap]);
+  }, [broadcastChartSwap, hasChart, tabs.length]);
 
   // ─── BiWheel fetch handlers ─────────────────────────────────
 
@@ -936,6 +1092,19 @@ export default function ChartPage() {
     return { original_location: { lat: src.lat, lng: src.lng!, name: src.location || 'Birth Location' }, relocated_location: { lat: newLat, lng: newLng, name: 'Relocated Location' }, relocated_planets: data.planets || [], houses: data.houses || { cusps: [], ascendant: 0, mc: 0 }, ascendantSign: data.ascendantSign || '' };
   }, [personAData, personBData, relocatedRemaining, useRelocatedCredit]);
 
+  const handleFetchShiftedNatal = useCallback(async (
+    person: 'A' | 'B', shiftedDate: string, shiftedTime: string, asteroids?: AsteroidsParam
+  ): Promise<NatalChart> => {
+    const src = person === 'A' ? personAData : personBData;
+    if (!src?.lat) throw new Error(`Person ${person} birth info not available`);
+    const body: Record<string, unknown> = {
+      birth_date: shiftedDate, birth_time: shiftedTime, lat: src.lat, lng: src.lng,
+    };
+    if (asteroids) body.asteroids = asteroids;
+    const data = await swissEphemeris.natal(body);
+    return parseNatalResponse(data);
+  }, [personAData, personBData]);
+
   const handleFetchAsteroidData = useCallback(async (asteroids: string[]): Promise<{ chartA: Record<string, any>; chartB: Record<string, any> }> => {
     const resA: Record<string, any> = {}; const resB: Record<string, any> = {};
     const parse = (data: any): Record<string, any> => {
@@ -995,17 +1164,23 @@ export default function ChartPage() {
     onNextTab: handleNextTab,
     onCalculate: calculateChart,
     onSave: handleShortcutSave,
-    onToggleEdit: useCallback(() => setEditing(v => !v), []),
+    onToggleEdit: useCallback(() => setEditing(v => !v), [setEditing]),
     onToggleGalactic: handleGalacticToggle,
     onEscape: handleShortcutEscape,
     onShowHelp: useCallback(() => setShowShortcutsHelp(true), []),
     onSpotlight: useCallback(() => setShowSpotlight(true), []),
+    // Chart tab shortcuts
+    onNewChartTab: handleNewTab,
+    onCloseChartTab: useCallback(() => handleCloseTab(activeTabIndex), [handleCloseTab, activeTabIndex]),
+    onDuplicateChartTab: handleDuplicateTab,
+    onPrevChartTab: useCallback(() => setActiveTabIndex(prev => Math.max(0, prev - 1)), []),
+    onNextChartTab: useCallback(() => setActiveTabIndex(prev => Math.min(tabs.length - 1, prev + 1)), [tabs.length]),
   });
 
   // ─── Render ─────────────────────────────────────────────────
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${hasChart && themeReady && isThemeDark(pageTheme) ? 'dark' : ''}`} style={hasChart && themeReady ? themeVars : undefined}>
+    <div className={`min-h-screen transition-colors duration-300 ${themeReady && isThemeDark(pageTheme) ? 'dark' : ''}`} style={themeReady ? themeVars : undefined}>
 
       {/* ── Header Bar ──────────────────────────────────────── */}
       <div className="border-b bg-background">
@@ -1130,6 +1305,46 @@ export default function ChartPage() {
         </div>
       </div>
 
+      {/* ── Chart Tabs Bar ─────────────────────────────────── */}
+      {(tabs.length > 1 || hasChart) && (
+        <div className="border-b border-border/50 bg-muted/20">
+          <div className="container px-2 md:px-6">
+            <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-hide py-1">
+              {tabs.map((tab, i) => (
+                <button
+                  key={tab.id}
+                  onClick={() => handleSwitchTab(i)}
+                  className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                    i === activeTabIndex
+                      ? 'bg-background text-foreground border border-b-0 border-border/50'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  }`}
+                >
+                  <span className="max-w-[120px] truncate">{getTabLabel(tab)}</span>
+                  {tabs.length > 1 && (
+                    <span
+                      onClick={(e) => { e.stopPropagation(); handleCloseTab(i); }}
+                      className="w-4 h-4 flex items-center justify-center rounded-sm opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:bg-muted transition-opacity cursor-pointer"
+                    >
+                      <X className="w-2.5 h-2.5" />
+                    </span>
+                  )}
+                </button>
+              ))}
+              {tabs.length < 10 && (
+                <button
+                  onClick={handleNewTab}
+                  className="flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground/40 hover:text-foreground hover:bg-muted transition-colors"
+                  title="New chart tab (Alt+T)"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Birth Data Panel ────────────────────────────────── */}
       {editing && (
         <div className="border-b border-border/50 bg-gradient-to-b from-background to-muted/20">
@@ -1223,6 +1438,7 @@ export default function ChartPage() {
                 </div>
                 <div className="relative">
                   <BiWheelMobileWrapper
+                    key={currentTab.id}
                     chartA={personA.natalChart}
                     chartB={hasSynastry ? personB!.natalChart : personA.natalChart}
                     nameA={personA.name || 'Person A'}
@@ -1232,10 +1448,12 @@ export default function ChartPage() {
                     enableComposite={hasSynastry}
                     enableProgressed={true}
                     enableRelocated={true}
+                    enableBirthTimeShift={true}
                     onFetchTransits={handleFetchTransits}
                     onFetchComposite={hasSynastry ? handleFetchComposite : undefined}
                     onFetchProgressed={handleFetchProgressed}
                     onFetchRelocated={handleFetchRelocated}
+                    onFetchShiftedNatal={handleFetchShiftedNatal}
                     onFetchAsteroidData={handleFetchAsteroidData}
                     initialTheme={themeReady ? pageTheme : undefined}
                     onThemeChange={handleThemeChange}
@@ -1245,6 +1463,10 @@ export default function ChartPage() {
                     birthTimeA={personA.time}
                     birthDateB={hasSynastry ? personB!.date : undefined}
                     birthTimeB={hasSynastry ? personB!.time : undefined}
+                    initialTimeShiftA={currentTab.timeShiftA ?? 0}
+                    initialTimeShiftB={currentTab.timeShiftB ?? 0}
+                    onTimeShiftAChange={(offset) => updateActiveTab({ timeShiftA: offset })}
+                    onTimeShiftBChange={(offset) => updateActiveTab({ timeShiftB: offset })}
                     onVisiblePlanetsChange={setSharedVisiblePlanets}
                     onVisibleAspectsChange={setSharedVisibleAspects}
                     onChartModeChange={setChartMode}
@@ -1279,10 +1501,10 @@ export default function ChartPage() {
                   </h1>
                   <button
                     onClick={() => setEditing(true)}
-                    className="shrink-0 text-muted-foreground/50 hover:text-foreground transition-colors p-0.5"
+                    className="shrink-0 text-muted-foreground/60 hover:text-foreground transition-colors p-1.5 -m-1 rounded-md hover:bg-muted/50"
                     title="Edit birth data (E)"
                   >
-                    <Pencil className="w-3 h-3" />
+                    <Pencil className="w-3.5 h-3.5" />
                   </button>
                 </div>
                 {/* Birth details */}
@@ -1348,7 +1570,7 @@ export default function ChartPage() {
                           mode: hasSynastry ? 'synastry' : 'personA',
                           initialState: {
                             chartMode: hasSynastry ? 'synastry' : 'personA',
-                            visiblePlanets: ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'],
+                            visiblePlanets: ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto', 'northnode', 'southnode', 'chiron', 'lilith', 'juno', 'ceres', 'pallas', 'vesta', 'ascendant', 'midheaven'],
                             visibleAspects: ['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare'],
                             showHouses: true, showDegreeMarkers: true, showTransits: false,
                             progressedPerson: null, showSolarArc: false, relocatedPerson: null,
@@ -1401,6 +1623,7 @@ export default function ChartPage() {
             ) : (
               <div className="relative">
                 <BiWheelMobileWrapper
+                  key={currentTab.id}
                   chartA={personA.natalChart}
                   chartB={hasSynastry ? personB!.natalChart : personA.natalChart}
                   nameA={personA.name || 'Person A'}
@@ -1410,10 +1633,12 @@ export default function ChartPage() {
                   enableComposite={hasSynastry}
                   enableProgressed={true}
                   enableRelocated={true}
+                  enableBirthTimeShift={true}
                   onFetchTransits={handleFetchTransits}
                   onFetchComposite={hasSynastry ? handleFetchComposite : undefined}
                   onFetchProgressed={handleFetchProgressed}
                   onFetchRelocated={handleFetchRelocated}
+                  onFetchShiftedNatal={handleFetchShiftedNatal}
                   onFetchAsteroidData={handleFetchAsteroidData}
                   initialTheme={themeReady ? pageTheme : undefined}
                   onThemeChange={handleThemeChange}
@@ -1423,6 +1648,10 @@ export default function ChartPage() {
                   birthTimeA={personA.time}
                   birthDateB={hasSynastry ? personB!.date : undefined}
                   birthTimeB={hasSynastry ? personB!.time : undefined}
+                  initialTimeShiftA={currentTab.timeShiftA ?? 0}
+                  initialTimeShiftB={currentTab.timeShiftB ?? 0}
+                  onTimeShiftAChange={(offset) => updateActiveTab({ timeShiftA: offset })}
+                  onTimeShiftBChange={(offset) => updateActiveTab({ timeShiftB: offset })}
                   onVisiblePlanetsChange={setSharedVisiblePlanets}
                   onVisibleAspectsChange={setSharedVisibleAspects}
                   onChartModeChange={setChartMode}
@@ -1518,7 +1747,14 @@ export default function ChartPage() {
               <DeclinationPanel chartA={personA.natalChart} chartB={hasSynastry ? personB!.natalChart : undefined} nameA={personA.name || 'Person A'} nameB={hasSynastry ? (personB!.name || 'Person B') : undefined} />
             </TabsContent>
             <TabsContent value="ai-reading" className="mt-4 min-h-[400px]">
-              <AIReading chartA={personA.natalChart} chartB={hasSynastry ? personB!.natalChart : undefined} nameA={personA.name || 'Person A'} nameB={hasSynastry ? (personB!.name || 'Person B') : undefined} />
+              <AIReading
+                chartA={personA.natalChart}
+                chartB={hasSynastry ? personB!.natalChart : undefined}
+                nameA={personA.name || 'Person A'}
+                nameB={hasSynastry ? (personB!.name || 'Person B') : undefined}
+                birthInfoA={{ date: personAData.date, time: personAData.time, lat: personAData.lat ?? undefined, lng: personAData.lng ?? undefined }}
+                birthInfoB={hasSynastry && personBData ? { date: personBData.date, time: personBData.time, lat: personBData.lat ?? undefined, lng: personBData.lng ?? undefined } : undefined}
+              />
             </TabsContent>
             <TabsContent value="notes" className="mt-4 min-h-[400px]">
               <ChartNotes

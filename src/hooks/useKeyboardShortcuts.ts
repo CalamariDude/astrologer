@@ -15,6 +15,12 @@ interface UseKeyboardShortcutsOptions {
   onEscape: () => void;
   onShowHelp: () => void;
   onSpotlight?: () => void;
+  // Chart tab shortcuts
+  onNewChartTab?: () => void;
+  onCloseChartTab?: () => void;
+  onDuplicateChartTab?: () => void;
+  onPrevChartTab?: () => void;
+  onNextChartTab?: () => void;
 }
 
 function isInputFocused(): boolean {
@@ -40,10 +46,24 @@ export function useKeyboardShortcuts({
   onEscape,
   onShowHelp,
   onSpotlight,
+  onNewChartTab,
+  onCloseChartTab,
+  onDuplicateChartTab,
+  onPrevChartTab,
+  onNextChartTab,
 }: UseKeyboardShortcutsOptions) {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       const meta = e.metaKey || e.ctrlKey;
+
+      // Alt shortcuts — chart tab management (work everywhere except inputs)
+      if (e.altKey && !meta && !isInputFocused()) {
+        if (e.key === 't') { e.preventDefault(); onNewChartTab?.(); return; }
+        if (e.key === 'w') { e.preventDefault(); onCloseChartTab?.(); return; }
+        if (e.key === 'd') { e.preventDefault(); onDuplicateChartTab?.(); return; }
+        if (e.key === 'ArrowLeft') { e.preventDefault(); onPrevChartTab?.(); return; }
+        if (e.key === 'ArrowRight') { e.preventDefault(); onNextChartTab?.(); return; }
+      }
 
       // Meta shortcuts — work everywhere (including inputs)
       if (meta && e.key === 'k') {
@@ -111,5 +131,5 @@ export function useKeyboardShortcuts({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hasChart, isEditing, activeTab, onTabChange, onPrevTab, onNextTab, onCalculate, onSave, onToggleEdit, onToggleGalactic, onEscape, onShowHelp, onSpotlight]);
+  }, [hasChart, isEditing, activeTab, onTabChange, onPrevTab, onNextTab, onCalculate, onSave, onToggleEdit, onToggleGalactic, onEscape, onShowHelp, onSpotlight, onNewChartTab, onCloseChartTab, onDuplicateChartTab, onPrevChartTab, onNextChartTab]);
 }

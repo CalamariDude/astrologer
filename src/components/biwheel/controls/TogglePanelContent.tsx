@@ -11,6 +11,7 @@ import {
   ASTEROIDS,
   ARABIC_PARTS,
   ASTEROID_GROUP_INFO,
+  ZODIAC_SIGNS,
   getThemeAwarePlanetColor,
 } from '../utils/constants';
 import type { AspectType } from '../utils/aspectCalculations';
@@ -52,6 +53,8 @@ interface TogglePanelContentProps {
   // Rotation controls
   rotateToAscendant?: boolean;
   onSetRotateToAscendant?: (rotate: boolean) => void;
+  zodiacVantage?: number | null;
+  onSetZodiacVantage?: (vantage: number | null) => void;
   // Mobile mode
   isMobile?: boolean;
   // Theme controls
@@ -80,13 +83,27 @@ interface TogglePanelContentProps {
   relocatedLocationB?: LocationData | null;
   onSetRelocatedPerson?: (person: 'A' | 'B' | 'both' | null) => void;
   onOpenLocationPicker?: (person: 'A' | 'B') => void;
+  // Display toggles
+  showDecans?: boolean;
+  onSetShowDecans?: (show: boolean) => void;
   // Aspect line display options
   straightAspects?: boolean;
   onSetStraightAspects?: (straight: boolean) => void;
   showEffects?: boolean;
   onSetShowEffects?: (show: boolean) => void;
+  // Birth time shift (natal knobs)
+  enableBirthTimeShift?: boolean;
+  showBirthTimeShift?: boolean;
+  onSetShowBirthTimeShift?: (show: boolean) => void;
   // Save defaults
   onSaveDefaults?: () => void;
+  // Presets
+  presets?: { id: string; name: string }[];
+  activePresetId?: string | null;
+  onLoadPreset?: (id: string) => void;
+  onDeletePreset?: (id: string) => void;
+  onSavePreset?: (name: string) => void;
+  presetsAtLimit?: boolean;
 }
 
 interface SectionProps {
@@ -365,6 +382,8 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
   // Rotation controls
   rotateToAscendant = true,
   onSetRotateToAscendant,
+  zodiacVantage = null,
+  onSetZodiacVantage,
   // Mobile
   isMobile = false,
   // Theme controls
@@ -393,14 +412,30 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
   relocatedLocationB,
   onSetRelocatedPerson,
   onOpenLocationPicker,
+  // Display toggles
+  showDecans = false,
+  onSetShowDecans,
   // Aspect line display options
   straightAspects = false,
   onSetStraightAspects,
   showEffects = true,
   onSetShowEffects,
+  // Birth time shift (natal knobs)
+  enableBirthTimeShift = false,
+  showBirthTimeShift = false,
+  onSetShowBirthTimeShift,
   onSaveDefaults,
+  // Presets
+  presets,
+  activePresetId,
+  onLoadPreset,
+  onDeletePreset,
+  onSavePreset,
+  presetsAtLimit,
 }) => {
   const [saveFlash, setSaveFlash] = useState(false);
+  const [presetSaveName, setPresetSaveName] = useState('');
+  const [showPresetSave, setShowPresetSave] = useState(false);
   const majorAspects = Object.entries(ASPECTS).filter(([_, def]) => def.major);
   const minorAspects = Object.entries(ASPECTS).filter(([_, def]) => !def.major);
 
@@ -431,8 +466,8 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
         />
       )}
 
-      {/* Chart Mode - Transit and Composite controls */}
-      {(enableTransits || enableComposite) && (
+      {/* Chart Mode - Transit, Natal Knobs, and Composite controls */}
+      {(enableTransits || enableComposite || enableBirthTimeShift) && (
         <Section title="Chart Mode" defaultOpen={true} isMobile={isMobile}>
           {/* Transit toggle with date picker */}
           {enableTransits && (
@@ -543,6 +578,19 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Birth time shift (natal knobs) toggle */}
+          {enableBirthTimeShift && (
+            <div style={{ marginBottom: 8, marginTop: enableTransits ? 8 : 0 }}>
+              <Checkbox
+                label="Show Natal Knobs"
+                checked={showBirthTimeShift}
+                onChange={() => onSetShowBirthTimeShift?.(!showBirthTimeShift)}
+                color="#a78bfa"
+                isMobile={isMobile}
+              />
             </div>
           )}
 
@@ -904,6 +952,14 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
           onChange={() => onSetShowRetrogrades(!showRetrogrades)}
           isMobile={isMobile}
         />
+        {onSetShowDecans && (
+          <Checkbox
+            label="Decans"
+            checked={showDecans}
+            onChange={() => onSetShowDecans(!showDecans)}
+            isMobile={isMobile}
+          />
+        )}
         {onSetStraightAspects && (
           <Checkbox
             label="Straight Lines"
@@ -912,7 +968,7 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
             isMobile={isMobile}
           />
         )}
-        {onSetShowEffects && (
+        {onSetShowEffects && !isMobile && (
           <Checkbox
             label="Flow Effects"
             checked={showEffects}
@@ -923,11 +979,69 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
         {onSetRotateToAscendant && (
           <Checkbox
             label="ASC at West"
-            checked={rotateToAscendant}
-            onChange={() => onSetRotateToAscendant(!rotateToAscendant)}
+            checked={rotateToAscendant && zodiacVantage === null}
+            onChange={() => {
+              if (zodiacVantage !== null) {
+                onSetZodiacVantage?.(null);
+                onSetRotateToAscendant(true);
+              } else {
+                onSetRotateToAscendant(!rotateToAscendant);
+              }
+            }}
             color={COLORS.personA}
             isMobile={isMobile}
           />
+        )}
+        {onSetZodiacVantage && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontSize: isMobile ? 12 : 10, color: COLORS.textMuted, marginBottom: 4 }}>
+              Whole Sign & Fixed ASC (0°Each)
+            </div>
+            <select
+              value={zodiacVantage ?? ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === '') {
+                  onSetZodiacVantage(null);
+                } else {
+                  onSetZodiacVantage(parseInt(val, 10));
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: isMobile ? '8px 10px' : '5px 8px',
+                fontSize: isMobile ? 14 : 11,
+                border: `1px solid ${COLORS.gridLineFaint}`,
+                borderRadius: 4,
+                color: zodiacVantage !== null
+                  ? (COLORS.background < '#333' ? '#ffb74d' : COLORS.textSecondary)
+                  : COLORS.textSecondary,
+                background: zodiacVantage !== null
+                  ? (COLORS.background < '#333' ? '#3a2a10' : '#fff3e0')
+                  : COLORS.background,
+                cursor: 'pointer',
+              }}
+            >
+              <option value="">Original ASC & MC</option>
+              {ZODIAC_SIGNS.map((sign, index) => (
+                <option key={sign.name} value={index}>
+                  0°{sign.name}
+                </option>
+              ))}
+            </select>
+            {zodiacVantage !== null && (
+              <div style={{
+                fontSize: isMobile ? 11 : 9,
+                color: COLORS.background < '#333' ? '#ffb74d' : '#e65100',
+                marginTop: 4,
+                padding: '4px 6px',
+                background: COLORS.background < '#333' ? '#3a2a10' : '#fff3e0',
+                borderRadius: 4,
+              }}>
+                0°{ZODIAC_SIGNS[zodiacVantage].name}, Original ASC & MC
+              </div>
+            )}
+          </div>
         )}
       </Section>
 
@@ -1088,6 +1202,136 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
               </div>
             );
           })}
+        </Section>
+      )}
+
+      {/* Presets management */}
+      {presets && onDeletePreset && (
+        <Section title="Presets" defaultOpen={true} isMobile={isMobile}>
+          {presets.length === 0 ? (
+            <div style={{ fontSize: isMobile ? 12 : 11, color: COLORS.textMuted, padding: '4px 0' }}>
+              No saved presets. Use the preset bar above the chart to save one.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 6 : 4 }}>
+              {presets.map(p => (
+                <div
+                  key={p.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: isMobile ? '8px 10px' : '5px 8px',
+                    borderRadius: 6,
+                    background: activePresetId === p.id ? 'var(--primary)' : COLORS.backgroundAlt,
+                    color: activePresetId === p.id ? '#fff' : COLORS.textPrimary,
+                    fontSize: isMobile ? 13 : 12,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onClick={() => onLoadPreset?.(p.id)}
+                >
+                  <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{p.name}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDeletePreset(p.id); }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: 4,
+                      borderRadius: 4,
+                      display: 'flex',
+                      alignItems: 'center',
+                      opacity: 0.5,
+                      color: activePresetId === p.id ? '#fff' : COLORS.textPrimary,
+                    }}
+                    title={`Delete "${p.name}"`}
+                  >
+                    <span style={{ fontSize: isMobile ? 14 : 12, lineHeight: 1 }}>&times;</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Save new preset inline */}
+          {onSavePreset && !presetsAtLimit && (
+            <div style={{ marginTop: isMobile ? 8 : 6 }}>
+              {showPresetSave ? (
+                <form
+                  style={{ display: 'flex', gap: 4, alignItems: 'center' }}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (presetSaveName.trim()) {
+                      onSavePreset(presetSaveName.trim());
+                      setPresetSaveName('');
+                      setShowPresetSave(false);
+                    }
+                  }}
+                >
+                  <input
+                    type="text"
+                    value={presetSaveName}
+                    onChange={(e) => setPresetSaveName(e.target.value)}
+                    placeholder="Preset name"
+                    maxLength={20}
+                    autoFocus
+                    style={{
+                      flex: 1,
+                      padding: isMobile ? '6px 8px' : '4px 6px',
+                      fontSize: isMobile ? 13 : 11,
+                      border: `1px solid ${COLORS.gridLineFaint}`,
+                      borderRadius: 6,
+                      background: COLORS.background,
+                      color: COLORS.textPrimary,
+                      outline: 'none',
+                    }}
+                    onKeyDown={(e) => { if (e.key === 'Escape') { setShowPresetSave(false); setPresetSaveName(''); } }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!presetSaveName.trim()}
+                    style={{
+                      padding: isMobile ? '6px 10px' : '4px 8px',
+                      fontSize: isMobile ? 12 : 11,
+                      fontWeight: 600,
+                      background: 'var(--primary)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 6,
+                      cursor: presetSaveName.trim() ? 'pointer' : 'default',
+                      opacity: presetSaveName.trim() ? 1 : 0.5,
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowPresetSave(false); setPresetSaveName(''); }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: COLORS.textMuted }}
+                  >
+                    &times;
+                  </button>
+                </form>
+              ) : (
+                <button
+                  onClick={() => setShowPresetSave(true)}
+                  style={{
+                    width: '100%',
+                    padding: isMobile ? '8px 0' : '6px 0',
+                    fontSize: isMobile ? 12 : 11,
+                    fontWeight: 500,
+                    color: COLORS.textMuted,
+                    background: 'none',
+                    border: `1px dashed ${COLORS.gridLineFaint}`,
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  + Save Current as Preset
+                </button>
+              )}
+            </div>
+          )}
         </Section>
       )}
 

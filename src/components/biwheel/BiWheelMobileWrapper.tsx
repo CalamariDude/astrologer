@@ -8,10 +8,11 @@ import { BiWheelSynastry } from './BiWheelSynastry';
 import { TogglePanelContent } from './controls/TogglePanelContent';
 import type { BiWheelSynastryProps, AsteroidGroup, ChartMode, LocationData } from './types';
 import { ASTEROID_GROUPS } from './types';
-import { ASTEROIDS, ASTEROID_GROUP_INFO, applyTheme } from './utils/constants';
+import { ASTEROIDS, ASTEROID_GROUP_INFO, DEFAULT_VISIBLE_PLANETS, applyTheme } from './utils/constants';
 import { THEMES, type ThemeName } from './utils/themes';
 import { Drawer } from 'vaul';
-import { Settings2, Download, Image, FileText, Mail, Loader2, Share2, Link2, Check } from 'lucide-react';
+import { Settings2, Download, Image, FileText, Mail, Loader2, Share2, Link2, Check, Plus, X, Bookmark } from 'lucide-react';
+import { type ChartPreset, loadPresets, savePreset, deletePreset, buildPresetFromState, loadPresetsFromProfile, savePresetsToProfile } from './utils/presets';
 // Lazy-import chart export (pulls in jsPDF ~357KB) — only needed on export button click
 const getChartExport = () => import('@/lib/chartExport');
 import * as analytics from '@/lib/analytics';
@@ -83,7 +84,7 @@ interface BiWheelMobileWrapperProps extends Omit<BiWheelSynastryProps, 'size' | 
 }
 
 // Default sets for comparison when building share URLs
-const DEFAULT_PLANETS = new Set(['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto']);
+const DEFAULT_PLANETS = DEFAULT_VISIBLE_PLANETS;
 const DEFAULT_ASPECTS = new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare']);
 
 // Breakpoint for mobile detection
@@ -154,7 +155,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   // BiWheel control state (lifted up for drawer access)
   const [visiblePlanets, setVisiblePlanets] = useState<Set<string>>(
     biWheelProps.initialVisiblePlanets
-      || (savedDefaults?.visiblePlanets ? new Set(savedDefaults.visiblePlanets) : new Set(['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto']))
+      || (savedDefaults?.visiblePlanets ? new Set(savedDefaults.visiblePlanets) : new Set(DEFAULT_PLANETS))
   );
   const [visibleAspects, setVisibleAspects] = useState<Set<string>>(
     biWheelProps.initialVisibleAspects
@@ -194,11 +195,14 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   const [relocatedLocationB, setRelocatedLocationB] = useState<LocationData | null>(null);
   const [locationPickerTarget, setLocationPickerTarget] = useState<'A' | 'B' | null>(null);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
+  // Birth time shift state (lifted for mobile drawer access)
+  const [showBirthTimeShift, setShowBirthTimeShift] = useState(false);
+
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Aspect line display options (lifted for mobile drawer access)
-  const [straightAspects, setStraightAspects] = useState(savedDefaults?.straightAspects ?? false);
+  const [straightAspects, setStraightAspects] = useState(savedDefaults?.straightAspects ?? true);
   const [mobileShowEffects, setMobileShowEffects] = useState(savedDefaults?.showEffects ?? true);
 
   // Display toggles (lifted for session sync)
@@ -209,8 +213,25 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   const [rotateToAscendant, setRotateToAscendant] = useState(savedDefaults?.rotateToAscendant ?? true);
   const [zodiacVantage, setZodiacVantage] = useState<number | null>(null);
 
+  // Preset state
+  const [presets, setPresets] = useState<ChartPreset[]>(() => loadPresets());
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
+  const [showSavePreset, setShowSavePreset] = useState(false);
+  const [presetName, setPresetName] = useState('');
+
   // Auth & subscription (for location picker gating)
   const { user } = useAuth();
+
+  // Load presets from profile for logged-in users
+  useEffect(() => {
+    if (!user?.id) return;
+    loadPresetsFromProfile(user.id).then(profilePresets => {
+      // Only overwrite if profile returned presets — don't flash-empty on tab switch
+      if (profilePresets.length > 0) {
+        setPresets(profilePresets);
+      }
+    });
+  }, [user?.id]);
   const { isPaid } = useSubscription();
 
   // Theme state (lifted for mobile drawer access)
@@ -263,6 +284,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     if (externalState.showEffects !== undefined) setMobileShowEffects(externalState.showEffects);
     if (externalState.showRetrogrades !== undefined) setShowRetrogrades(externalState.showRetrogrades);
     if (externalState.showDecans !== undefined) setShowDecans(externalState.showDecans);
+    if (externalState.showBirthTimeShift !== undefined) setShowBirthTimeShift(externalState.showBirthTimeShift);
     if (externalState.scale !== undefined) setScale(externalState.scale);
     if (externalState.translateX !== undefined && externalState.translateY !== undefined) setTranslate({ x: externalState.translateX, y: externalState.translateY });
   }, [externalState]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -750,14 +772,85 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
       visibleAspects: Array.from(visibleAspects),
       showHouses,
       showDegreeMarkers,
-      showRetrogrades: true,
-      showDecans: true,
-      rotateToAscendant: false,
-      chartTheme: 'classic',
+      showRetrogrades,
+      showDecans,
+      rotateToAscendant,
+      chartTheme,
       enabledAsteroidGroups: Array.from(enabledAsteroidGroups),
     };
     localStorage.setItem('biwheel-chart-defaults', JSON.stringify(defaults));
-  }, [visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups]);
+  }, [visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, showRetrogrades, showDecans, rotateToAscendant, chartTheme, enabledAsteroidGroups]);
+
+  // Preset handlers
+  const handleSavePreset = useCallback((name: string) => {
+    const payload = buildPresetFromState({
+      name,
+      visiblePlanets,
+      visibleAspects,
+      showHouses,
+      showDegreeMarkers,
+      showRetrogrades,
+      showDecans,
+      straightAspects,
+      showEffects: mobileShowEffects,
+      chartTheme,
+      rotateToAscendant,
+      zodiacVantage,
+      enabledAsteroidGroups,
+    });
+    const created = savePreset(payload);
+    if (created) {
+      const updated = loadPresets();
+      setPresets(updated);
+      setActivePresetId(created.id);
+      setShowSavePreset(false);
+      setPresetName('');
+      toast.success(`Preset "${name}" saved`);
+      // Sync to profile
+      if (user?.id) savePresetsToProfile(user.id, updated);
+    } else {
+      toast.error('Max 10 presets reached. Delete one first.');
+    }
+  }, [visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, showRetrogrades, showDecans, straightAspects, mobileShowEffects, chartTheme, rotateToAscendant, zodiacVantage, enabledAsteroidGroups, user?.id]);
+
+  const isLoadingPresetRef = useRef(false);
+
+  const handleLoadPreset = useCallback((preset: ChartPreset) => {
+    isLoadingPresetRef.current = true;
+    setVisiblePlanets(new Set(preset.visiblePlanets));
+    setVisibleAspects(new Set(preset.visibleAspects));
+    setShowHouses(preset.showHouses);
+    setShowDegreeMarkers(preset.showDegreeMarkers);
+    setShowRetrogrades(preset.showRetrogrades);
+    setShowDecans(preset.showDecans);
+    setStraightAspects(preset.straightAspects);
+    setMobileShowEffects(preset.showEffects);
+    setChartTheme(preset.chartTheme);
+    applyTheme(preset.chartTheme as ThemeName);
+    biWheelProps.onThemeChange?.(preset.chartTheme);
+    setRotateToAscendant(preset.rotateToAscendant);
+    setZodiacVantage(preset.zodiacVantage);
+    setEnabledAsteroidGroups(new Set(preset.enabledAsteroidGroups as AsteroidGroup[]));
+    setActivePresetId(preset.id);
+    // Allow the effect to skip this batch
+    requestAnimationFrame(() => { isLoadingPresetRef.current = false; });
+  }, [biWheelProps]);
+
+  const handleDeletePreset = useCallback((id: string) => {
+    deletePreset(id);
+    const updated = loadPresets();
+    setPresets(updated);
+    if (activePresetId === id) setActivePresetId(null);
+    // Sync to profile
+    if (user?.id) savePresetsToProfile(user.id, updated);
+  }, [activePresetId, user?.id]);
+
+  // Clear active preset when user manually changes any setting
+  useEffect(() => {
+    if (isLoadingPresetRef.current) return;
+    if (activePresetId) setActivePresetId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, showRetrogrades, showDecans, straightAspects, mobileShowEffects, chartTheme, rotateToAscendant, zodiacVantage, enabledAsteroidGroups]);
 
   // Mutual exclusivity: progressed ↔ relocated
   const handleSetProgressedPerson = useCallback((person: 'A' | 'B' | 'both' | null) => {
@@ -826,8 +919,90 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   return (
     <div ref={containerRef} className="w-full">
       <div>
-        {/* Control bar — hidden in readOnly mode (guest live view + replay) */}
-        {readOnly ? null : <div className="flex items-center justify-end w-full mb-1 md:mb-2 px-1 md:px-2">
+        {/* Preset bar + control bar — hidden in readOnly mode (guest live view + replay) */}
+        {readOnly ? null : <>
+        {/* Preset selector bar */}
+        {(presets.length > 0 || showSavePreset) && (
+          <div className="flex items-center gap-1.5 w-full mb-1 px-1 md:px-2 overflow-x-auto scrollbar-hide">
+            <Bookmark className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+            {presets.map(p => (
+              <div key={p.id} className="flex-shrink-0 relative group">
+                <button
+                  onClick={() => handleLoadPreset(p)}
+                  className={`px-2.5 py-1 rounded-full text-[10px] md:text-xs font-medium transition-colors ${
+                    activePresetId === p.id
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted hover:bg-muted/70 text-foreground'
+                  }`}
+                  title={`Load "${p.name}" — applies saved planets, aspects, theme, and display settings`}
+                >
+                  {p.name}
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDeletePreset(p.id); }}
+                  className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  title={`Delete preset "${p.name}"`}
+                >
+                  <X className="w-2 h-2" />
+                </button>
+              </div>
+            ))}
+            {showSavePreset ? (
+              <form
+                className="flex items-center gap-1 flex-shrink-0"
+                onSubmit={(e) => { e.preventDefault(); if (presetName.trim()) handleSavePreset(presetName.trim()); }}
+              >
+                <input
+                  type="text"
+                  value={presetName}
+                  onChange={(e) => setPresetName(e.target.value)}
+                  placeholder="Preset name"
+                  maxLength={20}
+                  autoFocus
+                  className="w-24 md:w-32 px-2 py-1 rounded-full text-[10px] md:text-xs border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                  onKeyDown={(e) => { if (e.key === 'Escape') { setShowSavePreset(false); setPresetName(''); } }}
+                />
+                <button
+                  type="submit"
+                  disabled={!presetName.trim()}
+                  className="p-1 rounded-full bg-primary text-primary-foreground disabled:opacity-50"
+                  title="Save this preset with the given name"
+                >
+                  <Check className="w-3 h-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowSavePreset(false); setPresetName(''); }}
+                  className="p-1 rounded-full hover:bg-muted"
+                  title="Cancel"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </form>
+            ) : presets.length < 10 ? (
+              <button
+                onClick={() => setShowSavePreset(true)}
+                className="flex-shrink-0 flex items-center gap-0.5 px-2 py-1 rounded-full text-[10px] md:text-xs text-muted-foreground hover:bg-muted transition-colors border border-dashed border-muted-foreground/30"
+                title="Save your current chart options (planets, aspects, theme, display) as a reusable preset"
+              >
+                <Plus className="w-3 h-3" />
+                Save Preset
+              </button>
+            ) : null}
+          </div>
+        )}
+        <div className="flex items-center justify-between w-full mb-1 md:mb-2 px-1 md:px-2">
+          {/* Save preset button (when no presets exist yet and save form isn't open) */}
+          {presets.length === 0 && !showSavePreset ? (
+            <button
+              onClick={() => setShowSavePreset(true)}
+              className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-muted/70 transition-colors text-muted-foreground"
+              title="Save your current chart options (planets, aspects, theme, display) as a reusable preset — quickly switch between different configurations"
+            >
+              <Bookmark className="w-3.5 h-3.5" />
+              <span className="text-[10px] md:text-xs">Save Preset</span>
+            </button>
+          ) : <div />}
           <div className="flex items-center gap-1 md:gap-2">
             {/* Settings button (mobile - opens drawer) */}
             {isMobile && (
@@ -908,7 +1083,8 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
               )}
             </div>
           </div>
-        </div>}
+        </div>
+        </>}
 
         {/* Chart container */}
         <div
@@ -986,6 +1162,9 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
               onRelocatedLoadingChange: setRelocatedLoading,
               onThemeChange: (theme: string) => { setChartTheme(theme); biWheelProps.onThemeChange?.(theme); },
               onInternalStateChange: handleInternalStateChange,
+              // Birth time shift
+              initialShowBirthTimeShift: showBirthTimeShift,
+              onShowBirthTimeShiftChange: setShowBirthTimeShift,
             };
 
             return isMobile ? (
@@ -1043,12 +1222,14 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                   visibleAspects={visibleAspects as Set<any>}
                   showHouses={showHouses}
                   showDegreeMarkers={showDegreeMarkers}
-                  showRetrogrades={true}
+                  showRetrogrades={showRetrogrades}
                   onTogglePlanet={togglePlanet}
                   onToggleAspect={toggleAspect}
                   onSetShowHouses={setShowHouses}
                   onSetShowDegreeMarkers={setShowDegreeMarkers}
-                  onSetShowRetrogrades={() => {}}
+                  onSetShowRetrogrades={setShowRetrogrades}
+                  showDecans={showDecans}
+                  onSetShowDecans={setShowDecans}
                   straightAspects={straightAspects}
                   onSetStraightAspects={setStraightAspects}
                   showEffects={mobileShowEffects}
@@ -1127,10 +1308,26 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                   relocatedLocationB={relocatedLocationB}
                   onSetRelocatedPerson={handleSetRelocatedPerson}
                   onOpenLocationPicker={handleOpenLocationPicker}
+                  // Rotation controls
+                  rotateToAscendant={rotateToAscendant}
+                  onSetRotateToAscendant={setRotateToAscendant}
+                  zodiacVantage={zodiacVantage}
+                  onSetZodiacVantage={setZodiacVantage}
                   // Theme controls
                   chartTheme={chartTheme as any}
                   onThemeChange={(theme) => { applyTheme(theme); setChartTheme(theme); biWheelProps.onThemeChange?.(theme); }}
+                  // Birth time shift (natal knobs)
+                  enableBirthTimeShift={biWheelProps.enableBirthTimeShift}
+                  showBirthTimeShift={showBirthTimeShift}
+                  onSetShowBirthTimeShift={setShowBirthTimeShift}
                   onSaveDefaults={saveDefaults}
+                  // Presets
+                  presets={presets.map(p => ({ id: p.id, name: p.name }))}
+                  activePresetId={activePresetId}
+                  onLoadPreset={(id) => { const p = presets.find(pr => pr.id === id); if (p) handleLoadPreset(p); }}
+                  onDeletePreset={handleDeletePreset}
+                  onSavePreset={handleSavePreset}
+                  presetsAtLimit={presets.length >= 10}
                 />
               </div>
             </Drawer.Content>

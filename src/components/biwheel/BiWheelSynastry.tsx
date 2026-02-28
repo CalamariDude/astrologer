@@ -43,6 +43,7 @@ const HouseTooltip = React.lazy(() => import('./tooltips/HouseTooltip').then(m =
 // TogglePanel — lazy-loaded (desktop sidebar, not used on mobile)
 const TogglePanel = React.lazy(() => import('./controls/TogglePanel').then(m => ({ default: m.TogglePanel })));
 import { TransitJogWheel } from './controls/TransitJogWheel';
+import { BirthTimeShiftKnob } from './controls/BirthTimeShiftKnob';
 import { calculateDeclination } from '@/lib/declination';
 import * as analytics from '@/lib/analytics';
 import type { BiWheelSynastryProps, BiWheelState, ChartDimensions, NatalChart, PlanetData } from './types';
@@ -397,6 +398,15 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   initialShowDecans,
   // Full state change callback (session broadcast)
   onInternalStateChange,
+  // Birth time shift (rectification) props
+  enableBirthTimeShift = false,
+  onFetchShiftedNatal,
+  initialShowBirthTimeShift,
+  initialTimeShiftA,
+  initialTimeShiftB,
+  onShowBirthTimeShiftChange,
+  onTimeShiftAChange,
+  onTimeShiftBChange,
 }) => {
   // Subscription gating for astrocartography
   const { user } = useAuth();
@@ -454,8 +464,15 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     // Solar Arc state (derived from progressed Sun - mutually exclusive with progressed)
     showSolarArc: initialShowSolarArc || false,
     // Aspect line display options
-    straightAspects: initialStraightAspects ?? savedDefaults?.straightAspects ?? false,
+    straightAspects: initialStraightAspects ?? savedDefaults?.straightAspects ?? true,
     showEffects: initialShowEffects ?? savedDefaults?.showEffects ?? true,
+    // Birth time shift (rectification) state
+    showBirthTimeShift: initialShowBirthTimeShift ?? false,
+    timeShiftA: initialTimeShiftA ?? 0,
+    timeShiftB: initialTimeShiftB ?? 0,
+    shiftedChartA: null,
+    shiftedChartB: null,
+    birthTimeShiftLoading: false,
   });
 
   // Delayed transit loading — only true if transitLoading persists >500ms
@@ -1051,6 +1068,102 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     setState(prev => ({ ...prev, relocatedLocationA: null, relocatedLocationB: null, relocatedData: null, relocatedDataOther: null }));
   }, []);
 
+  // ─── Birth Time Shift (Rectification) ────────────────────────────
+
+  /** Compute shifted date+time from base date/time and a minute offset using Date arithmetic. */
+  const computeShiftedDateTime = useCallback((baseDate: string, baseTime: string, offsetMinutes: number): { date: string; time: string } => {
+    const [y, mo, d] = baseDate.split('-').map(Number);
+    const [hh, mm] = baseTime.split(':').map(Number);
+    const dt = new Date(y, mo - 1, d, hh, mm, 0, 0);
+    dt.setMinutes(dt.getMinutes() + offsetMinutes);
+    return {
+      date: `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`,
+      time: `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`,
+    };
+  }, []);
+
+  const setShowBirthTimeShift = useCallback((show: boolean) => {
+    setState(prev => {
+      // When hiding, reset offsets
+      if (!show) {
+        onTimeShiftAChange?.(0);
+        onTimeShiftBChange?.(0);
+        onShowBirthTimeShiftChange?.(false);
+        return { ...prev, showBirthTimeShift: false, timeShiftA: 0, timeShiftB: 0, shiftedChartA: null, shiftedChartB: null };
+      }
+      onShowBirthTimeShiftChange?.(true);
+      return { ...prev, showBirthTimeShift: true };
+    });
+  }, [onTimeShiftAChange, onTimeShiftBChange, onShowBirthTimeShiftChange]);
+
+  const setTimeShiftA = useCallback((offset: number) => {
+    setState(prev => ({ ...prev, timeShiftA: offset }));
+    onTimeShiftAChange?.(offset);
+  }, [onTimeShiftAChange]);
+
+  const setTimeShiftB = useCallback((offset: number) => {
+    setState(prev => ({ ...prev, timeShiftB: offset }));
+    onTimeShiftBChange?.(offset);
+  }, [onTimeShiftBChange]);
+
+  const resetTimeShiftA = useCallback(() => {
+    setState(prev => ({ ...prev, timeShiftA: 0, shiftedChartA: null }));
+    onTimeShiftAChange?.(0);
+  }, [onTimeShiftAChange]);
+
+  const resetTimeShiftB = useCallback(() => {
+    setState(prev => ({ ...prev, timeShiftB: 0, shiftedChartB: null }));
+    onTimeShiftBChange?.(0);
+  }, [onTimeShiftBChange]);
+
+  // Debounced fetch for shifted natal charts
+  useEffect(() => {
+    if (!enableBirthTimeShift || !onFetchShiftedNatal) return;
+    if (state.timeShiftA === 0 && state.timeShiftB === 0) {
+      // Clear shifted data when back to zero
+      setState(prev => {
+        if (prev.shiftedChartA || prev.shiftedChartB) {
+          return { ...prev, shiftedChartA: null, shiftedChartB: null, birthTimeShiftLoading: false };
+        }
+        return prev;
+      });
+      return;
+    }
+
+    setState(prev => ({ ...prev, birthTimeShiftLoading: true }));
+    const timer = setTimeout(async () => {
+      try {
+        const promises: Promise<void>[] = [];
+
+        if (state.timeShiftA !== 0 && birthDateA && birthTimeA) {
+          const shifted = computeShiftedDateTime(birthDateA, birthTimeA, state.timeShiftA);
+          promises.push(
+            onFetchShiftedNatal('A', shifted.date, shifted.time, asteroids).then(chart => {
+              setState(prev => ({ ...prev, shiftedChartA: chart }));
+            })
+          );
+        }
+
+        if (state.timeShiftB !== 0 && birthDateB && birthTimeB) {
+          const shifted = computeShiftedDateTime(birthDateB, birthTimeB, state.timeShiftB);
+          promises.push(
+            onFetchShiftedNatal('B', shifted.date, shifted.time, asteroids).then(chart => {
+              setState(prev => ({ ...prev, shiftedChartB: chart }));
+            })
+          );
+        }
+
+        await Promise.all(promises);
+      } catch (err) {
+        console.error('Birth time shift fetch failed:', err);
+      } finally {
+        setState(prev => ({ ...prev, birthTimeShiftLoading: false }));
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [enableBirthTimeShift, onFetchShiftedNatal, state.timeShiftA, state.timeShiftB, birthDateA, birthTimeA, birthDateB, birthTimeB, computeShiftedDateTime, asteroids]);
+
   // Asteroid group handlers - also toggle visibility
   const toggleAsteroidGroup = useCallback((group: AsteroidGroup) => {
     setState(prev => {
@@ -1225,6 +1338,15 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   // Create effective chart objects that use relocated/progressed data when active
   // Both people's house rings update, so both charts get the applicable overlay data
   const effectiveChartA = useMemo((): NatalChart => {
+    // BIRTH TIME SHIFT: highest priority — replaces natal chart in-place
+    if (state.timeShiftA !== 0 && state.shiftedChartA) {
+      return {
+        planets: { ...state.shiftedChartA.planets, ...(asteroidData ? Object.fromEntries(Object.entries(planetsWithAnglesA).filter(([k]) => !(k in (state.shiftedChartA?.planets || {})))) : {}) },
+        houses: state.shiftedChartA.houses,
+        angles: state.shiftedChartA.angles,
+      };
+    }
+
     // RELOCATED: determine which relocated data applies to Person A
     // When 'A' or 'both': primary=A, so relocatedData has A's data
     // When 'B': primary=B, so relocatedDataOther has A's data
@@ -1294,9 +1416,18 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     }
 
     return mergedChartA;
-  }, [state.showRelocated, relocatedPerson, state.relocatedData?.houses, state.relocatedDataOther?.houses, state.showProgressed, state.showSolarArc, progressedPerson, state.progressedData, state.progressedDataOther, progressedPlanetsToRecord, planetsWithAnglesA, chartA.houses, chartA.angles, mergedChartA]);
+  }, [state.timeShiftA, state.shiftedChartA, asteroidData, state.showRelocated, relocatedPerson, state.relocatedData?.houses, state.relocatedDataOther?.houses, state.showProgressed, state.showSolarArc, progressedPerson, state.progressedData, state.progressedDataOther, progressedPlanetsToRecord, planetsWithAnglesA, chartA.houses, chartA.angles, mergedChartA]);
 
   const effectiveChartB = useMemo((): NatalChart => {
+    // BIRTH TIME SHIFT: highest priority — replaces natal chart in-place
+    if (state.timeShiftB !== 0 && state.shiftedChartB) {
+      return {
+        planets: { ...state.shiftedChartB.planets, ...(asteroidData ? Object.fromEntries(Object.entries(planetsWithAnglesB).filter(([k]) => !(k in (state.shiftedChartB?.planets || {})))) : {}) },
+        houses: state.shiftedChartB.houses,
+        angles: state.shiftedChartB.angles,
+      };
+    }
+
     // RELOCATED: determine which relocated data applies to Person B
     // When 'B': primary=B, so relocatedData has B's data
     // When 'A' or 'both': primary=A, so relocatedDataOther has B's data
@@ -1365,7 +1496,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     }
 
     return mergedChartB;
-  }, [state.showRelocated, relocatedPerson, state.relocatedData?.houses, state.relocatedDataOther?.houses, state.showProgressed, state.showSolarArc, progressedPerson, state.progressedData, state.progressedDataOther, progressedPlanetsToRecord, planetsWithAnglesB, chartB.houses, chartB.angles, mergedChartB]);
+  }, [state.timeShiftB, state.shiftedChartB, asteroidData, state.showRelocated, relocatedPerson, state.relocatedData?.houses, state.relocatedDataOther?.houses, state.showProgressed, state.showSolarArc, progressedPerson, state.progressedData, state.progressedDataOther, progressedPlanetsToRecord, planetsWithAnglesB, chartB.houses, chartB.angles, mergedChartB]);
 
   // Swap-aware chart and name references
   const displayChartA = swapped ? effectiveChartB : effectiveChartA;
@@ -1857,8 +1988,11 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       showEffects: state.showEffects,
       showRetrogrades: state.showRetrogrades,
       showDecans: state.showDecans,
+      showBirthTimeShift: state.showBirthTimeShift,
+      timeShiftA: state.timeShiftA,
+      timeShiftB: state.timeShiftB,
     });
-  }, [state.chartMode, state.visiblePlanets, state.visibleAspects, state.showHouses, state.showDegreeMarkers, state.showTransits, state.transitDate, state.transitTime, state.showProgressed, progressedPerson, state.progressedDate, state.showSolarArc, state.showRelocated, relocatedPerson, state.relocatedLocationA, state.relocatedLocationB, state.enabledAsteroidGroups, chartTheme, rotateToAscendant, zodiacVantage, state.straightAspects, state.showEffects, state.showRetrogrades, state.showDecans]);
+  }, [state.chartMode, state.visiblePlanets, state.visibleAspects, state.showHouses, state.showDegreeMarkers, state.showTransits, state.transitDate, state.transitTime, state.showProgressed, progressedPerson, state.progressedDate, state.showSolarArc, state.showRelocated, relocatedPerson, state.relocatedLocationA, state.relocatedLocationB, state.enabledAsteroidGroups, chartTheme, rotateToAscendant, zodiacVantage, state.straightAspects, state.showEffects, state.showRetrogrades, state.showDecans, state.showBirthTimeShift, state.timeShiftA, state.timeShiftB]);
 
   // Get hovered planet data for tooltip
   const hoveredPlanetData = React.useMemo(() => {
@@ -2068,6 +2202,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           onPlanetHover={handlePlanetHover}
           onPlanetClick={handlePlanetClick}
           rotationOffset={rotationOffset}
+          smoothTransitions={state.showBirthTimeShift && (state.timeShiftA !== 0 || state.timeShiftB !== 0)}
         />
 
         {/* Transit ring (outermost when enabled) */}
@@ -2620,7 +2755,59 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           />
         </div>
       )}
+
+      {/* Birth time shift knobs — desktop overlay */}
+      {showTogglePanel && enableBirthTimeShift && state.showBirthTimeShift && state.chartMode !== 'composite' && (
+        <>
+          <div style={{ position: 'absolute', top: 88, left: 48, zIndex: 999 }}>
+            <BirthTimeShiftKnob
+              label="A"
+              timeShiftMinutes={state.timeShiftA}
+              onTimeShiftChange={setTimeShiftA}
+              onReset={resetTimeShiftA}
+              loading={state.birthTimeShiftLoading && state.timeShiftA !== 0}
+              size={88}
+            />
+          </div>
+          {birthTimeB && (state.chartMode === 'synastry' || state.chartMode === 'personB') && (
+            <div style={{ position: 'absolute', top: 88, right: 48, zIndex: 999 }}>
+              <BirthTimeShiftKnob
+                label="B"
+                timeShiftMinutes={state.timeShiftB}
+                onTimeShiftChange={setTimeShiftB}
+                onReset={resetTimeShiftB}
+                loading={state.birthTimeShiftLoading && state.timeShiftB !== 0}
+                size={88}
+              />
+            </div>
+          )}
+        </>
+      )}
       </div>
+
+      {/* Birth time shift knobs — mobile: below chart in a row */}
+      {!showTogglePanel && enableBirthTimeShift && state.showBirthTimeShift && state.chartMode !== 'composite' && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 24, padding: '8px 0' }}>
+          <BirthTimeShiftKnob
+            label="A"
+            timeShiftMinutes={state.timeShiftA}
+            onTimeShiftChange={setTimeShiftA}
+            onReset={resetTimeShiftA}
+            loading={state.birthTimeShiftLoading && state.timeShiftA !== 0}
+            size={80}
+          />
+          {birthTimeB && (state.chartMode === 'synastry' || state.chartMode === 'personB') && (
+            <BirthTimeShiftKnob
+              label="B"
+              timeShiftMinutes={state.timeShiftB}
+              onTimeShiftChange={setTimeShiftB}
+              onReset={resetTimeShiftB}
+              loading={state.birthTimeShiftLoading && state.timeShiftB !== 0}
+              size={80}
+            />
+          )}
+        </div>
+      )}
 
       {/* Toggle Panel - flex sibling next to SVG wrapper */}
       {showTogglePanel && (
@@ -2706,6 +2893,10 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             // Theme controls
             chartTheme={chartTheme}
             onThemeChange={handleUserThemeChange}
+            // Birth time shift (natal knobs)
+            enableBirthTimeShift={enableBirthTimeShift}
+            showBirthTimeShift={state.showBirthTimeShift}
+            onSetShowBirthTimeShift={setShowBirthTimeShift}
             // Save defaults
             onSaveDefaults={saveDefaults}
           />
