@@ -475,12 +475,24 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     birthTimeShiftLoading: false,
   });
 
-  // Sync birth time shift visibility from external prop (mobile drawer toggle)
+  // Sync birth time shift state from external props (mobile knobs in BiWheelMobileWrapper)
   useEffect(() => {
     if (initialShowBirthTimeShift !== undefined && initialShowBirthTimeShift !== state.showBirthTimeShift) {
       setState(prev => ({ ...prev, showBirthTimeShift: initialShowBirthTimeShift }));
     }
   }, [initialShowBirthTimeShift]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (initialTimeShiftA !== undefined && initialTimeShiftA !== state.timeShiftA) {
+      setState(prev => ({ ...prev, timeShiftA: initialTimeShiftA }));
+    }
+  }, [initialTimeShiftA]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (initialTimeShiftB !== undefined && initialTimeShiftB !== state.timeShiftB) {
+      setState(prev => ({ ...prev, timeShiftB: initialTimeShiftB }));
+    }
+  }, [initialTimeShiftB]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Delayed transit loading — only true if transitLoading persists >500ms
   const [transitLoadingSlow, setTransitLoadingSlow] = useState(false);
@@ -2749,8 +2761,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       )}
       </React.Suspense>
 
-      {/* Transit jog wheel — bottom-left overlay on chart */}
-      {state.showTransits && (
+      {/* Transit jog wheel — bottom-left overlay on chart (desktop only; mobile renders in BiWheelMobileWrapper) */}
+      {showTogglePanel && state.showTransits && (
         <div style={{ position: 'absolute', bottom: 80, left: 16, zIndex: 999 }}>
           <TransitJogWheel
             transitDate={state.transitDate}
@@ -2758,7 +2770,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             transitTime={state.transitTime}
             onTransitTimeChange={setTransitTime}
             transitLoading={state.transitLoading}
-            size={!showTogglePanel ? 80 : 96}
+            size={96}
           />
         </div>
       )}

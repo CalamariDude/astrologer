@@ -11,6 +11,7 @@ import { ASTEROID_GROUPS } from './types';
 import { ASTEROIDS, ASTEROID_GROUP_INFO, DEFAULT_VISIBLE_PLANETS, applyTheme } from './utils/constants';
 import { THEMES, type ThemeName } from './utils/themes';
 import { BirthTimeShiftKnob } from './controls/BirthTimeShiftKnob';
+import { TransitJogWheel } from './controls/TransitJogWheel';
 import { Drawer } from 'vaul';
 import { Settings2, Download, Image, FileText, Mail, Loader2, Share2, Link2, Check, Plus, X, Bookmark } from 'lucide-react';
 import { type ChartPreset, loadPresets, savePreset, deletePreset, buildPresetFromState, loadPresetsFromProfile, savePresetsToProfile } from './utils/presets';
@@ -1187,17 +1188,32 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                   showTogglePanel={false}
                   hideZoomControls
                 />
-                {/* Birth time shift knobs — mobile: centered row below chart */}
-                {showBirthTimeShift && biWheelProps.enableBirthTimeShift && chartMode !== 'composite' && (
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: 24, padding: '8px 0 4px' }}>
-                    <BirthTimeShiftKnob
-                      label="A"
-                      timeShiftMinutes={timeShiftA}
-                      onTimeShiftChange={(offset) => { setTimeShiftA(offset); biWheelProps.onTimeShiftAChange?.(offset); }}
-                      onReset={() => { setTimeShiftA(0); biWheelProps.onTimeShiftAChange?.(0); }}
-                      size={80}
-                    />
-                    {biWheelProps.birthTimeB && (chartMode === 'synastry' || chartMode === 'personB') && (
+                {/* Knob bar — mobile: transit + natal shift knobs in a centered row below chart */}
+                {(showTransits || (showBirthTimeShift && biWheelProps.enableBirthTimeShift && chartMode !== 'composite')) && (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: 16, padding: '8px 0 4px' }}>
+                    {/* Transit jog wheel */}
+                    {showTransits && (
+                      <TransitJogWheel
+                        transitDate={transitDate}
+                        onTransitDateChange={setTransitDate}
+                        transitTime={transitTime}
+                        onTransitTimeChange={setTransitTime}
+                        transitLoading={transitLoading}
+                        size={80}
+                      />
+                    )}
+                    {/* Birth time shift knob A */}
+                    {showBirthTimeShift && biWheelProps.enableBirthTimeShift && chartMode !== 'composite' && (
+                      <BirthTimeShiftKnob
+                        label="A"
+                        timeShiftMinutes={timeShiftA}
+                        onTimeShiftChange={(offset) => { setTimeShiftA(offset); biWheelProps.onTimeShiftAChange?.(offset); }}
+                        onReset={() => { setTimeShiftA(0); biWheelProps.onTimeShiftAChange?.(0); }}
+                        size={80}
+                      />
+                    )}
+                    {/* Birth time shift knob B */}
+                    {showBirthTimeShift && biWheelProps.enableBirthTimeShift && chartMode !== 'composite' && biWheelProps.birthTimeB && (chartMode === 'synastry' || chartMode === 'personB') && (
                       <BirthTimeShiftKnob
                         label="B"
                         timeShiftMinutes={timeShiftB}
