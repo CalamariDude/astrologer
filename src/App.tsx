@@ -12,6 +12,8 @@ const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const SupportPage = lazy(() => import('./pages/SupportPage'));
 const AdminPage = lazy(() => import('./pages/admin/AdminPage'));
+const SessionPage = lazy(() => import('./pages/SessionPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 
 function App() {
   // Tie PostHog sessions to authenticated Supabase users
@@ -31,6 +33,8 @@ function App() {
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/support" element={<SupportPage />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/session/:token" element={<SessionPage />} />
         </Routes>
       </Suspense>
     </>

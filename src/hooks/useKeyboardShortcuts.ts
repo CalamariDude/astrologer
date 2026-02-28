@@ -14,6 +14,7 @@ interface UseKeyboardShortcutsOptions {
   onToggleGalactic: () => void;
   onEscape: () => void;
   onShowHelp: () => void;
+  onSpotlight?: () => void;
 }
 
 function isInputFocused(): boolean {
@@ -38,12 +39,18 @@ export function useKeyboardShortcuts({
   onToggleGalactic,
   onEscape,
   onShowHelp,
+  onSpotlight,
 }: UseKeyboardShortcutsOptions) {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       const meta = e.metaKey || e.ctrlKey;
 
       // Meta shortcuts — work everywhere (including inputs)
+      if (meta && e.key === 'k') {
+        e.preventDefault();
+        onSpotlight?.();
+        return;
+      }
       if (meta && e.key === 's') {
         e.preventDefault();
         if (hasChart) onSave();
@@ -104,5 +111,5 @@ export function useKeyboardShortcuts({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hasChart, isEditing, activeTab, onTabChange, onPrevTab, onNextTab, onCalculate, onSave, onToggleEdit, onToggleGalactic, onEscape, onShowHelp]);
+  }, [hasChart, isEditing, activeTab, onTabChange, onPrevTab, onNextTab, onCalculate, onSave, onToggleEdit, onToggleGalactic, onEscape, onShowHelp, onSpotlight]);
 }

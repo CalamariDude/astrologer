@@ -177,6 +177,27 @@ export function preparePlanets(
         hasCollision: false,
       });
     }
+    // Descendant (AC + 180) and IC (MC + 180)
+    if (visiblePlanets.has('descendant') && chart.angles.ascendant !== undefined && !addedKeys.has('descendant')) {
+      const dcLong = (chart.angles.ascendant + 180) % 360;
+      const signIndex = Math.floor(dcLong / 30);
+      const decanInfo = calculateDecan(dcLong);
+      planets.push({
+        key: 'descendant',
+        data: { longitude: dcLong, sign: ZODIAC_SIGNS[signIndex]?.name || '', retrograde: false, decan: decanInfo.decan, decanSign: decanInfo.decanSign },
+        longitude: dcLong, displayLongitude: dcLong, x: 0, y: 0, hasCollision: false,
+      });
+    }
+    if (visiblePlanets.has('ic') && chart.angles.midheaven !== undefined && !addedKeys.has('ic')) {
+      const icLong = (chart.angles.midheaven + 180) % 360;
+      const signIndex = Math.floor(icLong / 30);
+      const decanInfo = calculateDecan(icLong);
+      planets.push({
+        key: 'ic',
+        data: { longitude: icLong, sign: ZODIAC_SIGNS[signIndex]?.name || '', retrograde: false, decan: decanInfo.decan, decanSign: decanInfo.decanSign },
+        longitude: icLong, displayLongitude: icLong, x: 0, y: 0, hasCollision: false,
+      });
+    }
   }
 
   // Sort by longitude initially
@@ -470,11 +491,11 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
   const minuteBSize = 12;
 
   // Check if a planet key is an angle (AC/MC)
-  const isAngle = (key: string): boolean => key === 'ascendant' || key === 'midheaven';
+  const isAngle = (key: string): boolean => key === 'ascendant' || key === 'midheaven' || key === 'descendant' || key === 'ic';
 
   // Check if a planet key is an asteroid (not a main planet or angle)
   const isAsteroid = (key: string): boolean => {
-    const mainPlanets = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto', 'northnode', 'southnode', 'chiron', 'lilith', 'ascendant', 'midheaven'];
+    const mainPlanets = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto', 'northnode', 'southnode', 'chiron', 'lilith', 'ascendant', 'descendant', 'midheaven', 'ic'];
     return !mainPlanets.includes(key.toLowerCase());
   };
 

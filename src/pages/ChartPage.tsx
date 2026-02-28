@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useSearchParams, Link } from 'react-router-dom';
-import { Loader2, MapPin, Plus, X, Pencil, ClipboardPaste, FolderOpen, LogIn, User, Calendar, Clock, Search, Sparkles, Grid3X3, RotateCcw, Gauge, Table2, TrendingUp, CalendarClock, ArrowUpDown, StickyNote, Download, CreditCard, LogOut, ChevronDown, Shield, UserCog, Keyboard } from 'lucide-react';
+import { Loader2, MapPin, Plus, X, Pencil, LogIn, User, Calendar, Clock, Search, Sparkles, Grid3X3, RotateCcw, Gauge, Table2, TrendingUp, CalendarClock, ArrowUpDown, StickyNote, LogOut, ChevronDown, Shield, Keyboard, Settings, CreditCard, FolderOpen, Radio, AlertTriangle } from 'lucide-react';
 import { SaveChartButton } from '@/components/charts/SaveChartButton';
 import { getSavedCharts, getSavedChartsAsync, invalidateChartsCache, type SavedChart } from '@/components/charts/SaveChartButton';
 import { toast } from 'sonner';
@@ -14,8 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
-import { SavedChartsList } from '@/components/charts/SavedChartsList';
-import { AstroComImport, type ParsedPerson } from '@/components/charts/AstroComImport';
+import { ChartSpotlight } from '@/components/charts/ChartSpotlight';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel,
@@ -29,6 +28,14 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { KeyboardShortcutsHelp } from '@/components/ui/KeyboardShortcutsHelp';
 import { TAB_VALUES } from '@/lib/keyboardShortcuts';
 import * as analytics from '@/lib/analytics';
+import { useSession } from '@/hooks/useSession';
+import { StartSessionButton } from '@/components/session/StartSessionButton';
+import { SessionControls } from '@/components/session/SessionControls';
+import { PostSessionBanner } from '@/components/session/PostSessionBanner';
+import { OtherWindowBanner } from '@/components/session/OtherWindowBanner';
+import { VideoFeed } from '@/components/session/VideoFeed';
+import { VideoGallery } from '@/components/session/VideoGallery';
+import type { SessionChartSnapshot, ChartStateSnapshot } from '@/lib/session/types';
 
 // Lazy-load GalacticMode to avoid loading Three.js until needed
 const GalacticMode = React.lazy(() => import('@/components/galactic/GalacticMode'));
@@ -263,6 +270,7 @@ function InlineBirthForm({
               setResults([]);
             }}
             onKeyDown={(e) => e.key === 'Enter' && searchLocation()}
+            onBlur={() => { if (data.lat === null && data.location && data.location.length >= 2) searchLocation(); }}
             className={`${inputBase} flex-1 min-w-0`}
           />
           <button
@@ -384,7 +392,17 @@ export default function ChartPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const routeState = location.state as { personA: PersonData; personB: PersonData | null } | null;
   const { user, signOut } = useAuth();
-  const { isPaid, openPortal, relocatedRemaining, useRelocatedCredit } = useSubscription();
+  const { isPaid, relocatedRemaining, useRelocatedCredit } = useSubscription();
+  const liveSession = useSession();
+  // Live chart state ref — updated by onStateChange so snapshots capture current state
+  const liveChartStateRef = useRef<ChartStateSnapshot | null>(null);
+  // BiWheel writes its current state here directly (no callbacks needed for snapshots)
+  const biWheelStateRef = useRef<Record<string, any> | null>(null);
+
+  // Always keep the snapshot getter set — needed for both fresh sessions and reconnects
+  useEffect(() => {
+    liveSession.setSnapshotGetter(() => (biWheelStateRef.current as ChartStateSnapshot) ?? liveChartStateRef.current ?? {} as ChartStateSnapshot);
+  }, [liveSession.setSnapshotGetter]);
 
   // Restore session state on mount
   const sessionRestore = useMemo(() => {
@@ -412,8 +430,6 @@ export default function ChartPage() {
   // UI state
   const [editing, setEditing] = useState(sessionRestore?.chartA ? false : true);
   const [loading, setLoading] = useState(false);
-  const [showSaved, setShowSaved] = useState(false);
-  const [showAstroImport, setShowAstroImport] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [pageTheme, setPageTheme] = useState(() => localStorage.getItem('astrologer_theme') || 'classic');
@@ -431,11 +447,31 @@ export default function ChartPage() {
   } | null>(null);
 
   const [activeTab, setActiveTab] = useState('aspect-grid');
+  const tabsListRef = useRef<HTMLDivElement>(null);
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
     analytics.trackToolTabViewed({ tab });
   }, []);
+
+  // Scroll active tab into view + update fade indicators
+  useEffect(() => {
+    const el = tabsListRef.current;
+    if (!el) return;
+    const active = el.querySelector('[data-state="active"]') as HTMLElement | null;
+    if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    const updateFades = () => {
+      const left = el.previousElementSibling as HTMLElement | null;
+      const right = el.nextElementSibling as HTMLElement | null;
+      if (left) left.style.opacity = el.scrollLeft > 4 ? '1' : '0';
+      if (right) right.style.opacity = el.scrollLeft < el.scrollWidth - el.clientWidth - 4 ? '1' : '0';
+    };
+    updateFades();
+    el.addEventListener('scroll', updateFades, { passive: true });
+    return () => el.removeEventListener('scroll', updateFades);
+  }, [activeTab]);
+
   const [showGalactic, setShowGalactic] = useState(false);
+  const [viewMode, setViewMode] = useState<'chart' | 'video'>('chart');
   const handleGalacticToggle = useCallback(() => {
     setShowGalactic((v) => {
       analytics.trackGalacticModeToggled({ enabled: !v });
@@ -443,6 +479,7 @@ export default function ChartPage() {
     });
   }, []);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+  const [showSpotlight, setShowSpotlight] = useState(false);
   const [saveAfterGenerate, setSaveAfterGenerate] = useState(false);
 
   // Load saved charts from DB (for logged-in) or localStorage on mount
@@ -476,28 +513,14 @@ export default function ChartPage() {
       personBData?.date, personBData?.time, personBData?.lat, personBData?.lng]);
   const webglSupported = useWebGLSupport();
   const [isAdmin, setIsAdmin] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [displayName, setDisplayName] = useState('');
-  const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
     if (!user) { setIsAdmin(false); return; }
-    supabase.from('astrologer_profiles').select('is_admin, display_name').eq('id', user.id).single()
+    supabase.from('astrologer_profiles').select('is_admin').eq('id', user.id).single()
       .then(({ data }) => {
         setIsAdmin(data?.is_admin ?? false);
-        setDisplayName(data?.display_name || '');
       });
   }, [user]);
-
-  const handleSaveProfile = async () => {
-    if (!user) return;
-    setSavingProfile(true);
-    const { error } = await supabase.from('astrologer_profiles').update({ display_name: displayName.trim() }).eq('id', user.id);
-    setSavingProfile(false);
-    if (error) { toast.error('Failed to save'); return; }
-    toast.success('Profile updated');
-    setShowProfile(false);
-  };
 
   // Shared visibility state — synced from 2D chart, passed one-way to galactic mode
   const [sharedVisiblePlanets, setSharedVisiblePlanets] = useState<Set<string>>(
@@ -506,6 +529,7 @@ export default function ChartPage() {
   const [sharedVisibleAspects, setSharedVisibleAspects] = useState<Set<string>>(
     new Set(['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare'])
   );
+  const [chartMode, setChartMode] = useState<ChartMode>(hasSynastry ? 'synastry' : 'personA');
   const themeVars = useMemo(() => getThemeCSSVariables(pageTheme) as React.CSSProperties, [pageTheme]);
 
   // Load theme from user profile on login — DB is source of truth when logged in
@@ -656,6 +680,38 @@ export default function ChartPage() {
     }
   }, [personAData, personBData, chartA, chartB]);
 
+  // ─── Broadcast chart swap to guests during live session ─────
+  const broadcastChartSwap = useCallback((cA: NatalChart, bA: BirthData, cB: NatalChart | null, bB: BirthData | null) => {
+    if (!liveSession.isSessionActive) return;
+    const hasSynB = !!cB;
+    const swapPayload: Record<string, any> = {
+      chartA: cA,
+      chartB: hasSynB ? cB : undefined,
+      nameA: bA.name || 'Person A',
+      nameB: hasSynB && bB ? (bB.name || 'Person B') : undefined,
+      birthDataA: bA.lat != null ? { name: bA.name, date: bA.date, time: bA.time, location: bA.location, lat: bA.lat, lng: bA.lng } : undefined,
+      birthDataB: hasSynB && bB?.lat != null ? { name: bB!.name, date: bB!.date, time: bB!.time, location: bB!.location, lat: bB!.lat, lng: bB!.lng } : undefined,
+      mode: hasSynB ? 'synastry' : 'personA',
+    };
+    liveSession.recordStateChange('chart_swap' as any, swapPayload);
+
+    // Update the DB chart_snapshot so late-joining guests get the new chart
+    if (liveSession.session?.id) {
+      const updatedSnapshot: SessionChartSnapshot = {
+        ...swapPayload,
+        nameA: swapPayload.nameA,
+        nameB: swapPayload.nameB,
+        theme: pageTheme,
+        initialState: (biWheelStateRef.current as ChartStateSnapshot) ?? liveChartStateRef.current ?? {} as ChartStateSnapshot,
+      };
+      supabase
+        .from('astrologer_sessions')
+        .update({ chart_snapshot: updatedSnapshot })
+        .eq('id', liveSession.session.id)
+        .then(() => {});
+    }
+  }, [liveSession.isSessionActive, liveSession.session?.id, liveSession.recordStateChange, pageTheme]);
+
   // ─── Calculate ──────────────────────────────────────────────
 
   const calculateChart = useCallback(async () => {
@@ -688,6 +744,9 @@ export default function ChartPage() {
         setChartB(null);
       }
       setEditing(false);
+
+      // Broadcast to guests if session is active
+      broadcastChartSwap(parsedA, personAData, parsedB, parsedB ? personBData : null);
 
       // Track chart generation
       analytics.trackChartGenerated({
@@ -752,96 +811,26 @@ export default function ChartPage() {
 
   // ─── Import / Load ──────────────────────────────────────────
 
-  const handleAstroImport = useCallback(async (persons: ParsedPerson[]) => {
-    if (persons.length === 0) return;
-    setShowAstroImport(false);
-    analytics.trackAstroComImport({ person_count: persons.length });
-
-    // Load first person into chart view
-    const a = persons[0];
-    setPersonAData({ name: a.name, date: a.date, time: a.time, location: a.location, lat: a.lat, lng: a.lng });
-    if (persons.length >= 2) {
-      const b = persons[1];
-      setPersonBData({ name: b.name, date: b.date, time: b.time, location: b.location, lat: b.lat, lng: b.lng });
-    } else {
-      setPersonBData(null);
-    }
-    setChartA(null);
-    setChartB(null);
-    setEditing(true);
-
-    // Compute natal charts for all imported persons and save them
-    let savedCount = 0;
-    for (const person of persons) {
-      if (!person.lat || !person.lng) continue;
-      try {
-        const data = await swissEphemeris.natal({
-          birth_date: person.date,
-          birth_time: person.time || '12:00',
-          lat: person.lat,
-          lng: person.lng,
-        });
-        const natalChart = parseNatalResponse(data);
-        const chartToSave: SavedChart = {
-          id: crypto.randomUUID(),
-          name: person.name,
-          chart_type: 'natal',
-          person_a_name: person.name,
-          person_a_date: person.date,
-          person_a_time: person.time,
-          person_a_location: person.location,
-          person_a_lat: person.lat,
-          person_a_lng: person.lng,
-          person_a_chart: natalChart,
-          person_b_name: null,
-          person_b_date: null,
-          person_b_time: null,
-          person_b_location: null,
-          person_b_lat: null,
-          person_b_lng: null,
-          person_b_chart: null,
-          created_at: new Date().toISOString(),
-        };
-        if (user) {
-          await supabase.from('saved_charts').insert({
-            user_id: user.id, name: chartToSave.name, chart_type: chartToSave.chart_type,
-            person_a_name: chartToSave.person_a_name, person_a_date: chartToSave.person_a_date, person_a_time: chartToSave.person_a_time,
-            person_a_location: chartToSave.person_a_location, person_a_lat: chartToSave.person_a_lat, person_a_lng: chartToSave.person_a_lng,
-            person_a_chart: chartToSave.person_a_chart,
-          });
-        } else {
-          const existing = getSavedCharts();
-          existing.unshift(chartToSave);
-          localStorage.setItem('astrologer_saved_charts', JSON.stringify(existing));
-        }
-        savedCount++;
-      } catch {
-        // Skip charts that fail to compute
-      }
-    }
-    if (savedCount > 0) {
-      invalidateChartsCache();
-      getSavedChartsAsync(user?.id || null).then(setSavedChartsLoaded);
-    }
-    toast.success(`Saved ${savedCount} chart${savedCount !== 1 ? 's' : ''}`);
-  }, [user]);
 
   const handleLoadChart = useCallback((chart: any) => {
     analytics.trackChartLoaded({ chart_type: chart.person_b_chart ? 'synastry' : 'natal' });
-    const birthA: BirthData = { name: chart.person_a_name || '', date: chart.person_a_date, time: chart.person_a_time, location: chart.person_a_location || '', lat: chart.person_a_lat, lng: chart.person_a_lng };
-    setPersonAData(birthA);
+    const bA: BirthData = { name: chart.person_a_name || '', date: chart.person_a_date, time: chart.person_a_time, location: chart.person_a_location || '', lat: chart.person_a_lat, lng: chart.person_a_lng };
+    setPersonAData(bA);
     setChartA(chart.person_a_chart);
+    let bB: BirthData | null = null;
     if (chart.person_b_chart) {
-      const birthB: BirthData = { name: chart.person_b_name || '', date: chart.person_b_date, time: chart.person_b_time, location: chart.person_b_location || '', lat: chart.person_b_lat, lng: chart.person_b_lng };
-      setPersonBData(birthB);
+      bB = { name: chart.person_b_name || '', date: chart.person_b_date, time: chart.person_b_time, location: chart.person_b_location || '', lat: chart.person_b_lat, lng: chart.person_b_lng };
+      setPersonBData(bB);
       setChartB(chart.person_b_chart);
     } else {
       setPersonBData(null);
       setChartB(null);
     }
     setEditing(false);
-    setShowSaved(false);
-  }, []);
+
+    // Broadcast to guests if session is active
+    broadcastChartSwap(chart.person_a_chart, bA, chart.person_b_chart || null, bB);
+  }, [broadcastChartSwap]);
 
   // ─── BiWheel fetch handlers ─────────────────────────────────
 
@@ -985,14 +974,12 @@ export default function ChartPage() {
   }, [activeTab, handleTabChange]);
 
   const handleShortcutEscape = useCallback(() => {
+    if (showSpotlight) { setShowSpotlight(false); return; }
     if (showShortcutsHelp) { setShowShortcutsHelp(false); return; }
-    if (showSaved) { setShowSaved(false); return; }
-    if (showAstroImport) { setShowAstroImport(false); return; }
     if (showAuth) { setShowAuth(false); return; }
     if (showUpgrade) { setShowUpgrade(false); return; }
-    if (showProfile) { setShowProfile(false); return; }
     if (editing && hasChart) { setEditing(false); return; }
-  }, [showShortcutsHelp, showSaved, showAstroImport, showAuth, showUpgrade, showProfile, editing, hasChart]);
+  }, [showSpotlight, showShortcutsHelp, showAuth, showUpgrade, editing, hasChart]);
 
   const handleShortcutSave = useCallback(() => {
     const btn = document.querySelector<HTMLButtonElement>('[data-shortcut="save"]');
@@ -1012,6 +999,7 @@ export default function ChartPage() {
     onToggleGalactic: handleGalacticToggle,
     onEscape: handleShortcutEscape,
     onShowHelp: useCallback(() => setShowShortcutsHelp(true), []),
+    onSpotlight: useCallback(() => setShowSpotlight(true), []),
   });
 
   // ─── Render ─────────────────────────────────────────────────
@@ -1023,6 +1011,22 @@ export default function ChartPage() {
       <div className="border-b bg-background">
         <div className="container flex items-center gap-2 md:gap-3 py-2 px-2 md:px-6">
           <Link to="/" className="text-sm md:text-base font-extralight tracking-[0.12em] uppercase shrink-0" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>Astrologer</Link>
+          <button
+            onClick={() => setShowSpotlight(true)}
+            className="hidden md:flex items-center gap-2 h-7 px-2.5 rounded-md border border-border/50 bg-muted/30 text-muted-foreground/60 hover:text-foreground hover:bg-muted hover:border-border transition-colors text-xs"
+            title="Quick switch chart (⌘K)"
+          >
+            <Search className="w-3 h-3" />
+            <span className="font-normal">Search charts...</span>
+            <kbd className="ml-1 inline-flex h-[18px] items-center rounded border border-border/60 px-1 text-[10px] font-mono text-muted-foreground/50">⌘K</kbd>
+          </button>
+          <button
+            onClick={() => setShowSpotlight(true)}
+            className="md:hidden flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground/40 hover:text-foreground hover:bg-muted transition-colors"
+            title="Quick switch chart (⌘K)"
+          >
+            <Search className="w-3.5 h-3.5" />
+          </button>
           <button
             onClick={() => setShowShortcutsHelp(true)}
             className="hidden md:flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground/40 hover:text-foreground hover:bg-muted transition-colors"
@@ -1044,6 +1048,14 @@ export default function ChartPage() {
                 </button>
               )}
 
+              <Link
+                to="/settings"
+                className="flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                title="Settings"
+              >
+                <Settings className="w-3.5 h-3.5" />
+              </Link>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
@@ -1060,45 +1072,36 @@ export default function ChartPage() {
                     {isPaid && <div className="text-[10px] text-emerald-500 font-medium mt-0.5">Pro</div>}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setShowProfile(true)}>
-                    <UserCog className="w-4 h-4 mr-2" />
-                    Profile
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings#account">
+                      <User className="w-4 h-4 mr-2" />
+                      Account
+                    </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowSaved(true)}>
-                    <FolderOpen className="w-4 h-4 mr-2" />
-                    My Charts
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowAstroImport(true)}>
-                    <ClipboardPaste className="w-4 h-4 mr-2" />
-                    Import Charts
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {
-                    const charts = getSavedCharts(user?.id || null);
-                    if (charts.length === 0) { toast.error('No saved charts to export'); return; }
-                    const blob = new Blob([JSON.stringify(charts, null, 2)], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url; a.download = 'astrologer-charts.json';
-                    document.body.appendChild(a); a.click();
-                    document.body.removeChild(a); URL.revokeObjectURL(url);
-                    analytics.trackChartExported({ format: 'json' });
-                    toast.success(`Exported ${charts.length} chart${charts.length === 1 ? '' : 's'}`);
-                  }}>
-                    <Download className="w-4 h-4 mr-2" />
-                    Export Charts
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  {isPaid ? (
-                    <DropdownMenuItem onClick={() => openPortal()}>
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings#billing">
                       <CreditCard className="w-4 h-4 mr-2" />
-                      Manage Subscription
-                    </DropdownMenuItem>
-                  ) : (
-                    <DropdownMenuItem onClick={() => setShowUpgrade(true)}>
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      Upgrade to Pro
-                    </DropdownMenuItem>
-                  )}
+                      Billing & Usage
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings#charts">
+                      <FolderOpen className="w-4 h-4 mr-2" />
+                      Charts
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings#sessions">
+                      <Radio className="w-4 h-4 mr-2" />
+                      Sessions
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings#preferences">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Preferences
+                    </Link>
+                  </DropdownMenuItem>
                   {isAdmin && (
                     <>
                       <DropdownMenuSeparator />
@@ -1182,6 +1185,85 @@ export default function ChartPage() {
 
       {/* ── Chart Content ───────────────────────────────────── */}
       {hasChart && personA ? (
+        liveSession.isSessionActive && viewMode === 'video' ? (
+        /* Video gallery mode: side-by-side layout */
+        <div className="flex h-[calc(100vh-64px)]" style={{ marginTop: 0 }}>
+          {/* Video gallery — left 70% */}
+          <div className="w-[70%] h-full min-w-0">
+            <VideoGallery
+              participants={[
+                ...liveSession.remoteParticipants.map((p) => ({
+                  id: p.id,
+                  name: p.name,
+                  stream: p.videoStream,
+                })),
+                {
+                  id: 'local',
+                  name: 'You',
+                  stream: liveSession.localVideoStream,
+                  muted: true,
+                  mirrored: true,
+                },
+              ]}
+              activeSpeakerId={liveSession.activeSpeakerId}
+            />
+          </div>
+          {/* Chart sidebar — right 30%, scrollable */}
+          <div className="w-[30%] h-full overflow-y-auto border-l border-border/30 bg-background">
+            <div className="py-4 space-y-4 px-3">
+              <div>
+                {/* Compact name header */}
+                <div className="mb-2">
+                  <h1 className="text-sm font-semibold tracking-tight truncate">
+                    {personAData.name || 'Unnamed'}
+                    {personBData && hasSynastry && (
+                      <span className="text-muted-foreground font-normal"> & {personBData.name || 'Unnamed'}</span>
+                    )}
+                  </h1>
+                </div>
+                <div className="relative">
+                  <BiWheelMobileWrapper
+                    chartA={personA.natalChart}
+                    chartB={hasSynastry ? personB!.natalChart : personA.natalChart}
+                    nameA={personA.name || 'Person A'}
+                    nameB={hasSynastry ? (personB!.name || 'Person B') : (personA.name || 'Person A')}
+                    initialChartMode={sharedChartOptionsRef.current?.mode || initialMode as any}
+                    enableTransits={true}
+                    enableComposite={hasSynastry}
+                    enableProgressed={true}
+                    enableRelocated={true}
+                    onFetchTransits={handleFetchTransits}
+                    onFetchComposite={hasSynastry ? handleFetchComposite : undefined}
+                    onFetchProgressed={handleFetchProgressed}
+                    onFetchRelocated={handleFetchRelocated}
+                    onFetchAsteroidData={handleFetchAsteroidData}
+                    initialTheme={themeReady ? pageTheme : undefined}
+                    onThemeChange={handleThemeChange}
+                    originalLocation={originalLocationA}
+                    locationB={originalLocationB}
+                    birthDateA={personA.date}
+                    birthTimeA={personA.time}
+                    birthDateB={hasSynastry ? personB!.date : undefined}
+                    birthTimeB={hasSynastry ? personB!.time : undefined}
+                    onVisiblePlanetsChange={setSharedVisiblePlanets}
+                    onVisibleAspectsChange={setSharedVisibleAspects}
+                    onChartModeChange={setChartMode}
+                    chartNotesKey={`${personAData.date}-${personAData.time}-${personAData.lat}`}
+                    onStateChange={liveSession.recordStateChange}
+                    {...(sharedChartOptionsRef.current?.visiblePlanets && { initialVisiblePlanets: sharedChartOptionsRef.current.visiblePlanets })}
+                    {...(sharedChartOptionsRef.current?.visibleAspects && { initialVisibleAspects: sharedChartOptionsRef.current.visibleAspects as Set<any> })}
+                    {...(sharedChartOptionsRef.current?.showHouses !== undefined && { initialShowHouses: sharedChartOptionsRef.current.showHouses })}
+                    {...(sharedChartOptionsRef.current?.showDegreeMarkers !== undefined && { initialShowDegreeMarkers: sharedChartOptionsRef.current.showDegreeMarkers })}
+                    {...(sharedChartOptionsRef.current?.enabledAsteroidGroups && { initialEnabledAsteroidGroups: sharedChartOptionsRef.current.enabledAsteroidGroups })}
+                    onCursorMove={liveSession.recordCursor}
+                    stateRef={biWheelStateRef}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        ) : (
         <div className="container py-4 md:py-6 space-y-4 md:space-y-6 px-2 md:px-6">
           <div>
             {/* Name header + birth info */}
@@ -1250,6 +1332,38 @@ export default function ChartPage() {
                 <div className="flex items-center justify-between mt-2">
                   <div className="flex items-center gap-2">
                     <SaveChartButton personA={personA} personB={personB} hasSynastry={!!personBData && hasSynastry} />
+                    <StartSessionButton
+                      isActive={liveSession.isSessionActive}
+                      onEnd={() => { liveSession.endSession(); analytics.trackSessionEnded({ duration: liveSession.sessionDuration }); }}
+                      onStart={async (title) => {
+                        if (!personA) return;
+                        const chartSnapshot: SessionChartSnapshot = {
+                          chartA: personA.natalChart,
+                          chartB: hasSynastry && personB ? personB.natalChart : undefined,
+                          nameA: personA.name || 'Person A',
+                          nameB: hasSynastry && personB ? (personB.name || 'Person B') : undefined,
+                          birthDataA: personAData.lat !== null ? { name: personA.name, date: personA.date, time: personA.time, location: personAData.location, lat: personAData.lat!, lng: personAData.lng! } : undefined,
+                          birthDataB: hasSynastry && personBData?.lat !== null ? { name: personBData!.name, date: personBData!.date, time: personBData!.time, location: personBData!.location, lat: personBData!.lat!, lng: personBData!.lng! } : undefined,
+                          theme: pageTheme,
+                          mode: hasSynastry ? 'synastry' : 'personA',
+                          initialState: {
+                            chartMode: hasSynastry ? 'synastry' : 'personA',
+                            visiblePlanets: ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'],
+                            visibleAspects: ['conjunction', 'sextile', 'square', 'trine', 'opposition', 'quincunx', 'semisextile', 'semisquare'],
+                            showHouses: true, showDegreeMarkers: true, showTransits: false,
+                            progressedPerson: null, showSolarArc: false, relocatedPerson: null,
+                            enabledAsteroidGroups: [], chartTheme: pageTheme,
+                            rotateToAscendant: true, zodiacVantage: null,
+                          },
+                        };
+                        liveChartStateRef.current = chartSnapshot.initialState;
+                        const getSnapshot = (): ChartStateSnapshot => (biWheelStateRef.current as ChartStateSnapshot) ?? liveChartStateRef.current ?? chartSnapshot.initialState;
+                        const shareLink = await liveSession.startSession(title, chartSnapshot, getSnapshot);
+                        analytics.trackSessionStarted({ title });
+                        toast.success('Session started — share link copied!');
+                        navigator.clipboard.writeText(shareLink).catch(() => {});
+                      }}
+                    />
                   </div>
                   <div className="shrink-0">
                     {webglSupported && (
@@ -1285,50 +1399,64 @@ export default function ChartPage() {
                 />
               </React.Suspense>
             ) : (
-              <BiWheelMobileWrapper
-                chartA={personA.natalChart}
-                chartB={hasSynastry ? personB!.natalChart : personA.natalChart}
-                nameA={personA.name || 'Person A'}
-                nameB={hasSynastry ? (personB!.name || 'Person B') : (personA.name || 'Person A')}
-                initialChartMode={sharedChartOptionsRef.current?.mode || initialMode as any}
-                enableTransits={true}
-                enableComposite={hasSynastry}
-                enableProgressed={true}
-                enableRelocated={true}
-                onFetchTransits={handleFetchTransits}
-                onFetchComposite={hasSynastry ? handleFetchComposite : undefined}
-                onFetchProgressed={handleFetchProgressed}
-                onFetchRelocated={handleFetchRelocated}
-                onFetchAsteroidData={handleFetchAsteroidData}
-                initialTheme={themeReady ? pageTheme : undefined}
-                onThemeChange={handleThemeChange}
-                originalLocation={originalLocationA}
-                locationB={originalLocationB}
-                birthDateA={personA.date}
-                birthTimeA={personA.time}
-                onVisiblePlanetsChange={setSharedVisiblePlanets}
-                onVisibleAspectsChange={setSharedVisibleAspects}
-                shareBirthData={personAData.lat !== null ? {
-                  name: personA.name || '',
-                  date: personA.date,
-                  time: personA.time,
-                  lat: personA.lat!,
-                  lng: personA.lng!,
-                  location: personAData.location,
-                } : undefined}
-                chartNotesKey={`${personAData.date}-${personAData.time}-${personAData.lat}`}
-                {...(sharedChartOptionsRef.current?.visiblePlanets && { initialVisiblePlanets: sharedChartOptionsRef.current.visiblePlanets })}
-                {...(sharedChartOptionsRef.current?.visibleAspects && { initialVisibleAspects: sharedChartOptionsRef.current.visibleAspects as Set<any> })}
-                {...(sharedChartOptionsRef.current?.showHouses !== undefined && { initialShowHouses: sharedChartOptionsRef.current.showHouses })}
-                {...(sharedChartOptionsRef.current?.showDegreeMarkers !== undefined && { initialShowDegreeMarkers: sharedChartOptionsRef.current.showDegreeMarkers })}
-                {...(sharedChartOptionsRef.current?.enabledAsteroidGroups && { initialEnabledAsteroidGroups: sharedChartOptionsRef.current.enabledAsteroidGroups })}
-              />
+              <div className="relative">
+                <BiWheelMobileWrapper
+                  chartA={personA.natalChart}
+                  chartB={hasSynastry ? personB!.natalChart : personA.natalChart}
+                  nameA={personA.name || 'Person A'}
+                  nameB={hasSynastry ? (personB!.name || 'Person B') : (personA.name || 'Person A')}
+                  initialChartMode={sharedChartOptionsRef.current?.mode || initialMode as any}
+                  enableTransits={true}
+                  enableComposite={hasSynastry}
+                  enableProgressed={true}
+                  enableRelocated={true}
+                  onFetchTransits={handleFetchTransits}
+                  onFetchComposite={hasSynastry ? handleFetchComposite : undefined}
+                  onFetchProgressed={handleFetchProgressed}
+                  onFetchRelocated={handleFetchRelocated}
+                  onFetchAsteroidData={handleFetchAsteroidData}
+                  initialTheme={themeReady ? pageTheme : undefined}
+                  onThemeChange={handleThemeChange}
+                  originalLocation={originalLocationA}
+                  locationB={originalLocationB}
+                  birthDateA={personA.date}
+                  birthTimeA={personA.time}
+                  birthDateB={hasSynastry ? personB!.date : undefined}
+                  birthTimeB={hasSynastry ? personB!.time : undefined}
+                  onVisiblePlanetsChange={setSharedVisiblePlanets}
+                  onVisibleAspectsChange={setSharedVisibleAspects}
+                  onChartModeChange={setChartMode}
+                  shareBirthData={personAData.lat !== null ? {
+                    name: personA.name || '',
+                    date: personA.date,
+                    time: personA.time,
+                    lat: personA.lat!,
+                    lng: personA.lng!,
+                    location: personAData.location,
+                  } : undefined}
+                  chartNotesKey={`${personAData.date}-${personAData.time}-${personAData.lat}`}
+                  onStateChange={liveSession.isSessionActive ? liveSession.recordStateChange : undefined}
+                  {...(sharedChartOptionsRef.current?.visiblePlanets && { initialVisiblePlanets: sharedChartOptionsRef.current.visiblePlanets })}
+                  {...(sharedChartOptionsRef.current?.visibleAspects && { initialVisibleAspects: sharedChartOptionsRef.current.visibleAspects as Set<any> })}
+                  {...(sharedChartOptionsRef.current?.showHouses !== undefined && { initialShowHouses: sharedChartOptionsRef.current.showHouses })}
+                  {...(sharedChartOptionsRef.current?.showDegreeMarkers !== undefined && { initialShowDegreeMarkers: sharedChartOptionsRef.current.showDegreeMarkers })}
+                  {...(sharedChartOptionsRef.current?.enabledAsteroidGroups && { initialEnabledAsteroidGroups: sharedChartOptionsRef.current.enabledAsteroidGroups })}
+                  onCursorMove={liveSession.isSessionActive ? liveSession.recordCursor : undefined}
+                  stateRef={biWheelStateRef}
+                />
+              </div>
             )}
           </div>
 
           {/* Astro Tools Tabs */}
           <Tabs value={activeTab} onValueChange={handleTabChange}>
-            <TabsList className="flex justify-start overflow-x-auto gap-0 w-full scrollbar-hide bg-transparent border-b border-border/50 rounded-none p-0 h-auto">
+            <div className="relative">
+              {/* Left fade indicator */}
+              <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-background to-transparent z-10 opacity-0 transition-opacity" />
+              <TabsList
+                ref={tabsListRef as any}
+                className="flex justify-start overflow-x-auto gap-0 w-full scrollbar-hide bg-transparent border-b border-border/50 rounded-none p-0 h-auto"
+              >
               {[
                 { value: 'aspect-grid', icon: Grid3X3, label: 'Aspects' },
                 { value: 'profections', icon: RotateCcw, label: 'Profections' },
@@ -1358,7 +1486,10 @@ export default function ChartPage() {
                   </TabsTrigger>
                 );
               })}
-            </TabsList>
+              </TabsList>
+              {/* Right fade indicator */}
+              <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent z-10 opacity-0 transition-opacity" />
+            </div>
 
             <React.Suspense fallback={
               <div className="mt-4 min-h-[400px] flex items-center justify-center">
@@ -1366,7 +1497,7 @@ export default function ChartPage() {
               </div>
             }>
             <TabsContent value="aspect-grid" className="mt-4 min-h-[400px]">
-              <AspectGridTable chartA={personA.natalChart} chartB={hasSynastry ? personB!.natalChart : undefined} nameA={personA.name || 'Person A'} nameB={hasSynastry ? (personB!.name || 'Person B') : undefined} visiblePlanets={sharedVisiblePlanets} visibleAspects={sharedVisibleAspects} />
+              <AspectGridTable chartA={personA.natalChart} chartB={hasSynastry ? personB!.natalChart : undefined} nameA={personA.name || 'Person A'} nameB={hasSynastry ? (personB!.name || 'Person B') : undefined} visiblePlanets={sharedVisiblePlanets} visibleAspects={sharedVisibleAspects} chartMode={chartMode} />
             </TabsContent>
             <TabsContent value="profections" className="mt-4 min-h-[400px]">
               <ProfectionsPanel natalChart={personA.natalChart} birthDate={personA.date} name={personA.name || 'Person A'} />
@@ -1406,6 +1537,7 @@ export default function ChartPage() {
             </React.Suspense>
           </Tabs>
         </div>
+        )
       ) : (
         <div className="container py-8 md:py-12 px-2 md:px-6">
           {/* Empty chart placeholder */}
@@ -1435,37 +1567,72 @@ export default function ChartPage() {
       )}
 
       {/* ── Modals ──────────────────────────────────────────── */}
-      <SavedChartsList isOpen={showSaved} onClose={() => setShowSaved(false)} onLoad={handleLoadChart} />
-      <AstroComImport isOpen={showAstroImport} onClose={() => setShowAstroImport(false)} onImport={handleAstroImport} />
       <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} />
       <UpgradeModal isOpen={showUpgrade} onClose={() => setShowUpgrade(false)} />
       <KeyboardShortcutsHelp open={showShortcutsHelp} onOpenChange={setShowShortcutsHelp} />
+      <ChartSpotlight open={showSpotlight} onClose={() => setShowSpotlight(false)} onLoad={handleLoadChart} userId={user?.id || null} />
 
-      {/* ── Profile Edit ─────────────────────────────────────── */}
-      {showProfile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowProfile(false)}>
-          <div className="w-full max-w-sm bg-background rounded-xl shadow-2xl border p-6 space-y-4" onClick={e => e.stopPropagation()}>
-            <div>
-              <h2 className="text-lg font-bold">Edit Profile</h2>
-              <p className="text-xs text-muted-foreground">{user?.email}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Display Name</label>
-              <input
-                type="text"
-                value={displayName}
-                onChange={e => setDisplayName(e.target.value)}
-                placeholder="Your name"
-                className="mt-1 w-full h-10 px-3 rounded-lg border bg-background text-sm"
-              />
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" size="sm" onClick={() => setShowProfile(false)}>Cancel</Button>
-              <Button size="sm" onClick={handleSaveProfile} disabled={savingProfile}>
-                {savingProfile ? 'Saving...' : 'Save'}
-              </Button>
-            </div>
+
+      {/* Session reconnecting overlay */}
+      {liveSession.reconnecting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="text-center space-y-2">
+            <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto" />
+            <p className="text-sm text-muted-foreground">Reconnecting to session...</p>
           </div>
+        </div>
+      )}
+
+      {/* Live Session Video Feeds — floating thumbnails only in chart mode */}
+      {liveSession.isSessionActive && viewMode === 'chart' && (
+        <div className="fixed top-4 right-4 z-50 flex flex-col items-end gap-2">
+          {liveSession.remoteParticipants.map((p) => (
+            <VideoFeed key={p.id} stream={p.videoStream} label={p.name} isSpeaking={liveSession.activeSpeakerId === p.id} />
+          ))}
+          <VideoFeed stream={liveSession.localVideoStream} muted mirrored label="You" isSpeaking={liveSession.activeSpeakerId === 'local'} />
+        </div>
+      )}
+
+      {/* Live Session Controls */}
+      {liveSession.isSessionActive && (
+        <SessionControls
+          duration={liveSession.sessionDuration}
+          isRecording={liveSession.isRecording}
+          isMuted={liveSession.isMuted}
+          isVideoOff={liveSession.isVideoOff}
+          guestCount={liveSession.guestCount}
+          isPaused={liveSession.session?.status === 'paused'}
+          onToggleMute={liveSession.toggleMute}
+          onToggleVideo={liveSession.toggleVideo}
+          onPause={liveSession.pauseSession}
+          onResume={liveSession.resumeSession}
+          viewMode={viewMode}
+          onToggleViewMode={() => setViewMode(v => v === 'chart' ? 'video' : 'chart')}
+        />
+      )}
+
+      {/* Post-Session Banner */}
+      {liveSession.isSessionEnded && liveSession.session && (
+        <div className="fixed top-0 left-0 right-0 z-50">
+          <PostSessionBanner
+            title={liveSession.session.title}
+            replayUrl={liveSession.replayUrl}
+            status={liveSession.session.status}
+            guestEmail={liveSession.session.guest_email}
+            onDismiss={liveSession.dismissSession}
+          />
+        </div>
+      )}
+
+      {/* Other Window Banner */}
+      {liveSession.isSessionInOtherWindow && (
+        <div className="fixed top-0 left-0 right-0 z-50">
+          <OtherWindowBanner
+            title={liveSession.session?.title || 'Live Session'}
+            onTakeOver={liveSession.takeOverSession}
+            onDismiss={liveSession.dismissSession}
+            reconnecting={liveSession.reconnecting}
+          />
         </div>
       )}
     </div>

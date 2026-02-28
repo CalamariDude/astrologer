@@ -18,6 +18,7 @@ import { AspectLine3D } from './AspectLine3D';
 import { StarField3D } from './StarField3D';
 import { AsteroidBelt3D } from './AsteroidBelt3D';
 import { CameraController } from './CameraController';
+import { FlatEarthDisc3D } from './FlatEarthDisc3D';
 import { TRANSITION } from './constants';
 import { calculateDeclination } from '@/lib/declination';
 import * as THREE from 'three';
@@ -37,6 +38,7 @@ interface GalacticSceneProps {
   showHouses: boolean;
   showOrbits: boolean;
   showZodiac: boolean;
+  showFlatEarth?: boolean;
   activePreset: CameraPreset | null;
   transitDayOffset?: number;
   transitEnabled?: boolean;
@@ -92,6 +94,7 @@ export function GalacticScene({
   showHouses,
   showOrbits,
   showZodiac,
+  showFlatEarth,
   activePreset,
   transitDayOffset,
   transitEnabled,
@@ -214,6 +217,15 @@ export function GalacticScene({
       {/* House Sectors */}
       {showHouses && houseSectors.length > 0 && (
         <HouseSectors3D
+          sectors={houseSectors}
+          ascendant={ascendant}
+          midheaven={midheaven}
+        />
+      )}
+
+      {/* Earth Disc */}
+      {showFlatEarth && houseSectors.length > 0 && (
+        <FlatEarthDisc3D
           sectors={houseSectors}
           ascendant={ascendant}
           midheaven={midheaven}

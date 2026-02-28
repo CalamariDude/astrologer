@@ -29,6 +29,7 @@ interface HouseOverlayProps {
   rotationOffset?: number;
   zodiacVantage?: number | null; // Override 1st house sign (0-11, null = use Ascendant)
   hideOuterHouseRing?: boolean; // Hide entire outer house ring (single-wheel mode)
+  visiblePlanets?: Set<string>; // Controls which angle labels (AC/DC/MC/IC) are shown
 }
 
 /**
@@ -203,6 +204,7 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
   rotationOffset = 0,
   zodiacVantage = null,
   hideOuterHouseRing = false,
+  visiblePlanets,
 }) => {
   const colorA = getThemeAwarePersonColor('A');
   const colorB = getThemeAwarePersonColor('B');
@@ -487,25 +489,36 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
         );
       })}
 
-      {/* Angle labels for A (outer) - hidden in single-wheel mode */}
-      {!hideOuterHouseRing && chart.angles && outerHouseRingInner && (
+      {/* Angle labels for A — perimeter in single-wheel, outer house ring in synastry */}
+      {chart.angles && (
         <>
-          {['AC', 'DC', 'MC', 'IC'].map((label) => {
-            const angle = label === 'AC' ? chart.angles!.ascendant :
-                          label === 'DC' ? chart.angles!.ascendant + 180 :
-                          label === 'MC' ? chart.angles!.midheaven :
-                          chart.angles!.midheaven + 180;
-            const pos = longitudeToXY(angle, cx, cy, outerHouseRingInner - 15, rotationOffset);
+          {([
+            { label: 'AC', key: 'ascendant', angle: chart.angles!.ascendant },
+            { label: 'DC', key: 'descendant', angle: chart.angles!.ascendant + 180 },
+            { label: 'MC', key: 'midheaven', angle: chart.angles!.midheaven },
+            { label: 'IC', key: 'ic', angle: chart.angles!.midheaven + 180 },
+          ] as const).map(({ label, key, angle }) => {
+            // Skip if visiblePlanets is provided and this angle isn't enabled
+            if (visiblePlanets && !visiblePlanets.has(key)) return null;
+            // Single-wheel: place in the margin outside the zodiac ring
+            // Synastry: place inside the outer house ring
+            const radius = hideOuterHouseRing
+              ? (outerHouseRingOuter! + 25)   // single-wheel: just outside the zodiac edge
+              : outerHouseRingInner! - 15;     // synastry: inside the outer house ring
+            const fontSize = hideOuterHouseRing ? 18 : 10;
+            const pos = longitudeToXY(angle, cx, cy, radius, rotationOffset);
             return (
               <text
                 key={`A-${label}`}
                 x={pos.x}
                 y={pos.y}
-                fill={colorA}
-                fontSize={10}
+                fill={COLORS.textSecondary}
+                fontSize={fontSize}
                 fontWeight="bold"
+                fontFamily="'Inter', Arial, sans-serif"
                 textAnchor="middle"
                 dominantBaseline="central"
+                style={{ userSelect: 'none', pointerEvents: 'none' }}
               >
                 {label}
               </text>
@@ -514,14 +527,16 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
         </>
       )}
 
-      {/* Angle labels for B (inner) */}
-      {chartB?.angles && houseRingOuter && (
+      {/* Angle labels for B (inner) — synastry only */}
+      {!hideOuterHouseRing && chartB?.angles && houseRingOuter && (
         <>
-          {['AC', 'DC', 'MC', 'IC'].map((label) => {
-            const angle = label === 'AC' ? chartB.angles!.ascendant :
-                          label === 'DC' ? chartB.angles!.ascendant + 180 :
-                          label === 'MC' ? chartB.angles!.midheaven :
-                          chartB.angles!.midheaven + 180;
+          {([
+            { label: 'AC', key: 'ascendant', angle: chartB.angles!.ascendant },
+            { label: 'DC', key: 'descendant', angle: chartB.angles!.ascendant + 180 },
+            { label: 'MC', key: 'midheaven', angle: chartB.angles!.midheaven },
+            { label: 'IC', key: 'ic', angle: chartB.angles!.midheaven + 180 },
+          ] as const).map(({ label, key, angle }) => {
+            if (visiblePlanets && !visiblePlanets.has(key)) return null;
             const pos = longitudeToXY(angle, cx, cy, houseRingOuter + 15, rotationOffset);
             return (
               <text

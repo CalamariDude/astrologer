@@ -40,6 +40,46 @@ interface BiWheelMobileWrapperProps extends Omit<BiWheelSynastryProps, 'size' | 
   chartNotesKey?: string;
   /** Initial asteroid groups to enable (from shared link) */
   initialEnabledAsteroidGroups?: Set<AsteroidGroup>;
+  /** When true, disables all interactions (for guest live view + replay) */
+  readOnly?: boolean;
+  /** External state overrides (for guest live view + replay) */
+  externalState?: Partial<{
+    chartMode: string;
+    visiblePlanets: string[];
+    visibleAspects: string[];
+    showHouses: boolean;
+    showDegreeMarkers: boolean;
+    showTransits: boolean;
+    transitDate: string;
+    transitTime: string;
+    showProgressed: boolean;
+    progressedPerson: string | null;
+    progressedDate: string;
+    showSolarArc: boolean;
+    showRelocated: boolean;
+    relocatedPerson: string | null;
+    relocatedLocationA: LocationData | null;
+    relocatedLocationB: LocationData | null;
+    enabledAsteroidGroups: string[];
+    chartTheme: string;
+    rotateToAscendant: boolean;
+    zodiacVantage: number | null;
+    straightAspects: boolean;
+    showEffects: boolean;
+    showRetrogrades: boolean;
+    showDecans: boolean;
+    scale: number;
+    translateX: number;
+    translateY: number;
+  }>;
+  /** Callback when internal state changes (for session recording) */
+  onStateChange?: (type: string, payload: any) => void;
+  /** Callback for cursor position relative to chart area (normalized 0-1) */
+  onCursorMove?: (x: number, y: number) => void;
+  /** Ref that BiWheel writes its current state into (for session snapshots) */
+  stateRef?: React.MutableRefObject<Record<string, any> | null>;
+  /** Remote cursor to render inside the chart container (positioned relative to chart area) */
+  remoteCursor?: React.ReactNode;
 }
 
 // Default sets for comparison when building share URLs
@@ -66,6 +106,12 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   shareBirthData,
   chartNotesKey,
   initialEnabledAsteroidGroups,
+  readOnly,
+  externalState,
+  onStateChange,
+  onCursorMove,
+  stateRef,
+  remoteCursor,
   ...biWheelProps
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -141,13 +187,27 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   const [progressedLoading, setProgressedLoading] = useState(false);
   const [showSolarArc, setShowSolarArc] = useState(false);
 
-  // Relocated state (lifted for mobile drawer access)
+  // Relocated state (lifted for mobile drawer access) — per-person locations
   const [relocatedPerson, setRelocatedPerson] = useState<'A' | 'B' | 'both' | null>(null);
   const [relocatedLoading, setRelocatedLoading] = useState(false);
-  const [relocatedLocation, setRelocatedLocation] = useState<LocationData | null>(null);
+  const [relocatedLocationA, setRelocatedLocationA] = useState<LocationData | null>(null);
+  const [relocatedLocationB, setRelocatedLocationB] = useState<LocationData | null>(null);
+  const [locationPickerTarget, setLocationPickerTarget] = useState<'A' | 'B' | null>(null);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  // Aspect line display options (lifted for mobile drawer access)
+  const [straightAspects, setStraightAspects] = useState(savedDefaults?.straightAspects ?? false);
+  const [mobileShowEffects, setMobileShowEffects] = useState(savedDefaults?.showEffects ?? true);
+
+  // Display toggles (lifted for session sync)
+  const [showRetrogrades, setShowRetrogrades] = useState(savedDefaults?.showRetrogrades ?? true);
+  const [showDecans, setShowDecans] = useState(savedDefaults?.showDecans ?? false);
+
+  // Wheel rotation state (lifted for session broadcast)
+  const [rotateToAscendant, setRotateToAscendant] = useState(savedDefaults?.rotateToAscendant ?? true);
+  const [zodiacVantage, setZodiacVantage] = useState<number | null>(null);
 
   // Auth & subscription (for location picker gating)
   const { user } = useAuth();
@@ -168,6 +228,45 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     }
   }, [biWheelProps.initialTheme]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Apply external state overrides (for guest live view + replay)
+  useEffect(() => {
+    if (!externalState) return;
+    console.log('[BiWheelWrapper] Applying externalState:', {
+      chartMode: externalState.chartMode,
+      planets: externalState.visiblePlanets?.length,
+      asteroids: externalState.enabledAsteroidGroups?.length,
+      showTransits: externalState.showTransits,
+      showProgressed: externalState.showProgressed,
+      relocatedPerson: externalState.relocatedPerson,
+    });
+    if (externalState.chartMode !== undefined) setChartMode(externalState.chartMode as ChartMode);
+    if (externalState.visiblePlanets) setVisiblePlanets(new Set(externalState.visiblePlanets));
+    if (externalState.visibleAspects) setVisibleAspects(new Set(externalState.visibleAspects));
+    if (externalState.showHouses !== undefined) setShowHouses(externalState.showHouses);
+    if (externalState.showDegreeMarkers !== undefined) setShowDegreeMarkers(externalState.showDegreeMarkers);
+    if (externalState.showTransits !== undefined) setShowTransits(externalState.showTransits);
+    if (externalState.transitDate !== undefined) setTransitDate(externalState.transitDate);
+    if (externalState.transitTime !== undefined) setTransitTime(externalState.transitTime);
+    if (externalState.showProgressed !== undefined && !externalState.showProgressed) setProgressedPerson(null);
+    if (externalState.progressedPerson !== undefined) setProgressedPerson(externalState.progressedPerson as any);
+    if (externalState.progressedDate !== undefined) setProgressedDate(externalState.progressedDate);
+    if (externalState.showSolarArc !== undefined) setShowSolarArc(externalState.showSolarArc);
+    if (externalState.showRelocated !== undefined && !externalState.showRelocated) setRelocatedPerson(null);
+    if (externalState.relocatedPerson !== undefined) setRelocatedPerson(externalState.relocatedPerson as any);
+    if (externalState.relocatedLocationA !== undefined) setRelocatedLocationA(externalState.relocatedLocationA);
+    if (externalState.relocatedLocationB !== undefined) setRelocatedLocationB(externalState.relocatedLocationB);
+    if (externalState.enabledAsteroidGroups) setEnabledAsteroidGroups(new Set(externalState.enabledAsteroidGroups as AsteroidGroup[]));
+    if (externalState.chartTheme !== undefined) { setChartTheme(externalState.chartTheme); applyTheme(externalState.chartTheme as ThemeName); }
+    if (externalState.rotateToAscendant !== undefined) setRotateToAscendant(externalState.rotateToAscendant);
+    if (externalState.zodiacVantage !== undefined) setZodiacVantage(externalState.zodiacVantage);
+    if (externalState.straightAspects !== undefined) setStraightAspects(externalState.straightAspects);
+    if (externalState.showEffects !== undefined) setMobileShowEffects(externalState.showEffects);
+    if (externalState.showRetrogrades !== undefined) setShowRetrogrades(externalState.showRetrogrades);
+    if (externalState.showDecans !== undefined) setShowDecans(externalState.showDecans);
+    if (externalState.scale !== undefined) setScale(externalState.scale);
+    if (externalState.translateX !== undefined && externalState.translateY !== undefined) setTranslate({ x: externalState.translateX, y: externalState.translateY });
+  }, [externalState]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Sync visibility changes up to parent (for galactic mode linking)
   useEffect(() => {
     onVisiblePlanetsChange?.(visiblePlanets);
@@ -177,11 +276,69 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     onVisibleAspectsChange?.(visibleAspects);
   }, [visibleAspects, onVisibleAspectsChange]);
 
-  // Detect mobile
+  // Detect mobile (needed early for broadcast path selection)
   const isMobile = useMemo(() => {
     if (forceMobile !== undefined) return forceMobile;
     return containerWidth > 0 && containerWidth < MOBILE_BREAKPOINT;
   }, [containerWidth, forceMobile]);
+
+  // ── Broadcast chart state changes ──
+  // Two paths: (1) BiWheelSynastry internal changes → handleInternalStateChange → stateRef
+  //            (2) Lifted state changes (mobile drawer, external state) → direct broadcast effect below
+  const onStateChangeRef = useRef(onStateChange);
+  useEffect(() => { onStateChangeRef.current = onStateChange; }, [onStateChange]);
+
+  // handleInternalStateChange: receives state from BiWheelSynastry (desktop panel changes),
+  // broadcasts + updates stateRef. On desktop the TogglePanel lives inside BiWheelSynastry
+  // so changes don't update lifted state — this is the only broadcast path for those.
+  // On mobile, the lifted-state effect already broadcasts, so skip here to avoid duplicates.
+  const handleInternalStateChange = useCallback((synastryState: Record<string, any>) => {
+    const fullState = { ...synastryState, scale, translateX: translate.x, translateY: translate.y };
+    if (onStateChangeRef.current && !externalState && !isMobile) {
+      console.log('[BiWheelWrapper] Broadcasting via handleInternalStateChange (desktop path)');
+      onStateChangeRef.current('state_snapshot' as any, fullState);
+    }
+    if (stateRef) stateRef.current = fullState;
+  }, [scale, translate.x, translate.y, externalState, stateRef, isMobile]);
+
+  // Direct broadcast of ALL lifted state — fires on every state change from drawer or external
+  // state sync. On mobile this is the ONLY broadcast path. On desktop it fires alongside
+  // handleInternalStateChange but with the same data. Skips guest mode (externalState defined).
+  useEffect(() => {
+    if (!onStateChangeRef.current || externalState) return;
+    const snapshot: Record<string, any> = {
+      chartMode,
+      visiblePlanets: Array.from(visiblePlanets),
+      visibleAspects: Array.from(visibleAspects),
+      showHouses,
+      showDegreeMarkers,
+      showTransits,
+      transitDate,
+      transitTime,
+      showProgressed: !!progressedPerson,
+      progressedPerson,
+      progressedDate,
+      showSolarArc,
+      showRelocated: !!relocatedPerson,
+      relocatedPerson,
+      relocatedLocationA,
+      relocatedLocationB,
+      enabledAsteroidGroups: Array.from(enabledAsteroidGroups),
+      chartTheme,
+      rotateToAscendant,
+      zodiacVantage,
+      straightAspects,
+      showEffects: mobileShowEffects,
+      showRetrogrades,
+      showDecans,
+      scale,
+      translateX: translate.x,
+      translateY: translate.y,
+    };
+    console.log('[BiWheelWrapper] Broadcasting via lifted-state effect', { chartMode, planets: visiblePlanets.size, asteroids: enabledAsteroidGroups.size });
+    onStateChangeRef.current('state_snapshot' as any, snapshot);
+    if (stateRef) stateRef.current = snapshot;
+  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, showTransits, transitDate, transitTime, progressedPerson, progressedDate, showSolarArc, relocatedPerson, relocatedLocationA, relocatedLocationB, enabledAsteroidGroups, chartTheme, rotateToAscendant, zodiacVantage, straightAspects, mobileShowEffects, showRetrogrades, showDecans, scale, translate.x, translate.y, externalState, stateRef]);
 
   // Calculate responsive chart size
   const chartSize = useMemo(() => {
@@ -606,9 +763,8 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   const handleSetProgressedPerson = useCallback((person: 'A' | 'B' | 'both' | null) => {
     setProgressedPerson(person);
     if (person) {
-      // Clear relocated when enabling progressed
+      // Clear relocated when enabling progressed (locations persist)
       setRelocatedPerson(null);
-      setRelocatedLocation(null);
     }
   }, []);
 
@@ -618,44 +774,60 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
       // Clear progressed when enabling relocated
       setProgressedPerson(null);
       setShowSolarArc(false);
-      // On mobile, don't auto-set to birth location (produces identical chart, wastes credit).
-      // Instead, auto-open the location picker so the user picks a real location.
-      if (!relocatedLocation) {
+      // Determine which person we just activated that needs a location
+      // For 'both': check A first, then B
+      const needsPickerForPerson = (() => {
+        if (person === 'A' && !relocatedLocationA) return 'A';
+        if (person === 'B' && !relocatedLocationB) return 'B';
+        if (person === 'both') {
+          if (!relocatedLocationA) return 'A';
+          if (!relocatedLocationB) return 'B';
+        }
+        return null;
+      })();
+
+      if (needsPickerForPerson) {
         if (!user) { setShowAuthModal(true); return; }
         if (!isPaid) { setShowUpgradeModal(true); return; }
+        setLocationPickerTarget(needsPickerForPerson as 'A' | 'B');
         setDrawerOpen(false);
-        setTimeout(() => setShowLocationPicker(true), 300); // Delay so drawer closes first
+        setTimeout(() => setShowLocationPicker(true), 300);
       }
-    } else {
-      setRelocatedLocation(null);
     }
-  }, [relocatedLocation, user, isPaid]);
+    // When toggling OFF (person === null): do NOT clear locations (persistence!)
+  }, [relocatedLocationA, relocatedLocationB, user, isPaid]);
 
   // Location picker handlers
-  const handleOpenLocationPicker = useCallback(() => {
+  const handleOpenLocationPicker = useCallback((person?: 'A' | 'B') => {
     if (!user) { setShowAuthModal(true); return; }
     if (!isPaid) { setShowUpgradeModal(true); return; }
+    setLocationPickerTarget(person || 'A');
     setDrawerOpen(false); // Close options drawer first
     setShowLocationPicker(true);
   }, [user, isPaid]);
 
   const handleLocationConfirm = useCallback((location: LocationData) => {
-    setRelocatedLocation(location);
+    if (locationPickerTarget === 'B') {
+      setRelocatedLocationB(location);
+    } else {
+      setRelocatedLocationA(location);
+    }
     setShowLocationPicker(false);
-  }, [relocatedPerson]);
+  }, [locationPickerTarget]);
 
   // Generate a key that changes when control state changes
   // This forces BiWheelSynastry to re-mount with new initial values
   const chartKey = useMemo(() => {
-    const locKey = relocatedLocation ? `${relocatedLocation.lat},${relocatedLocation.lng}` : 'none';
-    return `${chartMode}-${Array.from(visiblePlanets).sort().join(',')}-${Array.from(visibleAspects).sort().join(',')}-${showHouses}-${showDegreeMarkers}-${Array.from(enabledAsteroidGroups).sort().join(',')}-${showTransits}-${transitDate}-${transitTime}-${progressedPerson}-${progressedDate}-${showSolarArc}-${relocatedPerson}-${locKey}-${chartTheme}`;
-  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups, showTransits, transitDate, transitTime, progressedPerson, progressedDate, showSolarArc, relocatedPerson, relocatedLocation, chartTheme]);
+    const locKeyA = relocatedLocationA ? `${relocatedLocationA.lat},${relocatedLocationA.lng}` : 'none';
+    const locKeyB = relocatedLocationB ? `${relocatedLocationB.lat},${relocatedLocationB.lng}` : 'none';
+    return `${chartMode}-${Array.from(visiblePlanets).sort().join(',')}-${Array.from(visibleAspects).sort().join(',')}-${showHouses}-${showDegreeMarkers}-${Array.from(enabledAsteroidGroups).sort().join(',')}-${showTransits}-${transitDate}-${transitTime}-${progressedPerson}-${progressedDate}-${showSolarArc}-${relocatedPerson}-${locKeyA}-${locKeyB}-${chartTheme}-${straightAspects}-${mobileShowEffects}-${showRetrogrades}-${showDecans}`;
+  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups, showTransits, transitDate, transitTime, progressedPerson, progressedDate, showSolarArc, relocatedPerson, relocatedLocationA, relocatedLocationB, chartTheme, straightAspects, mobileShowEffects, showRetrogrades, showDecans]);
 
   return (
     <div ref={containerRef} className="w-full">
       <div>
-        {/* Control bar */}
-        <div className="flex items-center justify-end w-full mb-1 md:mb-2 px-1 md:px-2">
+        {/* Control bar — hidden in readOnly mode (guest live view + replay) */}
+        {readOnly ? null : <div className="flex items-center justify-end w-full mb-1 md:mb-2 px-1 md:px-2">
           <div className="flex items-center gap-1 md:gap-2">
             {/* Settings button (mobile - opens drawer) */}
             {isMobile && (
@@ -736,91 +908,116 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
               )}
             </div>
           </div>
-        </div>
+        </div>}
 
         {/* Chart container */}
         <div
           ref={chartContainerRef}
-          className="rounded-xl border border-border"
+          className="rounded-xl border border-border relative"
           style={{
             maxWidth: '100%',
             touchAction: isMobile ? 'manipulation' : (scale > 1 ? 'none' : 'auto'),
             cursor: !isMobile && scale > 1 ? (isMousePanning ? 'grabbing' : 'grab') : 'default',
           }}
-          {...(!isMobile ? {
+          {...(!isMobile && !readOnly ? {
             onTouchStart: handleTouchStart,
             onTouchMove: handleTouchMove,
             onTouchEnd: handleTouchEnd,
             onWheel: handleWheel,
             onMouseDown: handleMouseDown,
-            onMouseMove: handleMouseMove,
+            onMouseMove: (e: React.MouseEvent<HTMLDivElement>) => {
+              handleMouseMove(e);
+              if (onCursorMove) {
+                const rect = e.currentTarget.getBoundingClientRect();
+                onCursorMove(
+                  (e.clientX - rect.left) / rect.width,
+                  (e.clientY - rect.top) / rect.height,
+                );
+              }
+            },
             onMouseUp: handleMouseUp,
             onMouseLeave: handleMouseLeave,
           } : {})}
         >
-          {isMobile ? (
-            /* Mobile: no custom zoom transform — native pinch-to-zoom works on the SVG */
-            <BiWheelSynastry
-              key={chartKey}
-              {...biWheelProps}
-              size={chartSize}
-              showTogglePanel={false}
-              hideZoomControls
-              initialVisiblePlanets={visiblePlanets}
-              initialVisibleAspects={visibleAspects as Set<any>}
-              initialShowHouses={showHouses}
-              initialShowDegreeMarkers={showDegreeMarkers}
-              initialChartMode={chartMode}
-              // Transit initial state
-              initialShowTransits={showTransits}
-              initialTransitDate={transitDate}
-              initialTransitTime={transitTime}
-              // Progressed/Relocated initial state
-              initialProgressedPerson={progressedPerson}
-              initialProgressedDate={progressedDate}
-              initialShowSolarArc={showSolarArc}
-              initialRelocatedPerson={relocatedPerson}
-              initialTheme={chartTheme}
-              // External relocated control — provides location on re-mount
-              externalRelocatedLocation={relocatedLocation}
-              externalRelocatedPerson={relocatedPerson}
+          {(() => {
+            // Shared props for BiWheelSynastry — single source of truth for both mobile/desktop.
+            // All lifted state is passed as initial* props so remounts (key change) pick up the latest.
+            const sharedSynastryProps = {
+              ...biWheelProps,
+              size: chartSize,
+              // All lifted chart state → initial* props
+              initialVisiblePlanets: visiblePlanets,
+              initialVisibleAspects: visibleAspects as Set<any>,
+              initialShowHouses: showHouses,
+              initialShowDegreeMarkers: showDegreeMarkers,
+              initialStraightAspects: straightAspects,
+              initialShowEffects: mobileShowEffects,
+              initialChartMode: chartMode,
+              initialShowTransits: showTransits,
+              initialTransitDate: transitDate,
+              initialTransitTime: transitTime,
+              initialProgressedPerson: progressedPerson,
+              initialProgressedDate: progressedDate,
+              initialShowSolarArc: showSolarArc,
+              initialRelocatedPerson: relocatedPerson,
+              initialTheme: chartTheme,
+              initialEnabledAsteroidGroups: enabledAsteroidGroups,
+              initialShowRetrogrades: showRetrogrades,
+              initialShowDecans: showDecans,
+              initialRotateToAscendant: rotateToAscendant,
+              initialZodiacVantage: zodiacVantage,
+              // External relocated control
+              externalRelocatedLocationA: relocatedLocationA,
+              externalRelocatedLocationB: relocatedLocationB,
+              externalRelocatedPerson: relocatedPerson,
               // Change callbacks
-              onChartModeChange={(mode) => { setChartMode(mode); biWheelProps.onChartModeChange?.(mode); }}
-              onShowTransitsChange={setShowTransits}
-              onTransitDateChange={setTransitDate}
-              onTransitTimeChange={setTransitTime}
-              onTransitLoadingChange={setTransitLoading}
-              onProgressedPersonChange={handleSetProgressedPerson}
-              onProgressedDateChange={setProgressedDate}
-              onShowSolarArcChange={setShowSolarArc}
-              onRelocatedPersonChange={handleSetRelocatedPerson}
-              onProgressedLoadingChange={setProgressedLoading}
-              onRelocatedLoadingChange={setRelocatedLoading}
-              onThemeChange={(theme) => { setChartTheme(theme); biWheelProps.onThemeChange?.(theme); }}
-            />
-          ) : (
-            <div
-              style={{
-                transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
-                transformOrigin: 'center center',
-                transition: isPanning || isMousePanning ? 'none' : 'transform 0.1s ease-out',
-              }}
-            >
+              onChartModeChange: (mode: ChartMode) => { setChartMode(mode); biWheelProps.onChartModeChange?.(mode); },
+              onRotateToAscendantChange: setRotateToAscendant,
+              onZodiacVantageChange: setZodiacVantage,
+              onShowTransitsChange: setShowTransits,
+              onTransitDateChange: setTransitDate,
+              onTransitTimeChange: setTransitTime,
+              onTransitLoadingChange: setTransitLoading,
+              onProgressedPersonChange: handleSetProgressedPerson,
+              onProgressedDateChange: setProgressedDate,
+              onShowSolarArcChange: setShowSolarArc,
+              onRelocatedPersonChange: handleSetRelocatedPerson,
+              onProgressedLoadingChange: setProgressedLoading,
+              onRelocatedLoadingChange: setRelocatedLoading,
+              onThemeChange: (theme: string) => { setChartTheme(theme); biWheelProps.onThemeChange?.(theme); },
+              onInternalStateChange: handleInternalStateChange,
+            };
+
+            return isMobile ? (
+              /* Mobile: no custom zoom transform — native pinch-to-zoom works on the SVG */
               <BiWheelSynastry
-                {...biWheelProps}
-                size={chartSize}
-                showTogglePanel={true}
-                initialVisiblePlanets={visiblePlanets}
-                initialVisibleAspects={visibleAspects as Set<any>}
-                initialShowHouses={showHouses}
-                initialShowDegreeMarkers={showDegreeMarkers}
+                key={chartKey}
+                {...sharedSynastryProps}
+                showTogglePanel={false}
+                hideZoomControls
               />
-            </div>
-          )}
+            ) : (
+              <div
+                style={{
+                  transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
+                  transformOrigin: 'center center',
+                  transition: isPanning || isMousePanning ? 'none' : 'transform 0.1s ease-out',
+                }}
+              >
+                <BiWheelSynastry
+                  {...sharedSynastryProps}
+                  key={externalState ? chartKey : undefined}
+                  showTogglePanel={!externalState}
+                />
+              </div>
+            );
+          })()}
+          {/* Remote cursor — rendered inside chart container for correct positioning */}
+          {remoteCursor}
         </div>
 
-        {/* Mobile drawer for controls */}
-        <Drawer.Root open={drawerOpen} onOpenChange={setDrawerOpen}>
+        {/* Mobile drawer for controls — disabled in readOnly mode */}
+        <Drawer.Root open={!readOnly && drawerOpen} onOpenChange={readOnly ? undefined : setDrawerOpen}>
           <Drawer.Portal>
             <Drawer.Overlay className="fixed inset-0 bg-black/40 z-50" />
             <Drawer.Content
@@ -852,6 +1049,10 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                   onSetShowHouses={setShowHouses}
                   onSetShowDegreeMarkers={setShowDegreeMarkers}
                   onSetShowRetrogrades={() => {}}
+                  straightAspects={straightAspects}
+                  onSetStraightAspects={setStraightAspects}
+                  showEffects={mobileShowEffects}
+                  onSetShowEffects={setMobileShowEffects}
                   onEnablePlanetGroup={(group) => {
                     const groups: Record<string, string[]> = {
                       core: ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'northnode', 'southnode'],
@@ -922,6 +1123,8 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                   enableRelocated={biWheelProps.enableRelocated}
                   relocatedPerson={relocatedPerson}
                   relocatedLoading={relocatedLoading}
+                  relocatedLocationA={relocatedLocationA}
+                  relocatedLocationB={relocatedLocationB}
                   onSetRelocatedPerson={handleSetRelocatedPerson}
                   onOpenLocationPicker={handleOpenLocationPicker}
                   // Theme controls
@@ -941,10 +1144,10 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
               isOpen={showLocationPicker}
               onClose={() => setShowLocationPicker(false)}
               onConfirm={handleLocationConfirm}
-              originalLocation={biWheelProps.originalLocation}
-              currentLocation={relocatedLocation || undefined}
-              birthDate={biWheelProps.birthDateA}
-              birthTime={biWheelProps.birthTimeA}
+              originalLocation={locationPickerTarget === 'B' ? biWheelProps.locationB : biWheelProps.originalLocation}
+              currentLocation={(locationPickerTarget === 'B' ? relocatedLocationB : relocatedLocationA) || undefined}
+              birthDate={locationPickerTarget === 'B' ? biWheelProps.birthDateB : biWheelProps.birthDateA}
+              birthTime={locationPickerTarget === 'B' ? biWheelProps.birthTimeB : biWheelProps.birthTimeA}
               showAstroLines={true}
             />
           </React.Suspense>

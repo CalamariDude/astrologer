@@ -42,6 +42,7 @@ const SignTooltip = React.lazy(() => import('./tooltips/SignTooltip').then(m => 
 const HouseTooltip = React.lazy(() => import('./tooltips/HouseTooltip').then(m => ({ default: m.HouseTooltip })));
 // TogglePanel — lazy-loaded (desktop sidebar, not used on mobile)
 const TogglePanel = React.lazy(() => import('./controls/TogglePanel').then(m => ({ default: m.TogglePanel })));
+import { TransitJogWheel } from './controls/TransitJogWheel';
 import { calculateDeclination } from '@/lib/declination';
 import * as analytics from '@/lib/analytics';
 import type { BiWheelSynastryProps, BiWheelState, ChartDimensions, NatalChart, PlanetData } from './types';
@@ -59,6 +60,8 @@ interface SavedChartDefaults {
   rotateToAscendant: boolean;
   chartTheme: string;
   enabledAsteroidGroups: string[];
+  straightAspects?: boolean;
+  showEffects?: boolean;
 }
 
 function loadSavedDefaults(): SavedChartDefaults | null {
@@ -326,6 +329,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   initialVisibleAspects,
   initialShowHouses = true,
   initialShowDegreeMarkers = true,
+  initialStraightAspects,
+  initialShowEffects,
   initialChartMode = 'synastry',
   onAspectClick,
   onPlanetClick,
@@ -350,11 +355,14 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   originalLocation,
   locationB,
   // External control of relocated location (from parent, e.g., map selection)
-  externalRelocatedLocation,
+  externalRelocatedLocationA,
+  externalRelocatedLocationB,
   externalRelocatedPerson,
-  // Birth data for Person A (used for astrocartography in location picker)
+  // Birth data for astrocartography in location picker
   birthDateA,
   birthTimeA,
+  birthDateB,
+  birthTimeB,
   // Initial progressed/relocated state (for mobile wrapper)
   initialProgressedPerson,
   initialProgressedDate,
@@ -375,8 +383,20 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   onTransitTimeChange,
   onTransitLoadingChange,
   onAsteroidsChange,
+  // Rotation / vantage
+  initialRotateToAscendant,
+  initialZodiacVantage,
+  onRotateToAscendantChange,
+  onZodiacVantageChange,
   // Asteroids data fetch
   onFetchAsteroidData,
+  // Initial enabled asteroid groups (from parent wrapper on remount)
+  initialEnabledAsteroidGroups,
+  // Initial display toggles (from parent wrapper for session sync)
+  initialShowRetrogrades,
+  initialShowDecans,
+  // Full state change callback (session broadcast)
+  onInternalStateChange,
 }) => {
   // Subscription gating for astrocartography
   const { user } = useAuth();
@@ -398,8 +418,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     visibleAspects: initialVisibleAspects || (savedDefaults ? new Set(savedDefaults.visibleAspects as AspectType[]) : new Set(DEFAULT_VISIBLE_ASPECTS)),
     showHouses: savedDefaults ? savedDefaults.showHouses : initialShowHouses,
     showDegreeMarkers: savedDefaults ? savedDefaults.showDegreeMarkers : initialShowDegreeMarkers,
-    showRetrogrades: savedDefaults ? savedDefaults.showRetrogrades : true,
-    showDecans: savedDefaults ? savedDefaults.showDecans : false,
+    showRetrogrades: initialShowRetrogrades ?? savedDefaults?.showRetrogrades ?? true,
+    showDecans: initialShowDecans ?? savedDefaults?.showDecans ?? false,
     hoveredPlanet: null,
     selectedAspect: null,
     selectedPlanet: null,
@@ -422,22 +442,40 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     progressedLoading: false,
     // Relocated state
     showRelocated: !!initialRelocatedPerson,
-    relocatedLocation: externalRelocatedLocation || null,
+    relocatedLocationA: externalRelocatedLocationA || null,
+    relocatedLocationB: externalRelocatedLocationB || null,
+    locationPickerTarget: null,
     relocatedData: null,
     relocatedDataOther: null,
     relocatedLoading: false,
     showLocationPicker: false,
     // Asteroids state
-    enabledAsteroidGroups: savedDefaults ? new Set(savedDefaults.enabledAsteroidGroups as AsteroidGroup[]) : new Set<AsteroidGroup>(),
+    enabledAsteroidGroups: initialEnabledAsteroidGroups || (savedDefaults?.enabledAsteroidGroups ? new Set(savedDefaults.enabledAsteroidGroups as AsteroidGroup[]) : new Set<AsteroidGroup>()),
     // Solar Arc state (derived from progressed Sun - mutually exclusive with progressed)
     showSolarArc: initialShowSolarArc || false,
+    // Aspect line display options
+    straightAspects: initialStraightAspects ?? savedDefaults?.straightAspects ?? false,
+    showEffects: initialShowEffects ?? savedDefaults?.showEffects ?? true,
   });
+
+  // Delayed transit loading — only true if transitLoading persists >500ms
+  const [transitLoadingSlow, setTransitLoadingSlow] = useState(false);
+  useEffect(() => {
+    if (!state.transitLoading) {
+      setTransitLoadingSlow(false);
+      return;
+    }
+    const timer = setTimeout(() => setTransitLoadingSlow(true), 500);
+    return () => clearTimeout(timer);
+  }, [state.transitLoading]);
 
   // Swap A/B state - when true, Person A and B are swapped in the biwheel
   const [swapped, setSwapped] = useState(false);
 
   // Rotation state - rotate chart so Person A's Ascendant is at 9 o'clock (left side, traditional East)
-  const [rotateToAscendant, setRotateToAscendant] = useState(savedDefaults ? savedDefaults.rotateToAscendant : true);
+  const [rotateToAscendant, setRotateToAscendant] = useState(
+    initialRotateToAscendant ?? (savedDefaults ? savedDefaults.rotateToAscendant : true)
+  );
 
   // Theme state - prefer parent prop (DB source of truth), fall back to saved defaults, then 'classic'
   const [chartTheme, setChartTheme] = useState<ThemeName>(
@@ -525,7 +563,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
   // Zodiac vantage state - allows rotating to put any sign at the 1st house cusp
   // null = use default (Ascendant or Aries), 0-11 = zodiac sign index (0=Aries, 6=Libra, etc.)
-  const [zodiacVantage, setZodiacVantage] = useState<number | null>(null);
+  const [zodiacVantage, setZodiacVantage] = useState<number | null>(initialZodiacVantage ?? null);
 
   // Progressed person state - which person(s) progressed chart to show
   const [progressedPerson, setProgressedPerson] = useState<'A' | 'B' | 'both' | null>(initialProgressedPerson ?? null);
@@ -533,34 +571,46 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   // Relocated person state - which person(s) relocated chart to show
   const [relocatedPerson, setRelocatedPerson] = useState<'A' | 'B' | 'both' | null>(initialRelocatedPerson ?? null);
 
-  // Sync external relocated location/person from parent (e.g., map selection)
+  // Sync external relocated locations from parent (e.g., mobile wrapper map selection)
   useEffect(() => {
-    if (externalRelocatedLocation && externalRelocatedPerson) {
-      setRelocatedPerson(externalRelocatedPerson);
-      setState(prev => ({
-        ...prev,
-        showRelocated: true,
-        relocatedLocation: externalRelocatedLocation,
-        // Clear old data when location changes so we refetch
-        relocatedData: prev.relocatedLocation?.lat !== externalRelocatedLocation.lat ||
-                       prev.relocatedLocation?.lng !== externalRelocatedLocation.lng
-                       ? null : prev.relocatedData,
-        relocatedDataOther: prev.relocatedLocation?.lat !== externalRelocatedLocation.lat ||
-                            prev.relocatedLocation?.lng !== externalRelocatedLocation.lng
-                            ? null : prev.relocatedDataOther,
-      }));
-    } else if (externalRelocatedLocation === null && externalRelocatedPerson === null) {
-      setRelocatedPerson(null);
-      setState(prev => ({
-        ...prev,
-        showRelocated: false,
-        relocatedLocation: null,
-        relocatedData: null,
-        relocatedDataOther: null,
-      }));
+    if (externalRelocatedLocationA !== undefined) {
+      setState(prev => {
+        const locChanged = prev.relocatedLocationA?.lat !== externalRelocatedLocationA?.lat ||
+                           prev.relocatedLocationA?.lng !== externalRelocatedLocationA?.lng;
+        return {
+          ...prev,
+          relocatedLocationA: externalRelocatedLocationA || null,
+          ...(locChanged ? { relocatedData: null, relocatedDataOther: null } : {}),
+        };
+      });
     }
-    // Note: If only one is null, we keep the current state (map closed but selection preserved)
-  }, [externalRelocatedLocation, externalRelocatedPerson]);
+  }, [externalRelocatedLocationA]);
+
+  useEffect(() => {
+    if (externalRelocatedLocationB !== undefined) {
+      setState(prev => {
+        const locChanged = prev.relocatedLocationB?.lat !== externalRelocatedLocationB?.lat ||
+                           prev.relocatedLocationB?.lng !== externalRelocatedLocationB?.lng;
+        return {
+          ...prev,
+          relocatedLocationB: externalRelocatedLocationB || null,
+          ...(locChanged ? { relocatedData: null, relocatedDataOther: null } : {}),
+        };
+      });
+    }
+  }, [externalRelocatedLocationB]);
+
+  useEffect(() => {
+    if (externalRelocatedPerson !== undefined) {
+      if (externalRelocatedPerson) {
+        setRelocatedPerson(externalRelocatedPerson);
+        setState(prev => ({ ...prev, showRelocated: true }));
+      } else {
+        setRelocatedPerson(null);
+        setState(prev => ({ ...prev, showRelocated: false, relocatedData: null, relocatedDataOther: null }));
+      }
+    }
+  }, [externalRelocatedPerson]);
 
   // Asteroid data state - stores fetched asteroid positions
   const [asteroidData, setAsteroidData] = useState<{ chartA: Record<string, any>; chartB: Record<string, any> } | null>(null);
@@ -570,6 +620,17 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   useEffect(() => {
     setState(prev => ({ ...prev, chartMode: initialChartMode }));
   }, [initialChartMode]);
+
+  // Sync progressed/relocated when initial props change (e.g. guest receiving broadcast)
+  useEffect(() => {
+    setProgressedPerson(initialProgressedPerson ?? null);
+    setState(prev => ({ ...prev, showProgressed: !!initialProgressedPerson }));
+  }, [initialProgressedPerson]);
+
+  useEffect(() => {
+    setRelocatedPerson(initialRelocatedPerson ?? null);
+    setState(prev => ({ ...prev, showRelocated: !!initialRelocatedPerson }));
+  }, [initialRelocatedPerson]);
 
   // Additional tooltip states
   const [hoveredSign, setHoveredSign] = useState<SignData | null>(null);
@@ -803,9 +864,24 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     fetchData();
   }, [progressedPerson, state.showProgressed, state.progressedDate, onFetchProgressed, computedAsteroids]);
 
-  // Fetch relocated chart when relocatedPerson is set or relocatedLocation changes
+  // Fetch relocated chart when relocatedPerson is set or per-person locations change
   useEffect(() => {
-    if (!relocatedPerson || !state.showRelocated || !state.relocatedLocation) {
+    if (!relocatedPerson || !state.showRelocated) {
+      if (state.relocatedData || state.relocatedDataOther) {
+        setState(prev => ({ ...prev, relocatedData: null, relocatedDataOther: null }));
+      }
+      return;
+    }
+
+    // Determine which location each person uses
+    const locationA = state.relocatedLocationA;
+    const locationB = state.relocatedLocationB;
+
+    // Need at least one location for the active person(s)
+    const needA = relocatedPerson === 'A' || relocatedPerson === 'both';
+    const needB = relocatedPerson === 'B' || relocatedPerson === 'both';
+    if ((needA && !locationA) && (needB && !locationB)) {
+      // No locations available for active persons — clear data
       if (state.relocatedData || state.relocatedDataOther) {
         setState(prev => ({ ...prev, relocatedData: null, relocatedDataOther: null }));
       }
@@ -817,18 +893,31 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     const fetchData = async () => {
       const primaryPerson = relocatedPerson === 'both' ? 'A' : relocatedPerson;
       const otherPerson = primaryPerson === 'A' ? 'B' : 'A';
+      const primaryLocation = primaryPerson === 'A' ? locationA : locationB;
+      const otherLocation = otherPerson === 'A' ? locationA : locationB;
+
       setState(prev => ({ ...prev, relocatedLoading: true }));
       onRelocatedLoadingChange?.(true);
       try {
-        const data = await onFetchRelocated(primaryPerson, state.relocatedLocation!.lat, state.relocatedLocation!.lng, computedAsteroids);
-        setState(prev => ({ ...prev, relocatedData: data, relocatedLoading: false }));
+        // Fetch primary person at THEIR location
+        if (primaryLocation) {
+          const data = await onFetchRelocated(primaryPerson, primaryLocation.lat, primaryLocation.lng, computedAsteroids);
+          setState(prev => ({ ...prev, relocatedData: data, relocatedLoading: false }));
+        } else {
+          setState(prev => ({ ...prev, relocatedData: null, relocatedLoading: false }));
+        }
         onRelocatedLoadingChange?.(false);
 
-        try {
-          const otherData = await onFetchRelocated(otherPerson, state.relocatedLocation!.lat, state.relocatedLocation!.lng, computedAsteroids);
-          setState(prev => ({ ...prev, relocatedDataOther: otherData }));
-        } catch {
-          // Other person fetch is non-critical
+        // Fetch other person at THEIR location
+        if (otherLocation) {
+          try {
+            const otherData = await onFetchRelocated(otherPerson, otherLocation.lat, otherLocation.lng, computedAsteroids);
+            setState(prev => ({ ...prev, relocatedDataOther: otherData }));
+          } catch {
+            // Other person fetch is non-critical
+          }
+        } else {
+          setState(prev => ({ ...prev, relocatedDataOther: null }));
         }
       } catch (error) {
         console.error('Relocated chart fetch failed:', error);
@@ -838,7 +927,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     };
 
     fetchData();
-  }, [relocatedPerson, state.showRelocated, state.relocatedLocation, onFetchRelocated, computedAsteroids]);
+  }, [relocatedPerson, state.showRelocated, state.relocatedLocationA, state.relocatedLocationB, onFetchRelocated, computedAsteroids]);
 
   // Transit/Composite toggle handlers
   const setShowTransits = useCallback((show: boolean) => {
@@ -864,18 +953,35 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     setState(prev => ({
       ...prev,
       chartMode: mode,
+      // Composite is standalone — disable progressed/relocated overlays (locations persist)
+      ...(mode === 'composite' ? {
+        showProgressed: false,
+        progressedData: null,
+        progressedDataOther: null,
+        showRelocated: false,
+        relocatedData: null,
+        relocatedDataOther: null,
+      } : {}),
     }));
-    if (mode === 'composite') analytics.trackCompositeViewed();
+    if (mode === 'composite') {
+      setProgressedPerson(null);
+      setRelocatedPerson(null);
+      onProgressedPersonChange?.(null);
+      onRelocatedPersonChange?.(null);
+      analytics.trackCompositeViewed();
+    }
     onChartModeChange?.(mode);
-  }, [onChartModeChange]);
+  }, [onChartModeChange, onProgressedPersonChange, onRelocatedPersonChange]);
 
-  // Progressed chart handlers - mutually exclusive with relocated
+  // Progressed chart handlers - mutually exclusive with relocated; auto-exits composite
   const setShowProgressed = useCallback((show: boolean) => {
     setState(prev => ({
       ...prev,
       showProgressed: show,
-      // Disable relocated when enabling progressed (mutually exclusive)
-      ...(show ? { showRelocated: false, relocatedData: null, relocatedDataOther: null, relocatedLocation: null, progressedDataOther: null } : {}),
+      // Disable relocated when enabling progressed (mutually exclusive — locations persist)
+      ...(show ? { showRelocated: false, relocatedData: null, relocatedDataOther: null, progressedDataOther: null } : {}),
+      // Progressed overlays synastry — auto-switch out of composite
+      ...(show && prev.chartMode === 'composite' ? { chartMode: 'synastry' as ChartMode } : {}),
     }));
     if (show) {
       analytics.trackProgressedEnabled({ person: progressedPerson || 'A' });
@@ -900,13 +1006,15 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     onShowSolarArcChange?.(show);
   }, [onShowSolarArcChange]);
 
-  // Relocated chart handlers - mutually exclusive with progressed
+  // Relocated chart handlers - mutually exclusive with progressed; auto-exits composite
   const setShowRelocated = useCallback((show: boolean) => {
     setState(prev => ({
       ...prev,
       showRelocated: show,
       // Disable progressed when enabling relocated (mutually exclusive)
       ...(show ? { showProgressed: false, progressedData: null, progressedDataOther: null } : {}),
+      // Relocated overlays synastry — auto-switch out of composite
+      ...(show && prev.chartMode === 'composite' ? { chartMode: 'synastry' as ChartMode } : {}),
     }));
     if (show) {
       analytics.trackRelocatedEnabled({ person: relocatedPerson || 'A' });
@@ -915,8 +1023,14 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     }
   }, [onProgressedPersonChange, relocatedPerson]);
 
-  const setRelocatedLocation = useCallback((location: LocationData | null) => {
-    setState(prev => ({ ...prev, relocatedLocation: location }));
+  const setRelocatedLocationForPerson = useCallback((person: 'A' | 'B', location: LocationData | null) => {
+    setState(prev => ({
+      ...prev,
+      ...(person === 'A' ? { relocatedLocationA: location } : { relocatedLocationB: location }),
+      // Clear fetched data so it refetches with new location
+      relocatedData: null,
+      relocatedDataOther: null,
+    }));
   }, []);
 
   const setShowLocationPicker = useCallback((show: boolean) => {
@@ -924,14 +1038,18 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   }, []);
 
   const handleLocationConfirm = useCallback((location: LocationData) => {
-    setRelocatedLocation(location);
+    const target = stateRef_locationPickerTarget.current || 'A';
+    setRelocatedLocationForPerson(target, location);
     setShowLocationPicker(false);
-  }, [setRelocatedLocation, setShowLocationPicker]);
+  }, [setRelocatedLocationForPerson, setShowLocationPicker]);
+
+  // Keep a ref for locationPickerTarget so handleLocationConfirm doesn't need state in deps
+  const stateRef_locationPickerTarget = useRef<'A' | 'B' | null>(null);
+  useEffect(() => { stateRef_locationPickerTarget.current = state.locationPickerTarget; }, [state.locationPickerTarget]);
 
   const handleResetLocation = useCallback(() => {
-    setRelocatedLocation(null);
-    setState(prev => ({ ...prev, relocatedData: null, relocatedDataOther: null }));
-  }, [setRelocatedLocation]);
+    setState(prev => ({ ...prev, relocatedLocationA: null, relocatedLocationB: null, relocatedData: null, relocatedDataOther: null }));
+  }, []);
 
   // Asteroid group handlers - also toggle visibility
   const toggleAsteroidGroup = useCallback((group: AsteroidGroup) => {
@@ -1529,17 +1647,31 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     setState((prev) => ({ ...prev, showDecans: show }));
   }, []);
 
+  const setStraightAspects = useCallback((show: boolean) => {
+    setState((prev) => ({ ...prev, straightAspects: show }));
+  }, []);
+
+  const setShowEffects = useCallback((show: boolean) => {
+    setState((prev) => ({ ...prev, showEffects: show }));
+  }, []);
+
   const handlePlanetHover = useCallback(
     (planet: { planet: string; chart: 'A' | 'B' | 'Transit' | 'Composite' } | null, event?: React.MouseEvent) => {
+      // Anchor tooltip to the planet group's visual center (not cursor position)
+      // so the tooltip appears next to the planet, not wherever the cursor entered
+      let pos: { x: number; y: number } | null = null;
+      if (event) {
+        const rect = (event.currentTarget as SVGElement).getBoundingClientRect();
+        pos = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      }
       setState((prev) => ({
         ...prev,
         hoveredPlanet: planet,
         // Preserve tooltipPosition if we have a pinned selection
-        tooltipPosition: event
-          ? { x: event.clientX, y: event.clientY }
-          : prev.selectedPlanet || prev.selectedAspect || prev.selectedSign
+        tooltipPosition: pos
+          ?? (prev.selectedPlanet || prev.selectedAspect || prev.selectedSign
             ? prev.tooltipPosition
-            : null,
+            : null),
       }));
     },
     []
@@ -1595,6 +1727,11 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
   const handlePlanetClick = useCallback(
     (planet: string, chart: 'A' | 'B' | 'Transit' | 'Composite', event?: React.MouseEvent) => {
+      let pos: { x: number; y: number } | undefined;
+      if (event) {
+        const rect = (event.currentTarget as SVGElement).getBoundingClientRect();
+        pos = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      }
       setState((prev) => ({
         ...prev,
         selectedPlanet: prev.selectedPlanet?.planet === planet && prev.selectedPlanet?.chart === chart
@@ -1603,7 +1740,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         hoveredPlanet: null, // Clear hover state
         selectedAspect: null, // Clear other selections
         selectedSign: null,
-        tooltipPosition: event ? { x: event.clientX, y: event.clientY } : prev.tooltipPosition,
+        tooltipPosition: pos ?? prev.tooltipPosition,
       }));
       onPlanetClick?.(planet, chart);
     },
@@ -1682,9 +1819,46 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       rotateToAscendant,
       chartTheme,
       enabledAsteroidGroups: Array.from(state.enabledAsteroidGroups),
+      straightAspects: state.straightAspects,
+      showEffects: state.showEffects,
     };
     localStorage.setItem(CHART_DEFAULTS_KEY, JSON.stringify(defaults));
-  }, [state.visiblePlanets, state.visibleAspects, state.showHouses, state.showDegreeMarkers, state.showRetrogrades, state.showDecans, rotateToAscendant, chartTheme, state.enabledAsteroidGroups]);
+  }, [state.visiblePlanets, state.visibleAspects, state.showHouses, state.showDegreeMarkers, state.showRetrogrades, state.showDecans, rotateToAscendant, chartTheme, state.enabledAsteroidGroups, state.straightAspects, state.showEffects]);
+
+  // Notify parent of chart state changes (for session broadcast)
+  // Note: no "isFirstStateChange" guard — on mobile, chartKey remount re-mounts this component
+  // and we NEED the first effect run to broadcast so the guest receives the new state.
+  const onInternalStateChangeRef = useRef(onInternalStateChange);
+  useEffect(() => { onInternalStateChangeRef.current = onInternalStateChange; }, [onInternalStateChange]);
+  useEffect(() => {
+    if (!onInternalStateChangeRef.current) return;
+    onInternalStateChangeRef.current({
+      chartMode: state.chartMode,
+      visiblePlanets: Array.from(state.visiblePlanets),
+      visibleAspects: Array.from(state.visibleAspects),
+      showHouses: state.showHouses,
+      showDegreeMarkers: state.showDegreeMarkers,
+      showTransits: state.showTransits,
+      transitDate: state.transitDate,
+      transitTime: state.transitTime,
+      showProgressed: state.showProgressed,
+      progressedPerson,
+      progressedDate: state.progressedDate,
+      showSolarArc: state.showSolarArc,
+      showRelocated: state.showRelocated,
+      relocatedPerson,
+      relocatedLocationA: state.relocatedLocationA,
+      relocatedLocationB: state.relocatedLocationB,
+      enabledAsteroidGroups: Array.from(state.enabledAsteroidGroups),
+      chartTheme,
+      rotateToAscendant,
+      zodiacVantage,
+      straightAspects: state.straightAspects,
+      showEffects: state.showEffects,
+      showRetrogrades: state.showRetrogrades,
+      showDecans: state.showDecans,
+    });
+  }, [state.chartMode, state.visiblePlanets, state.visibleAspects, state.showHouses, state.showDegreeMarkers, state.showTransits, state.transitDate, state.transitTime, state.showProgressed, progressedPerson, state.progressedDate, state.showSolarArc, state.showRelocated, relocatedPerson, state.relocatedLocationA, state.relocatedLocationB, state.enabledAsteroidGroups, chartTheme, rotateToAscendant, zodiacVantage, state.straightAspects, state.showEffects, state.showRetrogrades, state.showDecans]);
 
   // Get hovered planet data for tooltip
   const hoveredPlanetData = React.useMemo(() => {
@@ -1835,6 +2009,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           rotationOffset={rotationOffset}
           zodiacVantage={zodiacVantage}
           hideOuterHouseRing={isSingleWheel}
+          visiblePlanets={state.visiblePlanets}
         />
 
         {/* Aspect lines (drawn on top of house ring) */}
@@ -1855,6 +2030,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           rotationOffset={rotationOffset}
           declinationsA={declinationsA}
           declinationsB={declinationsB}
+          straightLines={state.straightAspects}
+          showEffects={state.showEffects}
         />
 
         {/* Zodiac ring */}
@@ -1909,8 +2086,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
         {/* Progressed planets are now integrated into effectiveChart (no separate outer ring) */}
 
-        {/* Transit loading indicator */}
-        {state.showTransits && state.transitLoading && (
+        {/* Transit loading indicator — only shows if loading takes >500ms */}
+        {state.showTransits && transitLoadingSlow && (
           <g>
             <rect
               x={dimensions.cx - 80}
@@ -1933,7 +2110,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
               textAnchor="middle"
               dominantBaseline="central"
             >
-              ⏳ Loading Transits...
+              Loading Transits...
             </text>
           </g>
         )}
@@ -2067,7 +2244,11 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
         {/* Relocated active indicator */}
         {state.showRelocated && state.relocatedData && !state.relocatedLoading && (() => {
-          const locName = state.relocatedLocation?.name || 'New Location';
+          const locNameA = state.relocatedLocationA?.name;
+          const locNameB = state.relocatedLocationB?.name;
+          const locName = relocatedPerson === 'both' && locNameA && locNameB
+            ? `A: ${locNameA} / B: ${locNameB}`
+            : (relocatedPerson === 'B' ? locNameB : locNameA) || 'New Location';
           const truncated = locName.length > 30 ? locName.slice(0, 28) + '…' : locName;
           const boxW = Math.max(200, Math.min(280, truncated.length * 7 + 40));
           return (
@@ -2300,10 +2481,10 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             isOpen={state.showLocationPicker}
             onClose={() => setShowLocationPicker(false)}
             onConfirm={handleLocationConfirm}
-            originalLocation={originalLocation}
-            currentLocation={state.relocatedLocation || undefined}
-            birthDate={birthDateA}
-            birthTime={birthTimeA}
+            originalLocation={state.locationPickerTarget === 'B' ? locationB : originalLocation}
+            currentLocation={(state.locationPickerTarget === 'B' ? state.relocatedLocationB : state.relocatedLocationA) || undefined}
+            birthDate={state.locationPickerTarget === 'B' ? birthDateB : birthDateA}
+            birthTime={state.locationPickerTarget === 'B' ? birthTimeB : birthTimeA}
             showAstroLines={true}
           />
         </React.Suspense>
@@ -2425,6 +2606,20 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         />
       )}
       </React.Suspense>
+
+      {/* Transit jog wheel — bottom-left overlay on chart */}
+      {state.showTransits && (
+        <div style={{ position: 'absolute', bottom: 80, left: 16, zIndex: 999 }}>
+          <TransitJogWheel
+            transitDate={state.transitDate}
+            onTransitDateChange={setTransitDate}
+            transitTime={state.transitTime}
+            onTransitTimeChange={setTransitTime}
+            transitLoading={state.transitLoading}
+            size={!showTogglePanel ? 80 : 96}
+          />
+        </div>
+      )}
       </div>
 
       {/* Toggle Panel - flex sibling next to SVG wrapper */}
@@ -2443,6 +2638,10 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             onSetShowDegreeMarkers={setShowDegreeMarkers}
             onSetShowRetrogrades={setShowRetrogrades}
             onSetShowDecans={setShowDecans}
+            straightAspects={state.straightAspects}
+            onSetStraightAspects={setStraightAspects}
+            showEffects={state.showEffects}
+            onSetShowEffects={setShowEffects}
             onEnablePlanetGroup={enablePlanetGroup}
             onDisablePlanetGroup={disablePlanetGroup}
             onEnableMinorAspects={enableMinorAspects}
@@ -2452,7 +2651,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             showTransits={state.showTransits}
             transitDate={state.transitDate}
             transitTime={state.transitTime}
-            transitLoading={state.transitLoading}
+            transitLoading={transitLoadingSlow}
             onSetShowTransits={setShowTransits}
             onSetTransitDate={setTransitDate}
             onSetTransitTime={setTransitTime}
@@ -2464,10 +2663,10 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             nameB={displayNameB}
             // Rotation controls
             rotateToAscendant={rotateToAscendant}
-            onSetRotateToAscendant={setRotateToAscendant}
+            onSetRotateToAscendant={(v: boolean) => { setRotateToAscendant(v); onRotateToAscendantChange?.(v); }}
             // Zodiac vantage controls (derived houses view)
             zodiacVantage={zodiacVantage}
-            onSetZodiacVantage={setZodiacVantage}
+            onSetZodiacVantage={(v: number | null) => { setZodiacVantage(v); onZodiacVantageChange?.(v); }}
             // Progressed chart controls
             enableProgressed={enableProgressed}
             showProgressed={state.showProgressed}
@@ -2483,17 +2682,18 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             // Relocated chart controls
             enableRelocated={enableRelocated}
             showRelocated={state.showRelocated}
-            relocatedLocation={state.relocatedLocation}
+            relocatedLocationA={state.relocatedLocationA}
+            relocatedLocationB={state.relocatedLocationB}
             relocatedLoading={state.relocatedLoading}
             relocatedPerson={relocatedPerson}
             originalLocation={originalLocation}
             locationB={locationB}
             onSetShowRelocated={setShowRelocated}
-            onSetRelocatedLocation={setRelocatedLocation}
             onSetRelocatedPerson={setRelocatedPerson}
-            onOpenLocationPicker={() => {
+            onOpenLocationPicker={(person: 'A' | 'B') => {
               if (!user) { setShowAuthModal(true); return; }
               if (!isPaid) { setShowUpgradeModal(true); return; }
+              setState(prev => ({ ...prev, locationPickerTarget: person }));
               setShowLocationPicker(true);
             }}
             onResetLocation={handleResetLocation}

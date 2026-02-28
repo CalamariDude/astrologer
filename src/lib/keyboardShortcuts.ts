@@ -36,6 +36,7 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'next-tab', key: ']', label: 'Next tab', category: 'Navigation' },
 
   // Chart
+  { id: 'spotlight', key: 'K', meta: true, label: 'Quick switch chart', category: 'Chart' },
   { id: 'calculate', key: 'Enter', meta: true, label: 'Calculate chart', category: 'Chart' },
   { id: 'save', key: 'S', meta: true, label: 'Save chart', category: 'Chart' },
   { id: 'edit', key: 'E', label: 'Toggle edit mode', category: 'Chart' },

@@ -109,3 +109,21 @@ export function trackUpgradeClicked() {
 export function trackSubscriptionStarted(props: { plan: string }) {
   posthog.capture('subscription_started', props);
 }
+
+// ── Live Sessions ──────────────────────────────────────────────────
+
+export function trackSessionStarted(props: { title: string }) {
+  posthog.capture('session_started', props);
+}
+
+export function trackSessionEnded(props: { duration: number }) {
+  posthog.capture('session_ended', props);
+}
+
+export function trackSessionReplayed(props: { session_id: string }) {
+  posthog.capture('session_replayed', props);
+}
+
+export function trackSessionShared(props: { method: 'link' | 'email' }) {
+  posthog.capture('session_shared', props);
+}

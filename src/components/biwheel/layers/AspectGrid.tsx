@@ -46,6 +46,10 @@ interface AspectGridProps {
   /** Declination data for parallel/contraparallel detection */
   declinationsA?: Record<string, number>;
   declinationsB?: Record<string, number>;
+  /** Use straight lines instead of curves */
+  straightLines?: boolean;
+  /** Show animated flow particles */
+  showEffects?: boolean;
 }
 
 /**
@@ -225,6 +229,8 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
   rotationOffset = 0,
   declinationsA,
   declinationsB,
+  straightLines = false,
+  showEffects = true,
 }) => {
   const { cx, cy, planetARing, planetBRing, innerCircle, singlePlanetRing } = dimensions;
   const isSingleWheel = mode !== 'synastry';
@@ -260,8 +266,6 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
 
       {aspectLines.map((line, index) => {
         const isConjunction = line.aspect.aspect.type === 'conjunction';
-        // Skip conjunctions entirely — planets already overlap visually
-        if (isConjunction) return null;
         const nature = line.aspect.aspect.nature;
         const strength = line.aspect.aspect.strength;
         const flowType = getFlowType(nature);
@@ -269,10 +273,14 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
 
         // Curve control point
         const ctrl = getCurveControl(line.startPoint, line.endPoint, cx, cy, strength);
-        // Apex point (t=0.5 on bezier)
-        const apex = bezierPoint(line.startPoint, ctrl, line.endPoint, 0.5);
-        // Path string for quadratic bezier
-        const pathD = `M ${line.startPoint.x} ${line.startPoint.y} Q ${ctrl.x} ${ctrl.y} ${line.endPoint.x} ${line.endPoint.y}`;
+        // Apex point (t=0.5 on bezier) — used for badge placement
+        const apex = straightLines
+          ? { x: (line.startPoint.x + line.endPoint.x) / 2, y: (line.startPoint.y + line.endPoint.y) / 2 }
+          : bezierPoint(line.startPoint, ctrl, line.endPoint, 0.5);
+        // Path string — straight line or quadratic bezier
+        const pathD = straightLines
+          ? `M ${line.startPoint.x} ${line.startPoint.y} L ${line.endPoint.x} ${line.endPoint.y}`
+          : `M ${line.startPoint.x} ${line.startPoint.y} Q ${ctrl.x} ${ctrl.y} ${line.endPoint.x} ${line.endPoint.y}`;
         const pathId = `${idPrefix}-path-${index}`;
 
         // Check declination aspect
@@ -283,32 +291,29 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
           isSingleWheel ? declinationsA : declinationsB
         );
 
-        // For conjunctions, calculate position between the actual planet symbols
+        // For conjunctions, draw an arc along the inner circle rim
         let conjunctionPos = { x: apex.x, y: apex.y };
+        let conjArcPath = '';
         if (isConjunction) {
-          let displayLongA: number;
-          let displayLongB: number;
-          let ringRadiusA: number;
-          let ringRadiusB: number;
-
-          if (isSingleWheel) {
-            displayLongA = displayPositions?.get(line.aspect.planetA) ?? line.aspect.longA;
-            displayLongB = displayPositions?.get(line.aspect.planetB) ?? line.aspect.longB;
-            ringRadiusA = singlePlanetRing || planetARing;
-            ringRadiusB = singlePlanetRing || planetARing;
-          } else {
-            displayLongA = displayPositionsA?.get(line.aspect.planetA) ?? line.aspect.longA;
-            displayLongB = displayPositionsB?.get(line.aspect.planetB) ?? line.aspect.longB;
-            ringRadiusA = planetARing;
-            ringRadiusB = planetBRing;
-          }
-
-          const planetAPos = longitudeToXY(displayLongA, cx, cy, ringRadiusA, rotationOffset);
-          const planetBPos = longitudeToXY(displayLongB, cx, cy, ringRadiusB, rotationOffset);
-          conjunctionPos = {
-            x: (planetAPos.x + planetBPos.x) / 2,
-            y: (planetAPos.y + planetBPos.y) / 2,
-          };
+          // Arc traces along innerCircle between the two planet positions
+          const arcRadius = innerCircle;
+          const arcStart = longitudeToXY(line.aspect.longA, cx, cy, arcRadius, rotationOffset);
+          const arcEnd = longitudeToXY(line.aspect.longB, cx, cy, arcRadius, rotationOffset);
+          // Angular span determines large-arc-flag
+          let span = Math.abs(line.aspect.longA - line.aspect.longB);
+          if (span > 180) span = 360 - span;
+          const largeArc = span > 180 ? 1 : 0;
+          // Sweep direction: go the short way around
+          // Determine direction using cross product of center→start and center→end
+          const ax = arcStart.x - cx, ay = arcStart.y - cy;
+          const bx = arcEnd.x - cx, by = arcEnd.y - cy;
+          const cross = ax * by - ay * bx;
+          const sweep = cross > 0 ? 0 : 1;
+          conjArcPath = `M ${arcStart.x} ${arcStart.y} A ${arcRadius} ${arcRadius} 0 ${largeArc} ${sweep} ${arcEnd.x} ${arcEnd.y}`;
+          // Midpoint of arc for badge placement
+          const midLong = line.aspect.longA + ((((line.aspect.longB - line.aspect.longA) % 360) + 540) % 360 - 180) / 2;
+          const midPt = longitudeToXY(midLong, cx, cy, arcRadius, rotationOffset);
+          conjunctionPos = midPt;
         }
 
         // Animation durations based on strength (tighter = faster energy)
@@ -326,7 +331,24 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
               <path id={pathId} d={pathD} fill="none" stroke="none" />
             )}
 
-            {/* Main aspect curve */}
+            {/* Conjunction: thick arc tracing the inner circle rim */}
+            {isConjunction && (
+              <path
+                d={conjArcPath}
+                fill="none"
+                stroke={line.color}
+                strokeWidth={Math.max(line.strokeWidth * 2.5, 4)}
+                strokeOpacity={line.opacity}
+                strokeLinecap="round"
+                filter={isHighlighted ? `url(#${idPrefix}-glow-strong)` : undefined}
+                style={{ cursor: onAspectClick ? 'pointer' : 'default' }}
+                onClick={(e) => { e.stopPropagation(); onAspectClick?.(line.aspect, e); }}
+                onMouseEnter={(e) => onAspectHover?.(line.aspect, e)}
+                onMouseLeave={() => onAspectHover?.(null)}
+              />
+            )}
+
+            {/* Main aspect curve (non-conjunction) */}
             {!isConjunction && (
               <>
                 {/* Glow underlay for highlighted aspects */}
@@ -358,8 +380,8 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
                   onMouseLeave={() => onAspectHover?.(null)}
                 />
 
-                {/* Energy flow particles — A→B (disabled on mobile) */}
-                {!isMobile && line.opacity > 0.25 && (
+                {/* Energy flow particles — A→B (disabled on mobile, gated by showEffects) */}
+                {showEffects && !isMobile && line.opacity > 0.25 && (
                   <circle r={1.5 + strength} fill={line.color} opacity={line.opacity * 0.8}>
                     <animateMotion
                       dur={`${flowDuration}s`}
@@ -370,7 +392,7 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
                 )}
 
                 {/* Second flow particle — B→A (only for bidirectional/harmonious) */}
-                {!isMobile && flowType === 'bidirectional' && line.opacity > 0.25 && (
+                {showEffects && !isMobile && flowType === 'bidirectional' && line.opacity > 0.25 && (
                   <circle r={1.5 + strength} fill={line.color} opacity={line.opacity * 0.8}>
                     <animateMotion
                       dur={`${flowDuration}s`}
@@ -384,11 +406,15 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
                 )}
 
                 {/* One-way flow arrow indicator for challenging aspects */}
-                {!isMobile && flowType === 'one-way' && line.opacity > 0.35 && (() => {
+                {showEffects && !isMobile && flowType === 'one-way' && line.opacity > 0.35 && (() => {
                   // Arrow at ~70% along the path (toward B)
                   const arrowT = 0.72;
-                  const arrowTip = bezierPoint(line.startPoint, ctrl, line.endPoint, arrowT);
-                  const arrowBack = bezierPoint(line.startPoint, ctrl, line.endPoint, arrowT - 0.04);
+                  const arrowTip = straightLines
+                    ? { x: line.startPoint.x + (line.endPoint.x - line.startPoint.x) * arrowT, y: line.startPoint.y + (line.endPoint.y - line.startPoint.y) * arrowT }
+                    : bezierPoint(line.startPoint, ctrl, line.endPoint, arrowT);
+                  const arrowBack = straightLines
+                    ? { x: line.startPoint.x + (line.endPoint.x - line.startPoint.x) * (arrowT - 0.04), y: line.startPoint.y + (line.endPoint.y - line.startPoint.y) * (arrowT - 0.04) }
+                    : bezierPoint(line.startPoint, ctrl, line.endPoint, arrowT - 0.04);
                   // Direction vector
                   const dx = arrowTip.x - arrowBack.x;
                   const dy = arrowTip.y - arrowBack.y;

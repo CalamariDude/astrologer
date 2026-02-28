@@ -33,6 +33,16 @@ interface Stats {
   total_charts: number;
   total_ai_used: number;
   total_relocated_used: number;
+  // Session stats
+  total_sessions: number;
+  sessions_7d: number;
+  sessions_30d: number;
+  sessions_live: number;
+  sessions_ready: number;
+  sessions_failed: number;
+  sessions_with_guests: number;
+  sessions_with_transcripts: number;
+  total_recording_hours: number;
 }
 
 interface FeatureRow {
@@ -72,6 +82,42 @@ interface AstrologerUser {
   is_admin: boolean;
   saved_charts_count: number;
   theme: string | null;
+}
+
+interface AdminSession {
+  id: string;
+  host_id: string;
+  title: string;
+  status: string;
+  share_token: string;
+  started_at: string | null;
+  ended_at: string | null;
+  total_duration_ms: number;
+  guest_display_name: string | null;
+  guest_email: string | null;
+  created_at: string;
+  host_email: string;
+  host_name: string;
+  chart_person_a: string;
+  chart_person_b: string;
+  audio_status: string;
+  audio_duration_ms: number | null;
+  has_transcript: boolean;
+  has_summary: boolean;
+}
+
+interface AdminChart {
+  id: string;
+  user_id: string;
+  name: string;
+  chart_type: 'natal' | 'synastry';
+  person_a_name: string;
+  person_a_date: string;
+  person_b_name: string | null;
+  person_b_date: string | null;
+  created_at: string;
+  owner_email: string;
+  owner_name: string;
 }
 
 interface PromoCode {
@@ -124,6 +170,25 @@ function statusBadge(status: string) {
     : status === 'past_due' ? 'bg-orange-500/20 text-orange-500 border-orange-500/30'
     : 'bg-muted text-muted-foreground';
   return <Badge className={cls}>{status || 'free'}</Badge>;
+}
+
+function sessionStatusBadge(status: string) {
+  const cls = status === 'live' ? 'bg-green-500/20 text-green-500 border-green-500/30'
+    : status === 'ready' ? 'bg-blue-500/20 text-blue-500 border-blue-500/30'
+    : status === 'ended' ? 'bg-muted text-muted-foreground'
+    : status === 'processing' ? 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30'
+    : status === 'failed' ? 'bg-red-500/20 text-red-500 border-red-500/30'
+    : 'bg-muted text-muted-foreground';
+  return <Badge className={cls}>{status}</Badge>;
+}
+
+function audioStatusBadge(status: string) {
+  if (!status || status === 'none') return <span className="text-muted-foreground text-sm">—</span>;
+  const cls = status === 'ready' ? 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30'
+    : status === 'recording' ? 'bg-red-500/20 text-red-500 border-red-500/30'
+    : status === 'failed' ? 'bg-red-500/20 text-red-500 border-red-500/30'
+    : 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30';
+  return <Badge className={cls}>{status}</Badge>;
 }
 
 function timeAgo(dateStr: string | null) {
@@ -197,6 +262,20 @@ export default function AdminPage() {
   const [analyticsDays, setAnalyticsDays] = useState(30);
   const [analyticsError, setAnalyticsError] = useState('');
 
+  // Sessions
+  const [adminSessions, setAdminSessions] = useState<AdminSession[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionsLoaded, setSessionsLoaded] = useState(false);
+  const [sessionsSearch, setSessionsSearch] = useState('');
+  const [sessionsStatusFilter, setSessionsStatusFilter] = useState('all');
+
+  // Charts
+  const [adminCharts, setAdminCharts] = useState<AdminChart[]>([]);
+  const [chartsLoading, setChartsLoading] = useState(false);
+  const [chartsLoaded, setChartsLoaded] = useState(false);
+  const [chartsSearch, setChartsSearch] = useState('');
+  const [chartsTypeFilter, setChartsTypeFilter] = useState('all');
+
   // Per-user analytics (shown in user detail)
   const [userEvents, setUserEvents] = useState<FeatureRow[]>([]);
   const [userSessions, setUserSessions] = useState<UserSessionRow[]>([]);
@@ -246,14 +325,12 @@ export default function AdminPage() {
     setAnalyticsLoading(true);
     setAnalyticsError('');
     try {
-      const [features, dau] = await Promise.all([
-        invoke({ action: 'posthog_analytics', sub_action: 'top_features', days }),
-        invoke({ action: 'posthog_analytics', sub_action: 'daily_active', days }),
-      ]);
-      setFeatureUsage((features.rows || []).map((r: any[]) => ({
+      const data = await invoke({ action: 'posthog_analytics', sub_action: 'dashboard', days });
+      console.log('PostHog dashboard response:', data);
+      setFeatureUsage((data?.features?.rows || []).map((r: any[]) => ({
         event: r[0], count: r[1], unique_users: r[2],
       })));
-      setDailyActive((dau.rows || []).map((r: any[]) => ({
+      setDailyActive((data?.dau?.rows || []).map((r: any[]) => ({
         day: r[0], users: r[1],
       })));
     } catch (e: any) {
@@ -263,18 +340,36 @@ export default function AdminPage() {
     }
   }, [invoke]);
 
+  const loadSessions = useCallback(async () => {
+    setSessionsLoading(true);
+    try {
+      const data = await invoke({ action: 'list_sessions' });
+      setAdminSessions(data.sessions || []);
+      setSessionsLoaded(true);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setSessionsLoading(false); }
+  }, [invoke]);
+
+  const loadCharts = useCallback(async () => {
+    setChartsLoading(true);
+    try {
+      const data = await invoke({ action: 'list_charts' });
+      setAdminCharts(data.charts || []);
+      setChartsLoaded(true);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setChartsLoading(false); }
+  }, [invoke]);
+
   const loadUserAnalytics = useCallback(async (userId: string) => {
     setUserAnalyticsLoading(true);
     setUserEvents([]);
     setUserSessions([]);
     try {
-      const [events, sessions] = await Promise.all([
-        invoke({ action: 'posthog_analytics', sub_action: 'user_events', user_id: userId, days: 90 }),
-        invoke({ action: 'posthog_analytics', sub_action: 'user_sessions', user_id: userId, days: 30 }),
-      ]);
+      const events = await invoke({ action: 'posthog_analytics', sub_action: 'user_events', user_id: userId, days: 90 });
       setUserEvents((events.rows || []).map((r: any[]) => ({
         event: r[0], count: r[1], last_used: r[2],
       })));
+      const sessions = await invoke({ action: 'posthog_analytics', sub_action: 'user_sessions', user_id: userId, days: 30 });
       setUserSessions((sessions.rows || []).map((r: any[]) => ({
         day: r[0], events: r[1], session_seconds: r[4] || 0,
       })));
@@ -452,6 +547,8 @@ export default function AdminPage() {
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="sessions" onClick={() => { if (!sessionsLoaded) loadSessions(); }}>Sessions</TabsTrigger>
+            <TabsTrigger value="charts" onClick={() => { if (!chartsLoaded) loadCharts(); }}>Charts</TabsTrigger>
             <TabsTrigger value="analytics" onClick={() => { if (featureUsage.length === 0) loadAnalytics(analyticsDays); }}>Analytics</TabsTrigger>
             <TabsTrigger value="promotions">Promotions</TabsTrigger>
           </TabsList>
@@ -479,6 +576,25 @@ export default function AdminPage() {
                   <StatCard label="AI Readings Used" value={stats.total_ai_used} sub="this billing cycle" />
                   <StatCard label="Relocations Used" value={stats.total_relocated_used} sub="this billing cycle" />
                 </div>
+
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide pt-2">Sessions & Replays</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <StatCard label="Total Sessions" value={stats.total_sessions} />
+                  <StatCard label="Sessions (7d)" value={stats.sessions_7d} />
+                  <StatCard label="Sessions (30d)" value={stats.sessions_30d} />
+                  <StatCard label="Live Now" value={stats.sessions_live} />
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <StatCard label="Ready Replays" value={stats.sessions_ready} />
+                  <StatCard label="With Guests" value={stats.sessions_with_guests} />
+                  <StatCard label="With Transcripts" value={stats.sessions_with_transcripts} />
+                  <StatCard label="Recording Hours" value={stats.total_recording_hours} sub="total audio" />
+                </div>
+                {stats.sessions_failed > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <StatCard label="Failed" value={stats.sessions_failed} />
+                  </div>
+                )}
 
                 <div className="border rounded-lg p-4 space-y-3">
                   <h3 className="font-semibold">Email Broadcast</h3>
@@ -579,6 +695,184 @@ export default function AdminPage() {
                 </TableBody>
               </Table>
             </div>
+          </TabsContent>
+
+          {/* ── SESSIONS ── */}
+          <TabsContent value="sessions" className="space-y-4">
+            {sessionsLoading ? (
+              <p className="text-muted-foreground">Loading sessions...</p>
+            ) : (
+              <>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Input placeholder="Search title, host, guest, token..." value={sessionsSearch} onChange={e => setSessionsSearch(e.target.value)} className="max-w-sm" />
+                  <Select value={sessionsStatusFilter} onValueChange={setSessionsStatusFilter}>
+                    <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All statuses</SelectItem>
+                      <SelectItem value="live">Live</SelectItem>
+                      <SelectItem value="ended">Ended</SelectItem>
+                      <SelectItem value="ready">Ready</SelectItem>
+                      <SelectItem value="processing">Processing</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                      <SelectItem value="created">Created</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Title</TableHead>
+                        <TableHead>Host</TableHead>
+                        <TableHead>Guest</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Audio</TableHead>
+                        <TableHead>Duration</TableHead>
+                        <TableHead>Features</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {adminSessions
+                        .filter(s => {
+                          if (sessionsStatusFilter !== 'all' && s.status !== sessionsStatusFilter) return false;
+                          if (!sessionsSearch.trim()) return true;
+                          const q = sessionsSearch.toLowerCase();
+                          return s.title.toLowerCase().includes(q) ||
+                            s.host_email.toLowerCase().includes(q) ||
+                            s.host_name.toLowerCase().includes(q) ||
+                            (s.guest_display_name || '').toLowerCase().includes(q) ||
+                            (s.guest_email || '').toLowerCase().includes(q) ||
+                            s.share_token.toLowerCase().includes(q) ||
+                            s.chart_person_a.toLowerCase().includes(q) ||
+                            s.chart_person_b.toLowerCase().includes(q);
+                        })
+                        .map(s => (
+                          <TableRow key={s.id}>
+                            <TableCell>
+                              <div className="font-medium text-sm">{s.title}</div>
+                              {(s.chart_person_a || s.chart_person_b) && (
+                                <div className="text-xs text-muted-foreground">
+                                  {s.chart_person_a}{s.chart_person_b ? ` & ${s.chart_person_b}` : ''}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">{s.host_email}</div>
+                              {s.host_name && <div className="text-xs text-muted-foreground">{s.host_name}</div>}
+                            </TableCell>
+                            <TableCell>
+                              {s.guest_display_name || s.guest_email ? (
+                                <>
+                                  <div className="text-sm">{s.guest_display_name || '—'}</div>
+                                  {s.guest_email && <div className="text-xs text-muted-foreground">{s.guest_email}</div>}
+                                </>
+                              ) : <span className="text-muted-foreground text-sm">—</span>}
+                            </TableCell>
+                            <TableCell>{sessionStatusBadge(s.status)}</TableCell>
+                            <TableCell>{audioStatusBadge(s.audio_status)}</TableCell>
+                            <TableCell className="text-sm">
+                              {s.total_duration_ms > 0 ? `${Math.round(s.total_duration_ms / 60000)}m` : '—'}
+                              {s.audio_duration_ms ? <div className="text-xs text-muted-foreground">{Math.round(s.audio_duration_ms / 60000)}m audio</div> : null}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1.5">
+                                {s.has_transcript && <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30 text-[10px]">Transcript</Badge>}
+                                {s.has_summary && <Badge className="bg-purple-500/20 text-purple-500 border-purple-500/30 text-[10px]">Summary</Badge>}
+                                {!s.has_transcript && !s.has_summary && <span className="text-muted-foreground text-sm">—</span>}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{timeAgo(s.created_at)}</TableCell>
+                            <TableCell>
+                              <Button variant="ghost" size="sm" asChild>
+                                <a href={`/session/${s.share_token}`} target="_blank" rel="noreferrer">View</a>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <p className="text-xs text-muted-foreground">{adminSessions.length} sessions total</p>
+              </>
+            )}
+          </TabsContent>
+
+          {/* ── CHARTS ── */}
+          <TabsContent value="charts" className="space-y-4">
+            {chartsLoading ? (
+              <p className="text-muted-foreground">Loading charts...</p>
+            ) : (
+              <>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Input placeholder="Search name, person, owner..." value={chartsSearch} onChange={e => setChartsSearch(e.target.value)} className="max-w-sm" />
+                  <Select value={chartsTypeFilter} onValueChange={setChartsTypeFilter}>
+                    <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All types</SelectItem>
+                      <SelectItem value="natal">Natal</SelectItem>
+                      <SelectItem value="synastry">Synastry</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Person A</TableHead>
+                        <TableHead>Person B</TableHead>
+                        <TableHead>Owner</TableHead>
+                        <TableHead>Created</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {adminCharts
+                        .filter(c => {
+                          if (chartsTypeFilter !== 'all' && c.chart_type !== chartsTypeFilter) return false;
+                          if (!chartsSearch.trim()) return true;
+                          const q = chartsSearch.toLowerCase();
+                          return (c.name || '').toLowerCase().includes(q) ||
+                            c.person_a_name.toLowerCase().includes(q) ||
+                            (c.person_b_name || '').toLowerCase().includes(q) ||
+                            c.owner_email.toLowerCase().includes(q) ||
+                            c.owner_name.toLowerCase().includes(q);
+                        })
+                        .map(c => (
+                          <TableRow key={c.id}>
+                            <TableCell className="font-medium text-sm">{c.name || c.person_a_name}</TableCell>
+                            <TableCell>
+                              <Badge className={c.chart_type === 'synastry' ? 'bg-pink-500/20 text-pink-500 border-pink-500/30' : 'bg-blue-500/20 text-blue-500 border-blue-500/30'}>
+                                {c.chart_type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">{c.person_a_name}</div>
+                              <div className="text-xs text-muted-foreground">{c.person_a_date}</div>
+                            </TableCell>
+                            <TableCell>
+                              {c.person_b_name ? (
+                                <>
+                                  <div className="text-sm">{c.person_b_name}</div>
+                                  <div className="text-xs text-muted-foreground">{c.person_b_date}</div>
+                                </>
+                              ) : <span className="text-muted-foreground text-sm">—</span>}
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">{c.owner_email}</div>
+                              {c.owner_name && <div className="text-xs text-muted-foreground">{c.owner_name}</div>}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{timeAgo(c.created_at)}</TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <p className="text-xs text-muted-foreground">{adminCharts.length} charts total</p>
+              </>
+            )}
           </TabsContent>
 
           {/* ── ANALYTICS ── */}

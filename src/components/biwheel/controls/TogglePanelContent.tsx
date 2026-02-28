@@ -14,7 +14,7 @@ import {
   getThemeAwarePlanetColor,
 } from '../utils/constants';
 import type { AspectType } from '../utils/aspectCalculations';
-import type { ChartMode, AsteroidGroup } from '../types';
+import type { ChartMode, AsteroidGroup, LocationData } from '../types';
 import { ASTEROID_GROUPS } from '../types';
 import { THEMES, THEME_LABELS, type ThemeName } from '../utils/themes';
 
@@ -76,8 +76,15 @@ interface TogglePanelContentProps {
   enableRelocated?: boolean;
   relocatedPerson?: 'A' | 'B' | 'both' | null;
   relocatedLoading?: boolean;
+  relocatedLocationA?: LocationData | null;
+  relocatedLocationB?: LocationData | null;
   onSetRelocatedPerson?: (person: 'A' | 'B' | 'both' | null) => void;
-  onOpenLocationPicker?: () => void;
+  onOpenLocationPicker?: (person: 'A' | 'B') => void;
+  // Aspect line display options
+  straightAspects?: boolean;
+  onSetStraightAspects?: (straight: boolean) => void;
+  showEffects?: boolean;
+  onSetShowEffects?: (show: boolean) => void;
   // Save defaults
   onSaveDefaults?: () => void;
 }
@@ -382,8 +389,15 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
   enableRelocated = false,
   relocatedPerson = null,
   relocatedLoading = false,
+  relocatedLocationA,
+  relocatedLocationB,
   onSetRelocatedPerson,
   onOpenLocationPicker,
+  // Aspect line display options
+  straightAspects = false,
+  onSetStraightAspects,
+  showEffects = true,
+  onSetShowEffects,
   onSaveDefaults,
 }) => {
   const [saveFlash, setSaveFlash] = useState(false);
@@ -722,97 +736,148 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
                 {relocatedLoading && <span style={{ fontSize: isMobile ? 12 : 10, color: COLORS.personA }}>Loading...</span>}
               </div>
               {enableComposite ? (
-                /* Two charts: show A and B columns */
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                /* Two charts: show A and B toggle + location buttons */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {(() => {
                     const isRelocatedA = relocatedPerson === 'A' || relocatedPerson === 'both';
                     const isRelocatedB = relocatedPerson === 'B' || relocatedPerson === 'both';
+                    const locNameA = relocatedLocationA?.name;
+                    const locNameB = relocatedLocationB?.name;
+                    const truncate = (s: string, n: number) => s.length > n ? s.slice(0, n - 1) + '…' : s;
                     return (
                       <>
-                        <button
-                          onClick={() => {
-                            if (isRelocatedA) {
-                              onSetRelocatedPerson(isRelocatedB ? 'B' : null);
-                            } else {
-                              onSetRelocatedPerson(isRelocatedB ? 'both' : 'A');
-                            }
-                          }}
-                          style={{
-                            padding: isMobile ? '10px 12px' : '5px 8px',
-                            fontSize: isMobile ? 13 : 10,
-                            background: isRelocatedA ? COLORS.personA : COLORS.backgroundAlt2,
-                            color: isRelocatedA ? '#ffffff' : COLORS.textSecondary,
-                            border: `1px solid ${isRelocatedA ? COLORS.personA : COLORS.gridLineFaint}`,
-                            borderRadius: 6,
-                            cursor: 'pointer',
-                            fontWeight: isRelocatedA ? 600 : 400,
-                          }}
-                        >
-                          R {nameA.split(' ')[0]}
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (isRelocatedB) {
-                              onSetRelocatedPerson(isRelocatedA ? 'A' : null);
-                            } else {
-                              onSetRelocatedPerson(isRelocatedA ? 'both' : 'B');
-                            }
-                          }}
-                          style={{
-                            padding: isMobile ? '10px 12px' : '5px 8px',
-                            fontSize: isMobile ? 13 : 10,
-                            background: isRelocatedB ? COLORS.personB : COLORS.backgroundAlt2,
-                            color: isRelocatedB ? '#ffffff' : COLORS.textSecondary,
-                            border: `1px solid ${isRelocatedB ? COLORS.personB : COLORS.gridLineFaint}`,
-                            borderRadius: 6,
-                            cursor: 'pointer',
-                            fontWeight: isRelocatedB ? 600 : 400,
-                          }}
-                        >
-                          R {nameB.split(' ')[0]}
-                        </button>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          <button
+                            onClick={() => {
+                              if (isRelocatedA) {
+                                onSetRelocatedPerson(isRelocatedB ? 'B' : null);
+                              } else {
+                                onSetRelocatedPerson(isRelocatedB ? 'both' : 'A');
+                              }
+                            }}
+                            style={{
+                              padding: isMobile ? '10px 12px' : '5px 8px',
+                              fontSize: isMobile ? 13 : 10,
+                              background: isRelocatedA ? COLORS.personA : COLORS.backgroundAlt2,
+                              color: isRelocatedA ? '#ffffff' : COLORS.textSecondary,
+                              border: `1px solid ${isRelocatedA ? COLORS.personA : COLORS.gridLineFaint}`,
+                              borderRadius: 6,
+                              cursor: 'pointer',
+                              fontWeight: isRelocatedA ? 600 : 400,
+                            }}
+                          >
+                            R {nameA.split(' ')[0]}
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (isRelocatedB) {
+                                onSetRelocatedPerson(isRelocatedA ? 'A' : null);
+                              } else {
+                                onSetRelocatedPerson(isRelocatedA ? 'both' : 'B');
+                              }
+                            }}
+                            style={{
+                              padding: isMobile ? '10px 12px' : '5px 8px',
+                              fontSize: isMobile ? 13 : 10,
+                              background: isRelocatedB ? COLORS.personB : COLORS.backgroundAlt2,
+                              color: isRelocatedB ? '#ffffff' : COLORS.textSecondary,
+                              border: `1px solid ${isRelocatedB ? COLORS.personB : COLORS.gridLineFaint}`,
+                              borderRadius: 6,
+                              cursor: 'pointer',
+                              fontWeight: isRelocatedB ? 600 : 400,
+                            }}
+                          >
+                            R {nameB.split(' ')[0]}
+                          </button>
+                        </div>
+                        {/* Per-person location picker buttons */}
+                        {isRelocatedA && onOpenLocationPicker && (
+                          <button
+                            onClick={() => onOpenLocationPicker('A')}
+                            style={{
+                              width: '100%',
+                              padding: isMobile ? '8px 12px' : '5px 8px',
+                              fontSize: isMobile ? 12 : 10,
+                              fontWeight: 600,
+                              background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
+                              color: '#1a1a1a',
+                              border: 'none',
+                              borderRadius: 6,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {locNameA ? `📍 A: ${truncate(locNameA, 25)}` : `📍 Pick Location for ${nameA.split(' ')[0]}`}
+                          </button>
+                        )}
+                        {isRelocatedB && onOpenLocationPicker && (
+                          <button
+                            onClick={() => onOpenLocationPicker('B')}
+                            style={{
+                              width: '100%',
+                              padding: isMobile ? '8px 12px' : '5px 8px',
+                              fontSize: isMobile ? 12 : 10,
+                              fontWeight: 600,
+                              background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
+                              color: '#1a1a1a',
+                              border: 'none',
+                              borderRadius: 6,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {locNameB ? `📍 B: ${truncate(locNameB, 25)}` : `📍 Pick Location for ${nameB.split(' ')[0]}`}
+                          </button>
+                        )}
                       </>
                     );
                   })()}
                 </div>
               ) : (
-                /* Single chart: one toggle button */
-                <button
-                  onClick={() => onSetRelocatedPerson(relocatedPerson ? null : 'A')}
-                  style={{
-                    width: '100%',
-                    padding: isMobile ? '10px 12px' : '5px 8px',
-                    fontSize: isMobile ? 13 : 10,
-                    background: relocatedPerson ? COLORS.personA : COLORS.backgroundAlt2,
-                    color: relocatedPerson ? '#ffffff' : COLORS.textSecondary,
-                    border: `1px solid ${relocatedPerson ? COLORS.personA : COLORS.gridLineFaint}`,
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                    fontWeight: relocatedPerson ? 600 : 400,
-                  }}
-                >
-                  Relocated {relocatedPerson ? 'ON' : 'OFF'}
-                </button>
-              )}
-              {/* Change location button */}
-              {(relocatedPerson) && onOpenLocationPicker && (
-                <button
-                  onClick={onOpenLocationPicker}
-                  style={{
-                    marginTop: 8,
-                    width: '100%',
-                    padding: isMobile ? '10px 12px' : '6px 8px',
-                    fontSize: isMobile ? 13 : 10,
-                    fontWeight: 600,
-                    background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
-                    color: '#1a1a1a',
-                    border: 'none',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Pick Location on Map
-                </button>
+                /* Single chart: one toggle button + location */
+                <>
+                  <button
+                    onClick={() => onSetRelocatedPerson(relocatedPerson ? null : 'A')}
+                    style={{
+                      width: '100%',
+                      padding: isMobile ? '10px 12px' : '5px 8px',
+                      fontSize: isMobile ? 13 : 10,
+                      background: relocatedPerson ? COLORS.personA : COLORS.backgroundAlt2,
+                      color: relocatedPerson ? '#ffffff' : COLORS.textSecondary,
+                      border: `1px solid ${relocatedPerson ? COLORS.personA : COLORS.gridLineFaint}`,
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                      fontWeight: relocatedPerson ? 600 : 400,
+                    }}
+                  >
+                    Relocated {relocatedPerson ? 'ON' : 'OFF'}
+                  </button>
+                  {/* Change location button */}
+                  {(relocatedPerson) && onOpenLocationPicker && (
+                    <button
+                      onClick={() => onOpenLocationPicker(relocatedPerson === 'B' ? 'B' : 'A')}
+                      style={{
+                        marginTop: 8,
+                        width: '100%',
+                        padding: isMobile ? '10px 12px' : '6px 8px',
+                        fontSize: isMobile ? 13 : 10,
+                        fontWeight: 600,
+                        background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
+                        color: '#1a1a1a',
+                        border: 'none',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {(() => {
+                        const loc = relocatedPerson === 'B' ? relocatedLocationB : relocatedLocationA;
+                        if (loc?.name) {
+                          const n = loc.name.length > 25 ? loc.name.slice(0, 24) + '…' : loc.name;
+                          return `📍 ${n}`;
+                        }
+                        return '📍 Pick Location on Map';
+                      })()}
+                    </button>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -839,6 +904,22 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
           onChange={() => onSetShowRetrogrades(!showRetrogrades)}
           isMobile={isMobile}
         />
+        {onSetStraightAspects && (
+          <Checkbox
+            label="Straight Lines"
+            checked={straightAspects}
+            onChange={() => onSetStraightAspects(!straightAspects)}
+            isMobile={isMobile}
+          />
+        )}
+        {onSetShowEffects && (
+          <Checkbox
+            label="Flow Effects"
+            checked={showEffects}
+            onChange={() => onSetShowEffects(!showEffects)}
+            isMobile={isMobile}
+          />
+        )}
         {onSetRotateToAscendant && (
           <Checkbox
             label="ASC at West"

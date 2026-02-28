@@ -95,9 +95,17 @@ serve(async (req) => {
         const profiles = allProfiles || [];
         const { count: chartCount } = await supabase.from("saved_charts").select("id", { count: "exact", head: true });
 
+        // Session aggregates
+        const { data: allSessions } = await supabase
+          .from("astrologer_sessions")
+          .select("id, status, audio_status, audio_duration_ms, guest_joined_at, transcript, created_at");
+        const sessions = allSessions || [];
+
         const now = new Date();
         const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+        const totalRecordingMs = sessions.reduce((s, ses) => s + (ses.audio_duration_ms || 0), 0);
 
         const stats = {
           total_users: profiles.length,
@@ -111,6 +119,16 @@ serve(async (req) => {
           total_charts: chartCount || 0,
           total_ai_used: profiles.reduce((s, p) => s + (p.ai_credits_used || 0), 0),
           total_relocated_used: profiles.reduce((s, p) => s + (p.relocated_used || 0), 0),
+          // Session stats
+          total_sessions: sessions.length,
+          sessions_7d: sessions.filter(s => new Date(s.created_at) > sevenDaysAgo).length,
+          sessions_30d: sessions.filter(s => new Date(s.created_at) > thirtyDaysAgo).length,
+          sessions_live: sessions.filter(s => s.status === "live").length,
+          sessions_ready: sessions.filter(s => s.status === "ready").length,
+          sessions_failed: sessions.filter(s => s.status === "failed").length,
+          sessions_with_guests: sessions.filter(s => !!s.guest_joined_at).length,
+          sessions_with_transcripts: sessions.filter(s => !!s.transcript).length,
+          total_recording_hours: Math.round(totalRecordingMs / 3600000 * 10) / 10,
         };
 
         return json({ stats });
@@ -466,12 +484,11 @@ serve(async (req) => {
         const subAction = body.sub_action;
 
         if (subAction === "feature_usage") {
-          // Aggregate feature usage counts (last 30 days)
           const days = body.days || 30;
           const result = await phQuery(`
             SELECT event, count() as count
             FROM events
-            WHERE timestamp > now() - interval ${days} day
+            WHERE timestamp > now() - toIntervalDay(${days})
               AND event NOT LIKE '$%'
             GROUP BY event
             ORDER BY count DESC
@@ -480,27 +497,57 @@ serve(async (req) => {
         }
 
         if (subAction === "daily_active") {
-          // Daily active users (last 30 days)
           const days = body.days || 30;
           const result = await phQuery(`
             SELECT toDate(timestamp) as day, count(DISTINCT distinct_id) as users
             FROM events
-            WHERE timestamp > now() - interval ${days} day
+            WHERE timestamp > now() - toIntervalDay(${days})
             GROUP BY day
             ORDER BY day
           `);
           return json({ rows: result.results || [], columns: result.columns || [] });
         }
 
+        if (subAction === "dashboard") {
+          // Single round-trip for the admin analytics tab
+          const days = body.days || 30;
+          try {
+            const features = await phQuery(`
+              SELECT event, count() as total, count(DISTINCT distinct_id) as unique_users
+              FROM events
+              WHERE timestamp > now() - toIntervalDay(${days})
+                AND event NOT LIKE '$%'
+              GROUP BY event
+              ORDER BY unique_users DESC
+              LIMIT 20
+            `);
+            // Small delay to avoid PostHog concurrency limit
+            await new Promise(r => setTimeout(r, 500));
+            const dau = await phQuery(`
+              SELECT toDate(timestamp) as day, count(DISTINCT distinct_id) as users
+              FROM events
+              WHERE timestamp > now() - toIntervalDay(${days})
+              GROUP BY day
+              ORDER BY day
+            `);
+            return json({
+              features: { rows: features.results || [], columns: features.columns || [] },
+              dau: { rows: dau.results || [], columns: dau.columns || [] },
+            });
+          } catch (e) {
+            console.error("PostHog dashboard query error:", e);
+            throw e;
+          }
+        }
+
         if (subAction === "user_events") {
-          // Per-user feature usage histogram
           if (!body.user_id) return json({ error: "Missing user_id" }, 400);
           const days = body.days || 90;
           const result = await phQuery(`
             SELECT event, count() as count, max(timestamp) as last_used
             FROM events
             WHERE distinct_id = '${body.user_id}'
-              AND timestamp > now() - interval ${days} day
+              AND timestamp > now() - toIntervalDay(${days})
               AND event NOT LIKE '$%'
             GROUP BY event
             ORDER BY count DESC
@@ -509,7 +556,6 @@ serve(async (req) => {
         }
 
         if (subAction === "user_sessions") {
-          // Per-user session/time data
           if (!body.user_id) return json({ error: "Missing user_id" }, 400);
           const days = body.days || 30;
           const result = await phQuery(`
@@ -518,7 +564,7 @@ serve(async (req) => {
                    dateDiff('second', min(timestamp), max(timestamp)) as session_seconds
             FROM events
             WHERE distinct_id = '${body.user_id}'
-              AND timestamp > now() - interval ${days} day
+              AND timestamp > now() - toIntervalDay(${days})
             GROUP BY day
             ORDER BY day DESC
           `);
@@ -526,12 +572,11 @@ serve(async (req) => {
         }
 
         if (subAction === "top_features") {
-          // Top features by unique users (last 30 days)
           const days = body.days || 30;
           const result = await phQuery(`
             SELECT event, count() as total, count(DISTINCT distinct_id) as unique_users
             FROM events
-            WHERE timestamp > now() - interval ${days} day
+            WHERE timestamp > now() - toIntervalDay(${days})
               AND event NOT LIKE '$%'
             GROUP BY event
             ORDER BY unique_users DESC
@@ -541,6 +586,81 @@ serve(async (req) => {
         }
 
         return json({ error: `Unknown sub_action: ${subAction}` }, 400);
+      }
+
+      // ── List sessions ──
+      case "list_sessions": {
+        const { data: sessions } = await supabase
+          .from("astrologer_sessions")
+          .select("id, host_id, title, status, share_token, started_at, ended_at, total_duration_ms, guest_display_name, guest_email, created_at, chart_snapshot, audio_status, audio_duration_ms, transcript, summary")
+          .order("created_at", { ascending: false })
+          .limit(500);
+
+        const { data: authUsers } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+        const emailMap = new Map<string, string>();
+        for (const u of authUsers?.users || []) {
+          emailMap.set(u.id, u.email || "");
+        }
+
+        const { data: profiles } = await supabase
+          .from("astrologer_profiles")
+          .select("id, display_name");
+        const nameMap = new Map<string, string>();
+        for (const p of profiles || []) {
+          nameMap.set(p.id, p.display_name || "");
+        }
+
+        const enriched = (sessions || []).map(s => {
+          // Extract person names from chart_snapshot
+          const snap = s.chart_snapshot as any;
+          const personA = snap?.personA?.name || snap?.person_a_name || "";
+          const personB = snap?.personB?.name || snap?.person_b_name || "";
+          return {
+            ...s,
+            chart_snapshot: undefined,
+            transcript: undefined,
+            summary: undefined,
+            host_email: emailMap.get(s.host_id) || "",
+            host_name: nameMap.get(s.host_id) || "",
+            chart_person_a: personA,
+            chart_person_b: personB,
+            has_transcript: !!s.transcript,
+            has_summary: !!s.summary,
+          };
+        });
+
+        return json({ sessions: enriched });
+      }
+
+      // ── List charts ──
+      case "list_charts": {
+        const { data: charts } = await supabase
+          .from("saved_charts")
+          .select("id, user_id, name, chart_type, person_a_name, person_a_date, person_b_name, person_b_date, created_at")
+          .order("created_at", { ascending: false })
+          .limit(500);
+
+        const { data: authUsers } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+        const emailMap = new Map<string, string>();
+        for (const u of authUsers?.users || []) {
+          emailMap.set(u.id, u.email || "");
+        }
+
+        const { data: profiles } = await supabase
+          .from("astrologer_profiles")
+          .select("id, display_name");
+        const nameMap = new Map<string, string>();
+        for (const p of profiles || []) {
+          nameMap.set(p.id, p.display_name || "");
+        }
+
+        const enriched = (charts || []).map(c => ({
+          ...c,
+          owner_email: emailMap.get(c.user_id) || "",
+          owner_name: nameMap.get(c.user_id) || "",
+        }));
+
+        return json({ charts: enriched });
       }
 
       default:

@@ -41,7 +41,9 @@ export const PLANETS = {
   pallas: { symbol: '\u26B4\uFE0E', name: 'Pallas', category: 'asteroid', color: '#00838F' }, // Teal
   vesta: { symbol: '\u26B6\uFE0E', name: 'Vesta', category: 'asteroid', color: '#FF6F00' }, // Orange (Virgo)
   ascendant: { symbol: 'AC', name: 'Ascendant', category: 'angle', color: '#000000' }, // Black
+  descendant: { symbol: 'DC', name: 'Descendant', category: 'angle', color: '#000000' }, // Black
   midheaven: { symbol: 'MC', name: 'Midheaven', category: 'angle', color: '#000000' }, // Black
+  ic: { symbol: 'IC', name: 'Imum Coeli', category: 'angle', color: '#000000' }, // Black
 } as const;
 
 // Planet visibility groups
@@ -49,7 +51,7 @@ export const PLANET_GROUPS = {
   core: ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'northnode', 'southnode'],
   outer: ['uranus', 'neptune', 'pluto'],
   asteroids: ['chiron', 'lilith', 'juno', 'ceres', 'pallas', 'vesta'],
-  angles: ['ascendant', 'midheaven'],
+  angles: ['ascendant', 'descendant', 'midheaven', 'ic'],
 } as const;
 
 // Extended asteroids (for optional inclusion via API)
@@ -196,6 +198,7 @@ export const ASTEROID_GROUP_INFO = {
 export const DEFAULT_VISIBLE_PLANETS = new Set([
   'sun', 'moon', 'mercury', 'venus', 'mars',
   'jupiter', 'saturn', 'uranus', 'neptune', 'pluto',
+  'ascendant', 'descendant', 'midheaven', 'ic',
 ]);
 
 // Per-planet maximum orbs (effective orb = average of both planets' orbs)
@@ -504,7 +507,9 @@ export function getElementBgLightColor(element: string): string {
 const DARK_THEME_PLANET_OVERRIDES: Record<string, string> = {
   pluto: '#B0B0B0',
   ascendant: '#E0E0E0',
+  descendant: '#E0E0E0',
   midheaven: '#D0D0D0',
+  ic: '#D0D0D0',
   // Dark asteroids brightened for visibility
   orcus: '#9E9E9E',
   gonggong: '#5C6BC0',

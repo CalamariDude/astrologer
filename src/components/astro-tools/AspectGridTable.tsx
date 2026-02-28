@@ -13,8 +13,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import type { NatalChart } from '@/components/biwheel/types';
 import { detectAspect } from '@/components/biwheel/utils/aspectCalculations';
 import type { DetectedAspect } from '@/components/biwheel/utils/aspectCalculations';
-import { PLANETS, PLANET_GROUPS } from '@/components/biwheel/utils/constants';
+import { PLANETS, PLANET_GROUPS, PLANET_ORBS, ASPECTS } from '@/components/biwheel/utils/constants';
 import { getSynastryInterpretation } from '@/data/synastryInterpretations';
+import { getNatalInterpretation } from '@/data/natalInterpretations';
+import { getCompositeInterpretation } from '@/data/compositeInterpretations';
 import { detectAspectPatterns } from '@/lib/aspectPatterns';
 import type { AspectPattern } from '@/lib/aspectPatterns';
 import { getThemeForAspect, LIFE_THEMES } from '@/lib/astroThemes';
@@ -28,6 +30,8 @@ interface AspectGridTableProps {
   visiblePlanets?: Set<string>;
   /** When provided, only these aspect types appear in the grid (synced from chart options) */
   visibleAspects?: Set<string>;
+  /** Current chart mode — determines which interpretation set to use */
+  chartMode?: 'personA' | 'personB' | 'synastry' | 'composite';
 }
 
 const GRID_PLANETS = [...PLANET_GROUPS.core, ...PLANET_GROUPS.outer, 'chiron'] as string[];
@@ -304,12 +308,13 @@ function PatternCard({ pattern }: { pattern: AspectPattern }) {
 
 const CELL_CLASS = "w-12 h-10 md:w-20 md:h-14";
 
-function AspectCell({ aspect, planetA, planetB, viewMode, isSynastry }: {
+function AspectCell({ aspect, planetA, planetB, viewMode, isSynastry, chartMode }: {
   aspect: DetectedAspect | null;
   planetA: string;
   planetB: string;
   viewMode: 'symbols' | 'heatmap';
   isSynastry: boolean;
+  chartMode?: 'personA' | 'personB' | 'synastry' | 'composite';
 }) {
   if (!aspect) {
     return (
@@ -333,7 +338,11 @@ function AspectCell({ aspect, planetA, planetB, viewMode, isSynastry }: {
   }
 
   const style = getCellStyle(aspect.nature, aspect.strength);
-  const interpretation = isSynastry ? getSynastryInterpretation(planetA, planetB, aspect.type) : null;
+  const interpretation = isSynastry
+    ? (chartMode === 'composite'
+        ? getCompositeInterpretation(planetA, planetB, aspect.type)
+        : getSynastryInterpretation(planetA, planetB, aspect.type))
+    : getNatalInterpretation(planetA, planetB, aspect.type);
   const applying = isApplying(planetA, planetB);
   const tightness = classifyTightness(aspect.exactOrb, aspect.orb);
   const tightnessInfo = TIGHTNESS_INFO[tightness];
@@ -437,7 +446,76 @@ function AspectCell({ aspect, planetA, planetB, viewMode, isSynastry }: {
   );
 }
 
-export function AspectGridTable({ chartA, chartB, nameA, nameB, visiblePlanets, visibleAspects }: AspectGridTableProps) {
+// ─── Orb Guide ──────────────────────────────────────────────────────
+
+const ORB_PLANETS = [
+  'sun', 'moon', 'mercury', 'venus', 'mars',
+  'jupiter', 'saturn', 'uranus', 'neptune', 'pluto',
+  'northnode', 'chiron', 'ascendant', 'midheaven',
+] as const;
+
+const MAJOR_ASPECTS = Object.entries(ASPECTS).filter(([_, d]) => d.major);
+
+function OrbGuide() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="px-1">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-1.5 text-[11px] md:text-xs text-muted-foreground/70 hover:text-muted-foreground transition-colors"
+      >
+        <span className={`transition-transform ${open ? 'rotate-90' : ''}`}>&#9656;</span>
+        Orb Guide
+      </button>
+      {open && (
+        <div className="mt-2 space-y-3">
+          <p className="text-[10px] md:text-[11px] text-muted-foreground/60 leading-relaxed">
+            Effective orb between two planets = average of both planets' max orbs.
+          </p>
+
+          {/* Planet orbs */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-0.5">
+            {ORB_PLANETS.map(key => {
+              const planet = PLANETS[key as keyof typeof PLANETS];
+              const label = planet?.name || (key === 'ascendant' ? 'ASC' : key === 'midheaven' ? 'MC' : key);
+              const symbol = planet?.symbol || (key === 'ascendant' ? 'AC' : 'MC');
+              const orb = PLANET_ORBS[key] ?? 1;
+              return (
+                <div key={key} className="flex items-center justify-between text-[11px] md:text-xs py-0.5">
+                  <span className="text-muted-foreground">
+                    <span className="opacity-50 mr-1">{symbol}</span>
+                    {label}
+                  </span>
+                  <span className="font-mono text-[10px] md:text-[11px] text-muted-foreground/70 tabular-nums">{orb}°</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Aspect orbs */}
+          <div>
+            <div className="text-[10px] md:text-[11px] font-medium text-muted-foreground/60 mb-1">Aspect base orbs</div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-0.5">
+              {MAJOR_ASPECTS.map(([key, def]) => (
+                <div key={key} className="flex items-center justify-between text-[11px] md:text-xs py-0.5">
+                  <span style={{ color: def.color }}>
+                    <span className="mr-1">{def.symbol}</span>
+                    {def.name}
+                  </span>
+                  <span className="font-mono text-[10px] md:text-[11px] text-muted-foreground/70 tabular-nums">{def.orb}°</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Component ─────────────────────────────────────────────────
+
+export function AspectGridTable({ chartA, chartB, nameA, nameB, visiblePlanets, visibleAspects, chartMode }: AspectGridTableProps) {
   const [showMinor, setShowMinor] = useState(false);
   const [viewMode, setViewMode] = useState<'symbols' | 'heatmap'>('symbols');
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 768);
@@ -618,7 +696,7 @@ export function AspectGridTable({ chartA, chartB, nameA, nameB, visiblePlanets, 
                         const allowedAspects = effectiveAllowedAspects;
                         const aspect = detectAspect(longA, longB, allowedAspects as any, rowPlanet, colPlanet);
                         return (
-                          <AspectCell key={colPlanet} aspect={aspect} planetA={rowPlanet} planetB={colPlanet} viewMode={viewMode} isSynastry={true} />
+                          <AspectCell key={colPlanet} aspect={aspect} planetA={rowPlanet} planetB={colPlanet} viewMode={viewMode} isSynastry={true} chartMode={chartMode} />
                         );
                       })}
                     </tr>
@@ -701,7 +779,7 @@ export function AspectGridTable({ chartA, chartB, nameA, nameB, visiblePlanets, 
                           const allowedAspects = effectiveAllowedAspects;
                           const aspect = detectAspect(longA, longB, allowedAspects as any, rowPlanet, colPlanet);
                           return (
-                            <AspectCell key={colPlanet} aspect={aspect} planetA={rowPlanet} planetB={colPlanet} viewMode={viewMode} isSynastry={false} />
+                            <AspectCell key={colPlanet} aspect={aspect} planetA={rowPlanet} planetB={colPlanet} viewMode={viewMode} isSynastry={false} chartMode={chartMode} />
                           );
                         })}
                       </tr>
@@ -754,6 +832,9 @@ export function AspectGridTable({ chartA, chartB, nameA, nameB, visiblePlanets, 
           ))}
         </div>
       </div>
+
+      {/* Orb Guide */}
+      <OrbGuide />
     </div>
   );
 }

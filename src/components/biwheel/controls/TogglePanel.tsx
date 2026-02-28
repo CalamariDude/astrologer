@@ -76,15 +76,15 @@ interface TogglePanelProps {
   // Relocated chart controls
   enableRelocated?: boolean;
   showRelocated?: boolean;
-  relocatedLocation?: LocationData | null;
+  relocatedLocationA?: LocationData | null;
+  relocatedLocationB?: LocationData | null;
   relocatedLoading?: boolean;
   relocatedPerson?: 'A' | 'B' | 'both' | null;
   originalLocation?: LocationData;
   locationB?: LocationData;
   onSetShowRelocated?: (show: boolean) => void;
-  onSetRelocatedLocation?: (location: LocationData | null) => void;
   onSetRelocatedPerson?: (person: 'A' | 'B' | 'both' | null) => void;
-  onOpenLocationPicker?: () => void;
+  onOpenLocationPicker?: (person: 'A' | 'B') => void;
   onResetLocation?: () => void;
   // Asteroid group controls
   enableAsteroids?: boolean;
@@ -95,6 +95,11 @@ interface TogglePanelProps {
   // Theme controls
   chartTheme?: ThemeName;
   onThemeChange?: (theme: ThemeName) => void;
+  // Aspect line display options
+  straightAspects?: boolean;
+  onSetStraightAspects?: (straight: boolean) => void;
+  showEffects?: boolean;
+  onSetShowEffects?: (show: boolean) => void;
   // Save defaults
   onSaveDefaults?: () => void;
 }
@@ -417,13 +422,13 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
   // Relocated chart controls
   enableRelocated = false,
   showRelocated = false,
-  relocatedLocation = null,
+  relocatedLocationA = null,
+  relocatedLocationB = null,
   relocatedLoading = false,
   relocatedPerson = null,
   originalLocation,
   locationB,
   onSetShowRelocated,
-  onSetRelocatedLocation,
   onSetRelocatedPerson,
   onOpenLocationPicker,
   onResetLocation,
@@ -436,6 +441,11 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
   // Theme controls
   chartTheme = 'classic',
   onThemeChange,
+  // Aspect line display options
+  straightAspects = false,
+  onSetStraightAspects,
+  showEffects = true,
+  onSetShowEffects,
   // Save defaults
   onSaveDefaults,
 }) => {
@@ -480,45 +490,37 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
     }
   };
 
-  // Handle relocated toggle for person A (independent of B)
+  // Handle relocated toggle for person A (independent of B) — locations persist
   const handleRelocatedA = () => {
     if (isRelocatedA) {
-      // Deselect A, keep B if active
       const next = isRelocatedB ? 'B' : null;
       onSetRelocatedPerson?.(next);
-      if (!next) {
-        onSetRelocatedLocation?.(null);
-        onSetShowRelocated?.(false);
-      }
+      if (!next) onSetShowRelocated?.(false);
     } else {
-      // Select A, keep B if active
       const next = isRelocatedB ? 'both' : 'A';
       onSetRelocatedPerson?.(next);
-      if (!relocatedLocation && originalLocation) {
-        onSetRelocatedLocation?.(originalLocation);
-      }
       onSetShowRelocated?.(true);
+      // Auto-open picker if no saved location for A
+      if (!relocatedLocationA && onOpenLocationPicker) {
+        onOpenLocationPicker('A');
+      }
     }
   };
 
-  // Handle relocated toggle for person B (independent of A)
+  // Handle relocated toggle for person B (independent of A) — locations persist
   const handleRelocatedB = () => {
     if (isRelocatedB) {
-      // Deselect B, keep A if active
       const next = isRelocatedA ? 'A' : null;
       onSetRelocatedPerson?.(next);
-      if (!next) {
-        onSetRelocatedLocation?.(null);
-        onSetShowRelocated?.(false);
-      }
+      if (!next) onSetShowRelocated?.(false);
     } else {
-      // Select B, keep A if active
       const next = isRelocatedA ? 'both' : 'B';
       onSetRelocatedPerson?.(next);
-      if (!relocatedLocation && locationB) {
-        onSetRelocatedLocation?.(locationB);
-      }
       onSetShowRelocated?.(true);
+      // Auto-open picker if no saved location for B
+      if (!relocatedLocationB && onOpenLocationPicker) {
+        onOpenLocationPicker('B');
+      }
     }
   };
 
@@ -1045,66 +1047,58 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
                     >
                       Loading relocated chart...
                     </div>
-                  ) : relocatedLocation ? (
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        padding: '6px 8px',
-                        background: COLORS.backgroundAlt2,
-                        border: `1px solid ${COLORS.gridLineFaint}`,
-                        borderRadius: 4,
-                      }}
-                    >
-                      <span style={{ fontSize: 14 }}>📍</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {relocatedLocation.name}
-                        </div>
-                        <div style={{ fontSize: 9, color: COLORS.textSecondary }}>
-                          {relocatedLocation.lat.toFixed(2)}°, {relocatedLocation.lng.toFixed(2)}°
-                        </div>
-                      </div>
-                    </div>
                   ) : (
-                    <div
-                      style={{
-                        padding: '6px 8px',
-                        fontSize: 10,
-                        color: '#ef5350',
-                        background: COLORS.backgroundAlt2,
-                        border: `1px solid ${COLORS.gridLineFaint}`,
-                        borderRadius: 4,
-                        textAlign: 'center',
-                      }}
-                    >
-                      No current location set for this user
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {/* Per-person location info + pick buttons */}
+                      {isRelocatedA && onOpenLocationPicker && (
+                        <button
+                          onClick={() => onOpenLocationPicker('A')}
+                          style={{
+                            width: '100%',
+                            padding: '6px 8px',
+                            fontSize: 10,
+                            fontWeight: 600,
+                            background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
+                            color: '#1a1a1a',
+                            border: 'none',
+                            borderRadius: 4,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 4,
+                          }}
+                        >
+                          {relocatedLocationA
+                            ? `📍 A: ${relocatedLocationA.name.length > 20 ? relocatedLocationA.name.slice(0, 19) + '…' : relocatedLocationA.name}`
+                            : `📍 Pick Location for ${nameA.split(' ')[0]}`}
+                        </button>
+                      )}
+                      {isRelocatedB && onOpenLocationPicker && (
+                        <button
+                          onClick={() => onOpenLocationPicker('B')}
+                          style={{
+                            width: '100%',
+                            padding: '6px 8px',
+                            fontSize: 10,
+                            fontWeight: 600,
+                            background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
+                            color: '#1a1a1a',
+                            border: 'none',
+                            borderRadius: 4,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 4,
+                          }}
+                        >
+                          {relocatedLocationB
+                            ? `📍 B: ${relocatedLocationB.name.length > 20 ? relocatedLocationB.name.slice(0, 19) + '…' : relocatedLocationB.name}`
+                            : `📍 Pick Location for ${nameB.split(' ')[0]}`}
+                        </button>
+                      )}
                     </div>
-                  )}
-                  {/* Change Location button - opens the map picker */}
-                  {onOpenLocationPicker && (
-                    <button
-                      onClick={onOpenLocationPicker}
-                      style={{
-                        marginTop: 6,
-                        width: '100%',
-                        padding: '6px 8px',
-                        fontSize: 10,
-                        fontWeight: 600,
-                        background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
-                        color: '#1a1a1a',
-                        border: 'none',
-                        borderRadius: 4,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 4,
-                      }}
-                    >
-                      {relocatedLocation ? 'Change Location' : 'Pick Location on Map'}
-                    </button>
                   )}
                 </div>
               )}
@@ -1135,6 +1129,20 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
           checked={showDecans}
           onChange={() => onSetShowDecans(!showDecans)}
         />
+        {onSetStraightAspects && (
+          <Checkbox
+            label="Straight Lines"
+            checked={straightAspects}
+            onChange={() => onSetStraightAspects(!straightAspects)}
+          />
+        )}
+        {onSetShowEffects && (
+          <Checkbox
+            label="Flow Effects"
+            checked={showEffects}
+            onChange={() => onSetShowEffects(!showEffects)}
+          />
+        )}
         {onSetRotateToAscendant && (
           <Checkbox
             label="ASC at West"

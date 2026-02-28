@@ -37,66 +37,27 @@ interface TransitRingProps {
 /**
  * Minimum angular spacing in degrees between displayed transit planets.
  */
-const MIN_SPACING = 3;
-
 /**
- * Calculate circular mean (average angle that handles 0°/360° wraparound correctly)
- * Uses unit vector averaging to find the true center of angular positions
+ * Soft repulsion collision avoidance.
+ *
+ * Instead of hard fan-on-enter / release-on-exit (which causes asymmetric
+ * skipping), every pair of planets within REPEL_ZONE exerts a smooth,
+ * proportional push on each other. The closer they are, the stronger the
+ * push — but it ramps up gradually, so there is never a sudden jump.
+ *
+ * Multiple iterations let cascading pushes settle.
  */
-function circularMean(angles: number[]): number {
-  if (angles.length === 0) return 0;
+const MIN_SPACING = 3;   // target spacing in degrees
+const REPEL_ZONE = 6;    // planets further apart than this don't interact
 
-  // Convert to radians and compute mean of unit vectors
-  let sumSin = 0;
-  let sumCos = 0;
-  for (const angle of angles) {
-    const rad = angle * Math.PI / 180;
-    sumSin += Math.sin(rad);
-    sumCos += Math.cos(rad);
-  }
-
-  // Convert back to angle in degrees
-  const meanRad = Math.atan2(sumSin / angles.length, sumCos / angles.length);
-  const meanDeg = meanRad * 180 / Math.PI;
-  // Normalize to [0, 360)
-  return ((meanDeg % 360) + 360) % 360;
+/** Signed angular difference (handles 0°/360° wrap), result in -180..180 */
+function signedDiff(a: number, b: number): number {
+  let d = b - a;
+  if (d > 180) d -= 360;
+  if (d <= -180) d += 360;
+  return d;
 }
 
-/**
- * Fan a group of planets equally around their center of mass.
- * Mutates displayLongitude and hasCollision on each planet.
- * Uses circular mean to correctly handle planets near 0°/360° boundary.
- */
-function fanGroup(planets: PlacedPlanet[], indices: number[]): void {
-  const n = indices.length;
-  if (n <= 1) return;
-
-  // Calculate circular mean to handle wraparound (e.g., Saturn at 358° + Neptune at 2°)
-  const longitudes = indices.map(idx => planets[idx].longitude);
-  const center = circularMean(longitudes);
-
-  const totalSpread = (n - 1) * MIN_SPACING;
-  const start = center - totalSpread / 2;
-
-  for (let i = 0; i < n; i++) {
-    planets[indices[i]].displayLongitude = start + i * MIN_SPACING;
-    planets[indices[i]].hasCollision = true;
-  }
-}
-
-/**
- * Order-preserving collision avoidance with iterative merging.
- *
- * 1. Sort planets by true longitude.
- * 2. Fan out initial clusters (consecutive planets < MIN_SPACING apart).
- * 3. After fanning, check if any adjacent planets/clusters now overlap.
- *    If so, merge them into a larger group and re-fan.
- * 4. Repeat until no overlaps remain.
- *
- * This handles cascading clusters: e.g. two small clusters near each
- * other that, after fanning, encroach on each other — they merge into
- * one bigger fan centered on the combined center of mass.
- */
 function prepareTransitPlanets(
   transitPlanets: TransitPlanet[],
   visiblePlanets: Set<string>,
@@ -126,91 +87,36 @@ function prepareTransitPlanets(
     });
   }
 
-  if (planets.length <= 1) {
-    return planets.map((p) => {
-      const pos = longitudeToXY(p.displayLongitude, cx, cy, ringRadius, rotationOffset);
-      return { ...p, x: pos.x, y: pos.y };
-    });
-  }
+  if (planets.length > 1) {
+    // Iterative soft-repulsion: each pass nudges overlapping pairs apart
+    for (let pass = 0; pass < 12; pass++) {
+      let anyPush = false;
+      for (let i = 0; i < planets.length; i++) {
+        for (let j = i + 1; j < planets.length; j++) {
+          const gap = signedDiff(planets[i].displayLongitude, planets[j].displayLongitude);
+          const absGap = Math.abs(gap);
 
-  // Sort by true longitude — this order is never violated
-  planets.sort((a, b) => a.longitude - b.longitude);
-
-  // --- Build groups: each planet starts as its own group ---
-  // A group is an array of planet indices that will be fanned together.
-  let groups: number[][] = planets.map((_, i) => [i]);
-
-  // --- Iterative merge-and-fan ---
-  // Keep merging adjacent groups whose display ranges overlap, then
-  // re-fan the merged group. Stop when no merges happen.
-  for (let pass = 0; pass < 20; pass++) {
-    // Fan each group that has >1 member
-    for (const group of groups) {
-      if (group.length > 1) {
-        fanGroup(planets, group);
+          if (absGap < MIN_SPACING && absGap > 0.01) {
+            // Push proportionally: stronger when closer
+            const push = (MIN_SPACING - absGap) * 0.4;
+            const dir = gap > 0 ? 1 : -1;
+            planets[i].displayLongitude -= dir * push;
+            planets[j].displayLongitude += dir * push;
+            planets[i].hasCollision = true;
+            planets[j].hasCollision = true;
+            anyPush = true;
+          }
+        }
       }
+      if (!anyPush) break;
     }
 
-    // Check adjacent groups for overlap and merge
-    let merged = false;
-    const newGroups: number[][] = [groups[0]];
-
-    for (let g = 1; g < groups.length; g++) {
-      const prev = newGroups[newGroups.length - 1];
-      const curr = groups[g];
-
-      // Display position of last planet in previous group
-      const prevEnd = planets[prev[prev.length - 1]].displayLongitude;
-      // Display position of first planet in current group
-      const currStart = planets[curr[0]].displayLongitude;
-
-      if (currStart - prevEnd < MIN_SPACING) {
-        // Overlap — merge current group into previous
-        newGroups[newGroups.length - 1] = [...prev, ...curr];
-        merged = true;
-      } else {
-        newGroups.push(curr);
-      }
-    }
-
-    // Check wrap-around (last group ↔ first group)
-    if (newGroups.length > 1) {
-      const lastGroup = newGroups[newGroups.length - 1];
-      const firstGroup = newGroups[0];
-      const lastEnd = planets[lastGroup[lastGroup.length - 1]].displayLongitude;
-      const firstStart = planets[firstGroup[0]].displayLongitude;
-      const wrapGap = (firstStart + 360) - lastEnd;
-
-      if (wrapGap < MIN_SPACING) {
-        // Merge last into first (they wrap around 0°)
-        newGroups[0] = [...lastGroup, ...firstGroup];
-        newGroups.pop();
-        merged = true;
-      }
-    }
-
-    groups = newGroups;
-
-    if (!merged) break;
-  }
-
-  // Final fan pass (in case last merge didn't get fanned)
-  for (const group of groups) {
-    if (group.length > 1) {
-      fanGroup(planets, group);
+    // Normalise to [0, 360)
+    for (const p of planets) {
+      p.displayLongitude = ((p.displayLongitude % 360) + 360) % 360;
     }
   }
 
-  // Normalise to [0, 360) and set collision flag
-  for (const p of planets) {
-    p.displayLongitude = ((p.displayLongitude % 360) + 360) % 360;
-    // Calculate angular difference accounting for wrap-around
-    let diff = Math.abs(p.displayLongitude - p.longitude);
-    if (diff > 180) diff = 360 - diff;
-    p.hasCollision = diff > 0.3;
-  }
-
-  // Calculate final positions
   return planets.map((p) => {
     const pos = longitudeToXY(p.displayLongitude, cx, cy, ringRadius, rotationOffset);
     return { ...p, x: pos.x, y: pos.y };
@@ -264,7 +170,7 @@ export const TransitRing: React.FC<TransitRingProps> = ({
   // Don't render if transit dimensions aren't calculated
   if (!transitPlanetRing) return null;
 
-  // Prepare planet placements
+  // Prepare planet placements (with radial offsets for colliding planets)
   const placedPlanets = React.useMemo(
     () => prepareTransitPlanets(transitPlanets, visiblePlanets, dimensions, transitPlanetRing, rotationOffset),
     [transitPlanets, visiblePlanets, dimensions, transitPlanetRing, rotationOffset]
@@ -394,7 +300,7 @@ export const TransitRing: React.FC<TransitRingProps> = ({
         </>
       )}
 
-      {/* Degree pointer lines — tapered with gradient opacity */}
+      {/* Degree pointer lines — smooth transitions via CSS */}
       {placedPlanets.map((planet) => {
         if (!transitRingOuter) return null;
         const from = longitudeToXY(planet.displayLongitude, cx, cy, transitPlanetRing, rotationOffset);
@@ -408,6 +314,9 @@ export const TransitRing: React.FC<TransitRingProps> = ({
             stroke={highlighted ? TRANSIT_COLOR_ACCENT : TRANSIT_COLOR_LIGHT}
             strokeWidth={highlighted ? 1.5 : 0.75}
             strokeOpacity={highlighted ? 0.8 : 0.4}
+            style={{
+              transition: `all ${TRANSIT_DURATION} ${TRANSIT_EASE}`,
+            }}
           />
         );
       })}

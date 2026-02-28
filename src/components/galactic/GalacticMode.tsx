@@ -336,6 +336,7 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
   const [showHouses, setShowHouses] = useState(true);
   const [showOrbits, setShowOrbits] = useState(true);
   const [showZodiac, setShowZodiac] = useState(true);
+  const [showFlatEarth, setShowFlatEarth] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [activePreset, setActivePreset] = useState<CameraPreset | null>(null);
   const [activePresetName, setActivePresetName] = useState<string>('Overview');
@@ -674,6 +675,7 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
             showHouses={showHouses}
             showOrbits={showOrbits}
             showZodiac={showZodiac}
+            showFlatEarth={showFlatEarth}
             activePreset={activePreset}
             transitDayOffset={transitDayOffset}
             transitEnabled={transitEnabled}
@@ -773,6 +775,7 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
               <ToggleRow label="Houses" checked={showHouses} onChange={setShowHouses} color="#818cf8" />
               <ToggleRow label="Orbit Paths" checked={showOrbits} onChange={setShowOrbits} color="#818cf8" />
               <ToggleRow label="Zodiac Ring" checked={showZodiac} onChange={setShowZodiac} color="#818cf8" />
+              <ToggleRow label="Earth" checked={showFlatEarth} onChange={setShowFlatEarth} color="#60a5fa" />
               <ToggleRow label="Auto-Rotate" checked={autoRotate} onChange={setAutoRotate} color="#818cf8" />
               <ToggleRow
                 label={`Transits${transitEnabled ? ` (${transitPlanets3D.length})` : ''}`}

@@ -153,6 +153,8 @@ export interface BiWheelSynastryProps {
   initialVisibleAspects?: Set<AspectType>;
   initialShowHouses?: boolean;
   initialShowDegreeMarkers?: boolean;
+  initialStraightAspects?: boolean;
+  initialShowEffects?: boolean;
   initialChartMode?: ChartMode;
   onAspectClick?: (aspect: SynastryAspect) => void;
   onPlanetClick?: (planet: string, chart: 'A' | 'B' | 'Transit' | 'Progressed' | 'Composite') => void;
@@ -177,11 +179,14 @@ export interface BiWheelSynastryProps {
   originalLocation?: LocationData;
   locationB?: LocationData;  // Person B's location (for auto-relocated to other person's location)
   // External control of relocated location (from parent, e.g., map selection)
-  externalRelocatedLocation?: LocationData | null;
+  externalRelocatedLocationA?: LocationData | null;
+  externalRelocatedLocationB?: LocationData | null;
   externalRelocatedPerson?: 'A' | 'B' | null;
-  // Birth data for Person A (used for astrocartography in location picker)
+  // Birth data for astrocartography in location picker
   birthDateA?: string;
   birthTimeA?: string;
+  birthDateB?: string;
+  birthTimeB?: string;
   // Initial progressed/relocated state (for mobile wrapper lifting state)
   initialProgressedPerson?: 'A' | 'B' | 'both' | null;
   initialProgressedDate?: string;
@@ -203,8 +208,20 @@ export interface BiWheelSynastryProps {
   onTransitTimeChange?: (time: string) => void;
   onTransitLoadingChange?: (loading: boolean) => void;
   onAsteroidsChange?: (asteroids: AsteroidsParam) => void;
+  // Initial enabled asteroid groups (from parent wrapper, overrides localStorage defaults on remount)
+  initialEnabledAsteroidGroups?: Set<AsteroidGroup>;
+  // Initial display toggles (from parent wrapper for session sync)
+  initialShowRetrogrades?: boolean;
+  initialShowDecans?: boolean;
+  // Rotation / vantage callbacks (for session broadcast sync)
+  initialRotateToAscendant?: boolean;
+  initialZodiacVantage?: number | null;
+  onRotateToAscendantChange?: (rotate: boolean) => void;
+  onZodiacVantageChange?: (vantage: number | null) => void;
   // Asteroids data fetch callback - called when asteroid groups are enabled to fetch positions
   onFetchAsteroidData?: (asteroids: string[]) => Promise<{ chartA: Record<string, any>; chartB: Record<string, any> }>;
+  // Full state change callback — fires whenever any chart setting changes (for session broadcast)
+  onInternalStateChange?: (state: Record<string, any>) => void;
 }
 
 // Available asteroid groups - matches constants.ts ASTEROIDS groups
@@ -253,7 +270,9 @@ export interface BiWheelState {
   progressedLoading: boolean;
   // Relocated state
   showRelocated: boolean;
-  relocatedLocation: LocationData | null;
+  relocatedLocationA: LocationData | null;
+  relocatedLocationB: LocationData | null;
+  locationPickerTarget: 'A' | 'B' | null;
   relocatedData: RelocatedData | null;
   relocatedDataOther: RelocatedData | null;  // Other person's relocated data (for house ring consistency)
   relocatedLoading: boolean;
@@ -262,6 +281,9 @@ export interface BiWheelState {
   enabledAsteroidGroups: Set<AsteroidGroup>;
   // Solar Arc state (derived from progressed Sun)
   showSolarArc: boolean;
+  // Aspect line display options
+  straightAspects: boolean;   // Straight lines instead of curves
+  showEffects: boolean;       // Animated flow particles
 }
 
 // Context value
