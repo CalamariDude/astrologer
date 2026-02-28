@@ -325,6 +325,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   nameA,
   nameB,
   showTogglePanel = true,
+  togglePanelCollapsed,
+  onTogglePanelCollapsedChange,
   hideZoomControls = false,
   initialVisiblePlanets,
   initialVisibleAspects,
@@ -493,6 +495,100 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       setState(prev => ({ ...prev, timeShiftB: initialTimeShiftB }));
     }
   }, [initialTimeShiftB]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync display state from parent (preset loads, external state changes)
+  useEffect(() => {
+    if (initialVisiblePlanets) {
+      setState(prev => {
+        // Compare sets — skip if identical
+        if (prev.visiblePlanets.size === initialVisiblePlanets.size &&
+            [...initialVisiblePlanets].every(p => prev.visiblePlanets.has(p))) return prev;
+        return { ...prev, visiblePlanets: initialVisiblePlanets };
+      });
+    }
+  }, [initialVisiblePlanets]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (initialVisibleAspects) {
+      setState(prev => {
+        if (prev.visibleAspects.size === initialVisibleAspects.size &&
+            [...initialVisibleAspects].every(a => prev.visibleAspects.has(a))) return prev;
+        return { ...prev, visibleAspects: initialVisibleAspects };
+      });
+    }
+  }, [initialVisibleAspects]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    setState(prev => {
+      if (prev.showHouses === initialShowHouses) return prev;
+      return { ...prev, showHouses: initialShowHouses };
+    });
+  }, [initialShowHouses]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    setState(prev => {
+      if (prev.showDegreeMarkers === initialShowDegreeMarkers) return prev;
+      return { ...prev, showDegreeMarkers: initialShowDegreeMarkers };
+    });
+  }, [initialShowDegreeMarkers]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (initialShowRetrogrades !== undefined) {
+      setState(prev => {
+        if (prev.showRetrogrades === initialShowRetrogrades) return prev;
+        return { ...prev, showRetrogrades: initialShowRetrogrades };
+      });
+    }
+  }, [initialShowRetrogrades]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (initialShowDecans !== undefined) {
+      setState(prev => {
+        if (prev.showDecans === initialShowDecans) return prev;
+        return { ...prev, showDecans: initialShowDecans };
+      });
+    }
+  }, [initialShowDecans]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (initialStraightAspects !== undefined) {
+      setState(prev => {
+        if (prev.straightAspects === initialStraightAspects) return prev;
+        return { ...prev, straightAspects: initialStraightAspects };
+      });
+    }
+  }, [initialStraightAspects]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (initialShowEffects !== undefined) {
+      setState(prev => {
+        if (prev.showEffects === initialShowEffects) return prev;
+        return { ...prev, showEffects: initialShowEffects };
+      });
+    }
+  }, [initialShowEffects]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (initialEnabledAsteroidGroups) {
+      setState(prev => {
+        if (prev.enabledAsteroidGroups.size === initialEnabledAsteroidGroups.size &&
+            [...initialEnabledAsteroidGroups].every(g => prev.enabledAsteroidGroups.has(g))) return prev;
+        return { ...prev, enabledAsteroidGroups: initialEnabledAsteroidGroups };
+      });
+    }
+  }, [initialEnabledAsteroidGroups]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (initialRotateToAscendant !== undefined && initialRotateToAscendant !== rotateToAscendant) {
+      setRotateToAscendant(initialRotateToAscendant);
+    }
+  }, [initialRotateToAscendant]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (initialZodiacVantage !== undefined && initialZodiacVantage !== zodiacVantage) {
+      setZodiacVantage(initialZodiacVantage);
+    }
+  }, [initialZodiacVantage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Delayed transit loading — only true if transitLoading persists >500ms
   const [transitLoadingSlow, setTransitLoadingSlow] = useState(false);
@@ -1178,7 +1274,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       } finally {
         setState(prev => ({ ...prev, birthTimeShiftLoading: false }));
       }
-    }, 300);
+    }, 150);
 
     return () => clearTimeout(timer);
   }, [enableBirthTimeShift, onFetchShiftedNatal, state.timeShiftA, state.timeShiftB, birthDateA, birthTimeA, birthDateB, birthTimeB, computeShiftedDateTime, asteroids]);
@@ -1591,26 +1687,55 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     }
   }, [state.chartMode, displayChartA, displayChartB, compositeNatalChart]);
 
+  // Build effective planet records from effective charts (includes birth-time shift, relocated, progressed)
+  // These are used for aspect calculation so aspects update when the chart shifts
+  const effectivePlanetsA = useMemo(() => {
+    const merged: Record<string, { longitude: number; sign?: string; retrograde?: boolean }> = { ...effectiveChartA.planets };
+    if (effectiveChartA.angles) {
+      if (effectiveChartA.angles.ascendant !== undefined) {
+        merged.ascendant = { longitude: effectiveChartA.angles.ascendant, sign: '', retrograde: false };
+      }
+      if (effectiveChartA.angles.midheaven !== undefined) {
+        merged.midheaven = { longitude: effectiveChartA.angles.midheaven, sign: '', retrograde: false };
+      }
+    }
+    return merged;
+  }, [effectiveChartA]);
+
+  const effectivePlanetsB = useMemo(() => {
+    const merged: Record<string, { longitude: number; sign?: string; retrograde?: boolean }> = { ...effectiveChartB.planets };
+    if (effectiveChartB.angles) {
+      if (effectiveChartB.angles.ascendant !== undefined) {
+        merged.ascendant = { longitude: effectiveChartB.angles.ascendant, sign: '', retrograde: false };
+      }
+      if (effectiveChartB.angles.midheaven !== undefined) {
+        merged.midheaven = { longitude: effectiveChartB.angles.midheaven, sign: '', retrograde: false };
+      }
+    }
+    return merged;
+  }, [effectiveChartB]);
+
   // Calculate aspects based on chart mode
+  // Uses effective planets so aspects update with birth-time shift, relocated, progressed overlays
   // When swapped in synastry mode, swap inputs so aspect.planetA refers to the outer ring person
   const aspects = useMemo(() => {
     switch (state.chartMode) {
       case 'personA':
-        return calculateNatalAspects(planetsWithAnglesA, state.visiblePlanets);
+        return calculateNatalAspects(effectivePlanetsA, state.visiblePlanets);
       case 'personB':
-        return calculateNatalAspects(planetsWithAnglesB, state.visiblePlanets);
+        return calculateNatalAspects(effectivePlanetsB, state.visiblePlanets);
       case 'composite':
         return state.compositeData
           ? calculateNatalAspects(compositeWithAngles, state.visiblePlanets)
           : [];
       case 'synastry':
       default: {
-        const outerPlanets = swapped ? planetsWithAnglesB : planetsWithAnglesA;
-        const innerPlanets = swapped ? planetsWithAnglesA : planetsWithAnglesB;
+        const outerPlanets = swapped ? effectivePlanetsB : effectivePlanetsA;
+        const innerPlanets = swapped ? effectivePlanetsA : effectivePlanetsB;
         return calculateSynastryAspects(outerPlanets, innerPlanets, state.visiblePlanets);
       }
     }
-  }, [state.chartMode, planetsWithAnglesA, planetsWithAnglesB, compositeWithAngles, state.visiblePlanets, state.compositeData, swapped]);
+  }, [state.chartMode, effectivePlanetsA, effectivePlanetsB, compositeWithAngles, state.visiblePlanets, state.compositeData, swapped]);
 
   // Calculate planet positions for both charts (for aspect line positioning)
   // Use displayChart (swap-aware) so aspect lines match the rendered planet positions
@@ -2163,6 +2288,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           zodiacVantage={zodiacVantage}
           hideOuterHouseRing={isSingleWheel}
           visiblePlanets={state.visiblePlanets}
+          smoothTransitions={state.showBirthTimeShift && (state.timeShiftA !== 0 || state.timeShiftB !== 0)}
         />
 
         {/* Aspect lines (drawn on top of house ring) */}
@@ -2185,6 +2311,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           declinationsB={declinationsB}
           straightLines={state.straightAspects}
           showEffects={state.showEffects}
+          smoothTransitions={state.showBirthTimeShift && (state.timeShiftA !== 0 || state.timeShiftB !== 0)}
         />
 
         {/* Zodiac ring */}
@@ -2895,6 +3022,9 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             onSetShowBirthTimeShift={setShowBirthTimeShift}
             // Save defaults
             onSaveDefaults={saveDefaults}
+            // Controlled collapsed state
+            collapsed={togglePanelCollapsed}
+            onCollapsedChange={onTogglePanelCollapsedChange}
           />
         </React.Suspense>
       )}

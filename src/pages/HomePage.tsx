@@ -635,64 +635,89 @@ export default function HomePage() {
           visual={
             <div className="relative group flex items-center justify-center">
               <div className="absolute -inset-10 bg-gradient-to-br from-sky-500/[0.07] to-violet-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
-              <div className="relative bg-[#0d1117] rounded-2xl border border-white/10 p-5 sm:p-6 w-full max-w-sm drop-shadow-2xl">
-                {/* Tab bar */}
-                <div className="flex items-center gap-1 mb-4">
+              <div className="relative bg-white rounded-2xl border border-black/[0.08] w-full max-w-sm drop-shadow-2xl overflow-hidden">
+                {/* Browser-style tab bar */}
+                <div className="flex items-end gap-0 bg-black/[0.03] px-2 pt-3">
                   {[
-                    { name: 'Sarah', type: 'Natal', active: true },
-                    { name: 'John & Maya', type: 'Synastry', active: false },
-                    { name: 'New Chart', type: '', active: false },
+                    { name: 'Sarah M.', icon: '☉', active: true },
+                    { name: 'John & Maya', icon: '☍', active: false },
+                    { name: 'David C.', icon: '☉', active: false },
                   ].map((tab) => (
                     <div
                       key={tab.name}
-                      className={`group/tab relative flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      className={`relative flex items-center gap-1.5 px-3 py-2 text-[12px] transition-colors ${
                         tab.active
-                          ? 'bg-violet-500/15 border border-violet-500/30 text-white/90'
-                          : 'bg-white/[0.03] border border-white/[0.06] text-white/35 hover:text-white/50'
+                          ? 'bg-white text-black/80 rounded-t-lg border-t border-x border-black/[0.08]'
+                          : 'text-black/30 hover:text-black/45'
                       }`}
                     >
-                      <span className="truncate max-w-[80px]">{tab.name}</span>
-                      {tab.type && <span className="text-[9px] uppercase tracking-wider text-white/20">{tab.type}</span>}
-                      <span className="text-white/15 text-xs ml-0.5 opacity-0 group-hover/tab:opacity-100 transition-opacity cursor-pointer">&times;</span>
+                      <span className="text-[10px] opacity-50">{tab.icon}</span>
+                      <span className="truncate max-w-[72px]">{tab.name}</span>
+                      <span className="text-black/20 text-[10px] ml-1 hover:text-black/50 cursor-pointer">&times;</span>
                     </div>
                   ))}
-                  {/* Add tab button */}
-                  <div className="w-8 h-8 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-white/25 hover:text-white/40 transition-colors cursor-pointer text-lg leading-none">
-                    +
-                  </div>
+                  <div className="flex items-center justify-center px-2 py-2 text-black/20 hover:text-black/40 transition-colors cursor-pointer text-sm">+</div>
                 </div>
-                {/* Active chart area */}
-                <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center text-[10px] text-white font-bold">S</div>
-                      <div>
-                        <div className="text-xs text-white/70 font-medium">Sarah Mitchell</div>
-                        <div className="text-[10px] text-white/25">Mar 17, 1998 · 2:34 AM</div>
+                {/* Active tab content */}
+                <div className="p-4 sm:p-5">
+                  {/* Chart header bar */}
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center text-[11px] text-white font-bold flex-shrink-0">S</div>
+                      <div className="min-w-0">
+                        <div className="text-[13px] text-black/75 font-medium truncate">Sarah Mitchell</div>
+                        <div className="text-[10px] text-black/35">Mar 17, 1998 · 2:34 AM · NYC</div>
                       </div>
                     </div>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-300/60 uppercase tracking-wider font-bold">Natal</span>
+                    {/* Mode pills */}
+                    <div className="flex gap-1 flex-shrink-0">
+                      {['Natal', 'Transit'].map((mode, i) => (
+                        <span key={mode} className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${
+                          i === 0 ? 'bg-violet-500/15 text-violet-600' : 'bg-black/[0.04] text-black/25'
+                        }`}>{mode}</span>
+                      ))}
+                    </div>
                   </div>
-                  {/* Mini chart placeholder */}
-                  <div className="relative w-full aspect-square max-w-[140px] mx-auto">
-                    <div className="absolute inset-0 rounded-full border border-white/[0.08]" />
-                    <div className="absolute inset-3 rounded-full border border-white/[0.06]" />
-                    <div className="absolute inset-6 rounded-full border border-white/[0.04]" />
-                    {/* Planet dots */}
-                    {[
-                      { top: '15%', left: '60%', color: '#f59e0b' },
-                      { top: '30%', left: '80%', color: '#ec4899' },
-                      { top: '70%', left: '25%', color: '#6366f1' },
-                      { top: '50%', left: '75%', color: '#22c55e' },
-                      { top: '80%', left: '55%', color: '#ef4444' },
-                    ].map((p, i) => (
-                      <div key={i} className="absolute w-2 h-2 rounded-full" style={{ top: p.top, left: p.left, backgroundColor: p.color, boxShadow: `0 0 6px ${p.color}50` }} />
+                  {/* Chart wheel mockup */}
+                  <div className="relative w-full aspect-square max-w-[180px] mx-auto my-2">
+                    {/* Zodiac ring */}
+                    <div className="absolute inset-0 rounded-full border-2 border-black/[0.08]" />
+                    <div className="absolute inset-[14%] rounded-full border border-black/[0.06]" />
+                    <div className="absolute inset-[30%] rounded-full border border-black/[0.04]" />
+                    {/* House lines */}
+                    {[0, 30, 60, 90, 120, 150].map((deg) => (
+                      <div key={deg} className="absolute top-1/2 left-1/2 w-[1px] h-1/2 origin-bottom bg-black/[0.05]" style={{ transform: `translate(-50%, -100%) rotate(${deg}deg)` }} />
                     ))}
+                    {/* Planet glyphs */}
+                    {[
+                      { top: '8%', left: '55%', color: '#d97706', label: '☉' },
+                      { top: '22%', left: '82%', color: '#6b7280', label: '☽' },
+                      { top: '65%', left: '12%', color: '#4f46e5', label: '♃' },
+                      { top: '45%', left: '85%', color: '#db2777', label: '♀' },
+                      { top: '78%', left: '60%', color: '#dc2626', label: '♂' },
+                      { top: '35%', left: '18%', color: '#059669', label: '☿' },
+                      { top: '88%', left: '35%', color: '#0891b2', label: '♄' },
+                    ].map((p, i) => (
+                      <div key={i} className="absolute flex items-center justify-center" style={{ top: p.top, left: p.left }}>
+                        <div className="relative text-[10px] font-bold" style={{ color: p.color }}>{p.label}</div>
+                      </div>
+                    ))}
+                    {/* Aspect lines */}
+                    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
+                      <line x1="57" y1="12" x2="16" y2="68" stroke="#d97706" strokeWidth="0.7" opacity="0.25" />
+                      <line x1="85" y1="26" x2="88" y2="48" stroke="#db2777" strokeWidth="0.7" opacity="0.2" />
+                      <line x1="16" y1="68" x2="63" y2="81" stroke="#4f46e5" strokeWidth="0.7" opacity="0.2" strokeDasharray="2,2" />
+                    </svg>
                   </div>
-                </div>
-                <div className="flex items-center justify-between mt-3">
-                  <span className="text-[10px] text-white/20">3 charts open</span>
-                  <span className="text-[10px] text-white/20">⌘1–9 to switch</span>
+                  {/* Bottom status */}
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-black/[0.06]">
+                    <span className="text-[10px] text-black/25">3 tabs open</span>
+                    <div className="flex items-center gap-1.5">
+                      <kbd className="text-[9px] px-1 py-0.5 rounded bg-black/[0.04] text-black/30 font-mono">⌘1</kbd>
+                      <kbd className="text-[9px] px-1 py-0.5 rounded bg-black/[0.04] text-black/30 font-mono">⌘2</kbd>
+                      <kbd className="text-[9px] px-1 py-0.5 rounded bg-black/[0.04] text-black/30 font-mono">⌘3</kbd>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -708,52 +733,63 @@ export default function HomePage() {
           visual={
             <div className="relative group flex items-center justify-center">
               <div className="absolute -inset-10 bg-gradient-to-br from-amber-500/[0.07] to-orange-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
-              <div className="relative bg-[#0d1117] rounded-2xl border border-white/10 p-5 sm:p-6 w-full max-w-sm drop-shadow-2xl">
-                <div className="text-xs text-white/40 font-bold uppercase tracking-wider mb-4">Display Presets</div>
-                {/* Preset list */}
-                <div className="space-y-2 mb-4">
+              <div className="relative bg-white rounded-2xl border border-black/[0.08] p-5 sm:p-6 w-full max-w-sm drop-shadow-2xl">
+                {/* Section tabs */}
+                <div className="flex items-center gap-3 mb-5 pb-3 border-b border-black/[0.06]">
+                  <span className="text-xs text-black/70 font-medium">Already Saved</span>
+                  <span className="text-xs text-black/25">Live Session</span>
+                </div>
+                {/* Horizontal preset pills */}
+                <div className="flex flex-wrap items-center gap-2 mb-5">
                   {[
-                    { name: 'Traditional 7', active: true, dots: ['#f59e0b', '#c0c0c0', '#ec4899', '#ef4444', '#f97316', '#6366f1', '#22c55e'] },
-                    { name: 'Full Outer', active: false, dots: ['#f59e0b', '#c0c0c0', '#ec4899', '#ef4444', '#f97316', '#6366f1', '#22c55e', '#06b6d4', '#8b5cf6', '#3b82f6'] },
-                    { name: 'Asteroids Only', active: false, dots: ['#a855f7', '#f43f5e', '#14b8a6', '#eab308'] },
+                    { name: 'regular', active: false },
+                    { name: 'workhorse', active: true },
+                    { name: 'love', active: false },
                   ].map((preset) => (
                     <div
                       key={preset.name}
-                      className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
+                      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] transition-colors ${
                         preset.active
-                          ? 'bg-amber-500/10 border border-amber-500/25'
-                          : 'bg-white/[0.03] border border-white/[0.06]'
+                          ? 'bg-violet-500/12 border border-violet-500/30 text-black/80'
+                          : 'bg-black/[0.03] border border-black/[0.08] text-black/40'
                       }`}
                     >
-                      {/* Radio indicator */}
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                        preset.active ? 'border-amber-400' : 'border-white/15'
-                      }`}>
-                        {preset.active && <div className="w-2 h-2 rounded-full bg-amber-400" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-medium ${preset.active ? 'text-white/85' : 'text-white/40'}`}>{preset.name}</div>
-                        {/* Planet dots */}
-                        <div className="flex items-center gap-1 mt-1">
-                          {preset.dots.map((color, i) => (
-                            <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color, opacity: preset.active ? 0.8 : 0.3 }} />
-                          ))}
-                        </div>
-                      </div>
+                      <span>{preset.name}</span>
                       {preset.active && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300/70 uppercase tracking-wider font-bold">Active</span>
+                        <span className="flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-white text-[10px] leading-none cursor-pointer ml-0.5">&times;</span>
                       )}
                     </div>
                   ))}
+                  {/* Add preset pill */}
+                  <div className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-dashed border-black/[0.12] text-black/30 text-[13px] cursor-pointer hover:text-black/50 hover:border-black/20 transition-colors">
+                    <span>+</span>
+                    <span>Save Preset</span>
+                  </div>
                 </div>
-                {/* Save preset button */}
-                <div className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-white/10 text-white/25 hover:text-white/40 hover:border-white/20 transition-colors cursor-pointer">
-                  <span className="text-lg leading-none">+</span>
-                  <span className="text-sm">Save Current as Preset</span>
+                {/* Description of active preset */}
+                <div className="rounded-xl bg-black/[0.02] border border-black/[0.06] p-4">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-black/30 mb-3">Load "workhorse" — applies saved config</div>
+                  {/* What's included */}
+                  <div className="space-y-2">
+                    {[
+                      { label: 'Planets', items: '☉ ☽ ☿ ♀ ♂ ♃ ♄ ♅ ♆ ♇' },
+                      { label: 'Asteroids', items: 'Chiron · Lilith · Ceres' },
+                      { label: 'Aspects', items: '☌ △ □ ☍ ⚹' },
+                      { label: 'Houses', items: 'Placidus' },
+                    ].map((row) => (
+                      <div key={row.label} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-1.5 h-1.5 rounded-full bg-violet-500/50 flex-shrink-0" />
+                          <span className="text-[11px] text-black/45">{row.label}</span>
+                        </div>
+                        <span className="text-[10px] text-black/30 truncate ml-2">{row.items}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div className="flex items-center justify-between mt-3">
-                  <span className="text-[10px] text-white/20">3 of 10 presets used</span>
-                  <span className="text-[10px] text-white/20">Synced across devices</span>
+                  <span className="text-[10px] text-black/25">3 of 10 presets</span>
+                  <span className="text-[10px] text-black/25">Synced across devices</span>
                 </div>
               </div>
             </div>

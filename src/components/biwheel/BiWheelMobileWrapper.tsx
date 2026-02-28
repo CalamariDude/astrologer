@@ -14,7 +14,7 @@ import { BirthTimeShiftKnob } from './controls/BirthTimeShiftKnob';
 import { TransitJogWheel } from './controls/TransitJogWheel';
 import { Drawer } from 'vaul';
 import { Settings2, Download, Image, FileText, Mail, Loader2, Share2, Link2, Check, Plus, X, Bookmark } from 'lucide-react';
-import { type ChartPreset, loadPresets, savePreset, deletePreset, buildPresetFromState, loadPresetsFromProfile, savePresetsToProfile } from './utils/presets';
+import { type ChartPreset, loadPresets, savePreset, deletePreset, reorderPresets, buildPresetFromState, loadPresetsFromProfile, savePresetsToProfile } from './utils/presets';
 // Lazy-import chart export (pulls in jsPDF ~357KB) — only needed on export button click
 const getChartExport = () => import('@/lib/chartExport');
 import * as analytics from '@/lib/analytics';
@@ -132,6 +132,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   const [emailMessage, setEmailMessage] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
   const [shareNotes, setShareNotes] = useState(true);
+  const [togglePanelCollapsed, setTogglePanelCollapsed] = useState(false);
 
   // Zoom and pan state
   const [scale, setScale] = useState(1);
@@ -223,6 +224,13 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [showSavePreset, setShowSavePreset] = useState(false);
   const [presetName, setPresetName] = useState('');
+  const [presetsExpanded, setPresetsExpanded] = useState(false);
+
+  // Drag-to-reorder presets
+  const [dragPresetId, setDragPresetId] = useState<string | null>(null);
+  const [dragOverPresetId, setDragOverPresetId] = useState<string | null>(null);
+  const dragLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dragStartPos = useRef<{ x: number; y: number } | null>(null);
 
   // Auth & subscription (for location picker gating)
   const { user } = useAuth();
@@ -853,6 +861,37 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     if (user?.id) savePresetsToProfile(user.id, updated);
   }, [activePresetId, user?.id]);
 
+  const handlePresetDragEnd = useCallback(() => {
+    if (dragPresetId && dragOverPresetId && dragPresetId !== dragOverPresetId) {
+      // Reorder: move dragPresetId to the position of dragOverPresetId
+      const ids = presets.map(p => p.id);
+      const fromIdx = ids.indexOf(dragPresetId);
+      const toIdx = ids.indexOf(dragOverPresetId);
+      if (fromIdx !== -1 && toIdx !== -1) {
+        ids.splice(fromIdx, 1);
+        ids.splice(toIdx, 0, dragPresetId);
+        const updated = reorderPresets(ids);
+        setPresets(updated);
+        if (user?.id) savePresetsToProfile(user.id, updated);
+      }
+    }
+    setDragPresetId(null);
+    setDragOverPresetId(null);
+  }, [dragPresetId, dragOverPresetId, presets, user?.id]);
+
+  // Live preview of reordered presets while dragging
+  const previewPresets = useMemo(() => {
+    if (!dragPresetId || !dragOverPresetId || dragPresetId === dragOverPresetId) return presets;
+    const ids = presets.map(p => p.id);
+    const fromIdx = ids.indexOf(dragPresetId);
+    const toIdx = ids.indexOf(dragOverPresetId);
+    if (fromIdx === -1 || toIdx === -1) return presets;
+    const next = [...presets];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, moved);
+    return next;
+  }, [presets, dragPresetId, dragOverPresetId]);
+
   // Clear active preset when user manually changes any setting
   useEffect(() => {
     if (isLoadingPresetRef.current) return;
@@ -929,32 +968,88 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
       <div>
         {/* Preset bar + control bar — hidden in readOnly mode (guest live view + replay) */}
         {readOnly ? null : <>
-        {/* Preset selector bar */}
+        {/* Preset selector bar — wraps on mobile, scrolls on desktop */}
         {(presets.length > 0 || showSavePreset) && (
-          <div className="flex items-center gap-1.5 w-full mb-1 px-1 md:px-2 overflow-x-auto scrollbar-hide">
+          <div className={`flex items-center gap-1.5 w-full mb-1 px-1 md:px-2 ${
+            isMobile
+              ? presetsExpanded ? 'flex-wrap' : 'flex-nowrap overflow-hidden'
+              : 'overflow-x-auto scrollbar-hide'
+          }`} style={isMobile && !presetsExpanded ? { maxHeight: 32 } : undefined}>
             <Bookmark className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-            {presets.map(p => (
-              <div key={p.id} className="flex-shrink-0 relative group">
-                <button
-                  onClick={() => handleLoadPreset(p)}
-                  className={`px-2.5 py-1 rounded-full text-[10px] md:text-xs font-medium transition-colors ${
-                    activePresetId === p.id
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted hover:bg-muted/70 text-foreground'
-                  }`}
-                  title={`Load "${p.name}" — applies saved planets, aspects, theme, and display settings`}
+            {previewPresets.map(p => {
+              const isDragging = dragPresetId === p.id;
+              return (
+                <div
+                  key={p.id}
+                  className="flex-shrink-0 relative group"
+                  style={{
+                    transition: dragPresetId ? 'transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s ease' : 'none',
+                    transform: isDragging ? 'scale(1.1)' : 'scale(1)',
+                    opacity: isDragging ? 0.5 : 1,
+                    zIndex: isDragging ? 10 : 0,
+                    filter: isDragging ? 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))' : 'none',
+                  }}
+                  draggable
+                  onDragStart={(e) => { setDragPresetId(p.id); e.dataTransfer.effectAllowed = 'move'; }}
+                  onDragOver={(e) => { e.preventDefault(); setDragOverPresetId(p.id); }}
+                  onDragEnter={() => setDragOverPresetId(p.id)}
+                  onDragEnd={handlePresetDragEnd}
+                  onTouchStart={(e) => {
+                    dragStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                    dragLongPressTimer.current = setTimeout(() => {
+                      setDragPresetId(p.id);
+                    }, 400);
+                  }}
+                  onTouchMove={(e) => {
+                    if (dragLongPressTimer.current && dragStartPos.current) {
+                      const dx = Math.abs(e.touches[0].clientX - dragStartPos.current.x);
+                      const dy = Math.abs(e.touches[0].clientY - dragStartPos.current.y);
+                      if (dx > 8 || dy > 8) { clearTimeout(dragLongPressTimer.current); dragLongPressTimer.current = null; }
+                    }
+                    if (dragPresetId) {
+                      const touch = e.touches[0];
+                      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+                      const presetEl = el?.closest('[data-preset-id]');
+                      if (presetEl) setDragOverPresetId(presetEl.getAttribute('data-preset-id'));
+                    }
+                  }}
+                  onTouchEnd={() => {
+                    if (dragLongPressTimer.current) { clearTimeout(dragLongPressTimer.current); dragLongPressTimer.current = null; }
+                    if (dragPresetId) handlePresetDragEnd();
+                  }}
+                  data-preset-id={p.id}
                 >
-                  {p.name}
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleDeletePreset(p.id); }}
-                  className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                  title={`Delete preset "${p.name}"`}
-                >
-                  <X className="w-2 h-2" />
-                </button>
-              </div>
-            ))}
+                  <button
+                    onClick={() => { if (!dragPresetId) handleLoadPreset(p); }}
+                    className={`px-2.5 py-1 rounded-full text-[10px] md:text-xs font-medium transition-colors ${
+                      activePresetId === p.id
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted hover:bg-muted/70 text-foreground'
+                    }`}
+                    title={`Load "${p.name}" — applies saved planets, aspects, theme, and display settings`}
+                  >
+                    {p.name}
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeletePreset(p.id); }}
+                    className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    title={`Delete preset "${p.name}"`}
+                  >
+                    <X className="w-2 h-2" />
+                  </button>
+                </div>
+              );
+            })}
+            {/* Expand/collapse toggle on mobile when presets overflow */}
+            {isMobile && presets.length > 3 && (
+              <button
+                onClick={() => setPresetsExpanded(v => !v)}
+                className="flex-shrink-0 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                title={presetsExpanded ? 'Collapse presets' : 'Show all presets'}
+              >
+                {presetsExpanded ? '▲' : `+${presets.length - 3}`}
+              </button>
+            )}
             {showSavePreset ? (
               <form
                 className="flex items-center gap-1 flex-shrink-0"
@@ -1012,17 +1107,21 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
             </button>
           ) : <div />}
           <div className="flex items-center gap-1 md:gap-2">
-            {/* Settings button (mobile - opens drawer) */}
-            {isMobile && (
-              <button
-                onClick={() => setDrawerOpen(true)}
-                className="flex items-center gap-1 px-2 py-1.5 md:px-2.5 md:py-2 rounded-lg bg-muted hover:bg-muted/70 transition-colors"
-                title="Chart options"
-              >
-                <Settings2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                <span className="text-[10px] md:text-xs">Options</span>
-              </button>
-            )}
+            {/* Settings button — mobile opens drawer, desktop toggles sidebar panel */}
+            <button
+              onClick={() => {
+                if (isMobile) {
+                  setDrawerOpen(true);
+                } else {
+                  setTogglePanelCollapsed(prev => !prev);
+                }
+              }}
+              className="flex items-center gap-1 px-2 py-1.5 md:px-2.5 md:py-2 rounded-lg bg-muted hover:bg-muted/70 transition-colors"
+              title="Chart options"
+            >
+              <Settings2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              <span className="text-[10px] md:text-xs">Options</span>
+            </button>
 
             {/* Share button */}
             <div className="relative">
@@ -1177,6 +1276,9 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
               initialTimeShiftB: timeShiftB,
               onTimeShiftAChange: (offset: number) => { setTimeShiftA(offset); biWheelProps.onTimeShiftAChange?.(offset); },
               onTimeShiftBChange: (offset: number) => { setTimeShiftB(offset); biWheelProps.onTimeShiftBChange?.(offset); },
+              // Controlled toggle panel collapsed state (desktop)
+              togglePanelCollapsed,
+              onTogglePanelCollapsedChange: setTogglePanelCollapsed,
             };
 
             return isMobile ? (

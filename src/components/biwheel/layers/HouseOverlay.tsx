@@ -17,6 +17,10 @@ export interface HouseHoverData {
   name: string; // Person's name
 }
 
+// Smooth animation timing for birth-time shift scrubbing
+const HOUSE_SMOOTH_EASE = 'cubic-bezier(0.25, 0.1, 0.25, 1)';
+const HOUSE_SMOOTH_DURATION = '0.5s';
+
 interface HouseOverlayProps {
   dimensions: ChartDimensions;
   chart: NatalChart; // Person A's chart (outer house ring)
@@ -30,6 +34,7 @@ interface HouseOverlayProps {
   zodiacVantage?: number | null; // Override 1st house sign (0-11, null = use Ascendant)
   hideOuterHouseRing?: boolean; // Hide entire outer house ring (single-wheel mode)
   visiblePlanets?: Set<string>; // Controls which angle labels (AC/DC/MC/IC) are shown
+  smoothTransitions?: boolean; // Animate house cusps smoothly during birth-time shift
 }
 
 /**
@@ -205,7 +210,14 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
   zodiacVantage = null,
   hideOuterHouseRing = false,
   visiblePlanets,
+  smoothTransitions = false,
 }) => {
+  const houseTransitionStyle: React.CSSProperties = smoothTransitions
+    ? { transition: `x1 ${HOUSE_SMOOTH_DURATION} ${HOUSE_SMOOTH_EASE}, y1 ${HOUSE_SMOOTH_DURATION} ${HOUSE_SMOOTH_EASE}, x2 ${HOUSE_SMOOTH_DURATION} ${HOUSE_SMOOTH_EASE}, y2 ${HOUSE_SMOOTH_DURATION} ${HOUSE_SMOOTH_EASE}` }
+    : {};
+  const houseTextTransitionStyle: React.CSSProperties = smoothTransitions
+    ? { transition: `x ${HOUSE_SMOOTH_DURATION} ${HOUSE_SMOOTH_EASE}, y ${HOUSE_SMOOTH_DURATION} ${HOUSE_SMOOTH_EASE}` }
+    : {};
   const colorA = getThemeAwarePersonColor('A');
   const colorB = getThemeAwarePersonColor('B');
 
@@ -236,7 +248,7 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
   // Extended house cusp lines (faint lines through chart)
   // A's cusps extend from zodiac inward to the midpoint (tickBToA)
   const extendedCuspsA = React.useMemo(
-    () => chart?.houses && tickBToA
+    () => (chart?.houses || chart?.angles?.ascendant !== undefined) && tickBToA
       ? generateHouseCusps(chart, cx, cy, tickBToA, zodiacInner, rotationOffset, zodiacVantage)
       : [],
     [chart, cx, cy, tickBToA, zodiacInner, rotationOffset, zodiacVantage]
@@ -244,7 +256,7 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
 
   // B's cusps extend from inner house ring outward to the midpoint (tickBToA)
   const extendedCuspsB = React.useMemo(
-    () => chartB?.houses && tickBToA && houseRingOuter
+    () => (chartB?.houses || chartB?.angles?.ascendant !== undefined) && tickBToA && houseRingOuter
       ? generateHouseCusps(chartB, cx, cy, houseRingOuter, tickBToA, rotationOffset, zodiacVantage)
       : [],
     [chartB, cx, cy, houseRingOuter, tickBToA, rotationOffset, zodiacVantage]
@@ -315,6 +327,7 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
             strokeWidth={isAngular ? 2 : 1}
             strokeOpacity={isAngular ? 0.6 : 0.4}
             strokeDasharray={isAngular ? 'none' : '4,4'}
+            style={houseTransitionStyle}
           />
         );
       })}
@@ -331,6 +344,7 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
             strokeWidth={isAngular ? 2 : 1}
             strokeOpacity={isAngular ? 0.6 : 0.4}
             strokeDasharray={isAngular ? 'none' : '4,4'}
+            style={houseTransitionStyle}
           />
         );
       })}
@@ -376,6 +390,7 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
                 stroke={colorB}
                 strokeWidth={isAngular ? 2.5 : 1.5}
                 strokeOpacity={1}
+                style={houseTransitionStyle}
               />
             )}
             {/* House number with hover area — always visible */}
@@ -392,7 +407,7 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
                   cy={cusp.houseNumberPos.y}
                   r={12}
                   fill="rgba(0,0,0,0)"
-                  style={{ pointerEvents: 'all' }}
+                  style={{ pointerEvents: 'all', ...houseTextTransitionStyle }}
                 />
                 <text
                   x={cusp.houseNumberPos.x}
@@ -403,7 +418,7 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
                   fontFamily="Arial, sans-serif"
                   textAnchor="middle"
                   dominantBaseline="central"
-                  style={{ userSelect: 'none', pointerEvents: 'none' }}
+                  style={{ userSelect: 'none', pointerEvents: 'none', ...houseTextTransitionStyle }}
                 >
                   {cusp.house}
                 </text>
@@ -452,6 +467,7 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
                 stroke={colorA}
                 strokeWidth={isAngular ? 2 : 1}
                 strokeOpacity={isAngular ? 0.8 : 0.5}
+                style={houseTransitionStyle}
               />
             )}
             {/* House number with hover area — always visible */}
@@ -468,7 +484,7 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
                   cy={cusp.houseNumberPos.y}
                   r={12}
                   fill="rgba(0,0,0,0)"
-                  style={{ pointerEvents: 'all' }}
+                  style={{ pointerEvents: 'all', ...houseTextTransitionStyle }}
                 />
                 <text
                   x={cusp.houseNumberPos.x}
@@ -479,7 +495,7 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
                   fontFamily="Arial, sans-serif"
                   textAnchor="middle"
                   dominantBaseline="central"
-                  style={{ userSelect: 'none', pointerEvents: 'none' }}
+                  style={{ userSelect: 'none', pointerEvents: 'none', ...houseTextTransitionStyle }}
                 >
                   {cusp.house}
                 </text>
@@ -518,7 +534,7 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
                 fontFamily="'Inter', Arial, sans-serif"
                 textAnchor="middle"
                 dominantBaseline="central"
-                style={{ userSelect: 'none', pointerEvents: 'none' }}
+                style={{ userSelect: 'none', pointerEvents: 'none', ...houseTextTransitionStyle }}
               >
                 {label}
               </text>
@@ -548,6 +564,7 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
                 fontWeight="bold"
                 textAnchor="middle"
                 dominantBaseline="central"
+                style={houseTextTransitionStyle}
               >
                 {label}
               </text>

@@ -106,6 +106,9 @@ interface TogglePanelProps {
   onSetShowBirthTimeShift?: (show: boolean) => void;
   // Save defaults
   onSaveDefaults?: () => void;
+  // Controlled collapsed state (from parent)
+  collapsed?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
 }
 
 interface SectionProps {
@@ -456,9 +459,17 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
   onSetShowBirthTimeShift,
   // Save defaults
   onSaveDefaults,
+  // Controlled collapsed state
+  collapsed: collapsedProp,
+  onCollapsedChange,
 }) => {
   const [saveFlash, setSaveFlash] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsedInternal, setCollapsedInternal] = useState(false);
+  const collapsed = collapsedProp ?? collapsedInternal;
+  const setCollapsed = (v: boolean) => {
+    setCollapsedInternal(v);
+    onCollapsedChange?.(v);
+  };
 
   // Sync internal state with external showProgressed/showRelocated props
   const isProgressedActive = progressedPerson !== null;
@@ -533,24 +544,7 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
   };
 
   if (collapsed) {
-    return (
-      <button
-        onClick={() => setCollapsed(false)}
-        style={{
-          flexShrink: 0,
-          padding: '8px 12px',
-          background: COLORS.background,
-          border: `1px solid ${COLORS.gridLineFaint}`,
-          borderRadius: 6,
-          color: COLORS.textSecondary,
-          cursor: 'pointer',
-          fontSize: 12,
-          alignSelf: 'flex-start',
-        }}
-      >
-        Options
-      </button>
-    );
+    return null;
   }
 
   const majorAspects = Object.entries(ASPECTS).filter(([_, def]) => def.major);

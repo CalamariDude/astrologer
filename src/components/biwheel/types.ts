@@ -148,6 +148,8 @@ export interface BiWheelSynastryProps {
   nameA: string;
   nameB: string;
   showTogglePanel?: boolean;
+  togglePanelCollapsed?: boolean;
+  onTogglePanelCollapsedChange?: (collapsed: boolean) => void;
   hideZoomControls?: boolean;
   initialVisiblePlanets?: Set<string>;
   initialVisibleAspects?: Set<AspectType>;

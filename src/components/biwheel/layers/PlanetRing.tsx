@@ -19,9 +19,9 @@ import type { SynastryAspect } from '../utils/aspectCalculations';
 
 // Element colors resolved at render time via getElementColor()
 
-// Smooth animation timing (matches TransitRing)
-const SMOOTH_EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
-const SMOOTH_DURATION = '0.6s';
+// Smooth animation timing for birth-time shift scrubbing
+const SMOOTH_EASE = 'cubic-bezier(0.25, 0.1, 0.25, 1)';
+const SMOOTH_DURATION = '0.5s';
 
 
 interface PlanetRingProps {
@@ -45,58 +45,60 @@ interface PlanetRingProps {
 /**
  * Minimum spacing in degrees between displayed planets
  */
-const MIN_SPACING = 4;
-
 /**
- * Calculate angular difference accounting for 360° wraparound
+ * Soft repulsion collision avoidance (matches TransitRing algorithm).
+ *
+ * Every pair of planets within REPEL_ZONE exerts a smooth, proportional
+ * push. The closer they are, the stronger the push — but it ramps up
+ * gradually, so there is never a sudden jump. This gives buttery-smooth
+ * movement when planets shift (e.g. birth-time knob scrubbing).
  */
+const MIN_SPACING = 4;   // target spacing in degrees
+const REPEL_ZONE  = 8;   // planets further apart than this don't interact
+
+/** Signed angular difference (handles 0°/360° wrap), result in -180..180 */
 function angularDiff(a: number, b: number): number {
-  let diff = b - a;
-  while (diff > 180) diff -= 360;
-  while (diff < -180) diff += 360;
-  return diff;
+  let d = b - a;
+  if (d > 180) d -= 360;
+  if (d <= -180) d += 360;
+  return d;
 }
 
-/**
- * Collision resolution that preserves original longitude ordering.
- * Planets are sorted once by their true longitude, then pushed apart
- * without ever re-sorting — so their relative visual order always
- * matches the real chart order.
- */
 function resolveCollisions(planets: PlacedPlanet[]): void {
   if (planets.length < 2) return;
 
   // Sort ONCE by original longitude — this order is preserved throughout
   planets.sort((a, b) => a.longitude - b.longitude);
 
-  // Multiple passes to spread out clusters
-  for (let pass = 0; pass < 30; pass++) {
-    let hasCollision = false;
-
+  // Iterative soft-repulsion: each pass nudges overlapping pairs apart
+  for (let pass = 0; pass < 16; pass++) {
+    let anyPush = false;
     for (let i = 0; i < planets.length; i++) {
-      const current = planets[i];
-      const next = planets[(i + 1) % planets.length];
+      for (let j = i + 1; j < planets.length; j++) {
+        const gap = angularDiff(planets[i].displayLongitude, planets[j].displayLongitude);
+        const absGap = Math.abs(gap);
 
-      const diff = angularDiff(current.displayLongitude, next.displayLongitude);
-
-      if (Math.abs(diff) < MIN_SPACING && Math.abs(diff) > 0.01) {
-        hasCollision = true;
-        const adjustment = (MIN_SPACING - Math.abs(diff)) / 2 + 0.5;
-
-        current.hasCollision = true;
-        next.hasCollision = true;
-
-        // Always push current backward, next forward (preserves order)
-        current.displayLongitude -= adjustment;
-        next.displayLongitude += adjustment;
-
-        // Normalize to 0-360
-        current.displayLongitude = ((current.displayLongitude % 360) + 360) % 360;
-        next.displayLongitude = ((next.displayLongitude % 360) + 360) % 360;
+        if (absGap < REPEL_ZONE && absGap > 0.01) {
+          // Push proportionally: stronger when closer, gentle at edges
+          const strength = absGap < MIN_SPACING
+            ? (MIN_SPACING - absGap) * 0.4     // strong push below min spacing
+            : (REPEL_ZONE - absGap) * 0.05;    // gentle nudge in the buffer zone
+          const dir = gap > 0 ? 1 : -1;
+          planets[i].displayLongitude -= dir * strength;
+          planets[j].displayLongitude += dir * strength;
+          planets[i].hasCollision = true;
+          planets[j].hasCollision = true;
+          if (absGap < MIN_SPACING) anyPush = true;
+        }
       }
     }
 
-    if (!hasCollision) break;
+    // Normalize
+    for (const p of planets) {
+      p.displayLongitude = ((p.displayLongitude % 360) + 360) % 360;
+    }
+
+    if (!anyPush) break;
   }
 }
 
@@ -357,10 +359,25 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
     decanInner, tickBToA
   } = dimensions;
 
-  // Smooth transition style for birth time shift animation
-  const smoothStyle: React.CSSProperties = smoothTransitions
-    ? { transition: `x ${SMOOTH_DURATION} ${SMOOTH_EASE}, y ${SMOOTH_DURATION} ${SMOOTH_EASE}` }
-    : {};
+  // Smooth positioning: when active, uses GPU-accelerated CSS transform instead of SVG x/y attributes
+  // Returns { posProps, posStyle } — spread posProps on the element and merge posStyle into style
+  const smoothPos = (x: number, y: number, extraTransition?: string): { posProps: { x?: number; y?: number }; posStyle: React.CSSProperties } => {
+    if (!smoothTransitions) {
+      return {
+        posProps: { x, y },
+        posStyle: extraTransition ? { transition: extraTransition } : {},
+      };
+    }
+    const transitions = [`transform ${SMOOTH_DURATION} ${SMOOTH_EASE}`];
+    if (extraTransition) transitions.push(extraTransition);
+    return {
+      posProps: {},
+      posStyle: {
+        transform: `translate(${x}px, ${y}px)`,
+        transition: transitions.join(', '),
+      },
+    };
+  };
 
   // Determine which ring radius to use based on mode
   const isSingleWheel = mode === 'personA' || mode === 'personB' || mode === 'composite';
@@ -627,73 +644,83 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             onClick={(e) => { e.stopPropagation(); onPlanetClick?.(planet.key, 'A', e); }}
           >
             {/* Degree (innermost) */}
-            {degreePos && (
-              <text
-                x={degreePos.x}
-                y={degreePos.y}
-                fill={COLORS.textSecondary}
-                fontSize={degreeASize}
-                fontFamily="Arial, sans-serif"
-                fontWeight="bold"
-                textAnchor="middle"
-                dominantBaseline="central"
-                style={{ userSelect: 'none', ...smoothStyle }}
-              >
-                {degInSign}°
-              </text>
-            )}
+            {degreePos && (() => {
+              const sp = smoothPos(degreePos.x, degreePos.y);
+              return (
+                <text
+                  {...sp.posProps}
+                  fill={COLORS.textSecondary}
+                  fontSize={degreeASize}
+                  fontFamily="Arial, sans-serif"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  style={{ userSelect: 'none', ...sp.posStyle }}
+                >
+                  {degInSign}°
+                </text>
+              );
+            })()}
 
             {/* Degree symbol (between degrees and minutes, colored by degree element) */}
-            {signPos && (
-              <text
-                x={signPos.x}
-                y={signPos.y}
-                fill={getSignColor(deg.degreeIndex * 30)}
-                fontSize={highlighted ? signASize * highlightScale : signASize}
-                fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
-                fontWeight="bold"
-                textAnchor="middle"
-                dominantBaseline="central"
-                style={{ userSelect: 'none', transition: `font-size 0.15s ease-out${smoothTransitions ? `, x ${SMOOTH_DURATION} ${SMOOTH_EASE}, y ${SMOOTH_DURATION} ${SMOOTH_EASE}` : ''}` }}
-              >
-                {deg.degreeSymbol}
-              </text>
-            )}
+            {signPos && (() => {
+              const sp = smoothPos(signPos.x, signPos.y, 'font-size 0.15s ease-out');
+              return (
+                <text
+                  {...sp.posProps}
+                  fill={getSignColor(deg.degreeIndex * 30)}
+                  fontSize={highlighted ? signASize * highlightScale : signASize}
+                  fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  style={{ userSelect: 'none', ...sp.posStyle }}
+                >
+                  {deg.degreeSymbol}
+                </text>
+              );
+            })()}
 
             {/* Minutes */}
-            {minutePos && (
-              <text
-                x={minutePos.x}
-                y={minutePos.y}
-                fill={COLORS.textSecondary}
-                fontSize={minuteASize}
-                fontFamily="Arial, sans-serif"
-                textAnchor="middle"
-                dominantBaseline="central"
-                style={{ userSelect: 'none', ...smoothStyle }}
-              >
-                {minutes.toString().padStart(2, '0')}'
-              </text>
-            )}
+            {minutePos && (() => {
+              const sp = smoothPos(minutePos.x, minutePos.y);
+              return (
+                <text
+                  {...sp.posProps}
+                  fill={COLORS.textSecondary}
+                  fontSize={minuteASize}
+                  fontFamily="Arial, sans-serif"
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  style={{ userSelect: 'none', ...sp.posStyle }}
+                >
+                  {minutes.toString().padStart(2, '0')}'
+                </text>
+              );
+            })()}
 
             {/* Planet symbol (outermost) - enlarged when highlighted, smaller for angles/asteroids */}
-            <text
-              x={planetPos.x}
-              y={planetPos.y}
-              fill={planetColor}
-              fontSize={getPlanetFontSize(planet.key, true, highlighted)}
-              fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
-              fontWeight="900"
-              textAnchor="middle"
-              dominantBaseline="central"
-              style={{ userSelect: 'none', transition: `font-size 0.15s ease-out${smoothTransitions ? `, x ${SMOOTH_DURATION} ${SMOOTH_EASE}, y ${SMOOTH_DURATION} ${SMOOTH_EASE}` : ''}` }}
-              stroke={planetColor}
-              strokeWidth={isAsteroid(planet.key) ? 0.3 : 0.5}
-              {...(textRotation ? { transform: `rotate(${textRotation}, ${planetPos.x}, ${planetPos.y})` } : {})}
-            >
-              {getPlanetDescription(planet.key) && <title>{getPlanetDescription(planet.key)}</title>}
-              {getPlanetSymbol(planet.key)}
-            </text>
+            {(() => {
+              const sp = smoothPos(planetPos.x, planetPos.y, 'font-size 0.15s ease-out');
+              return (
+                <text
+                  {...sp.posProps}
+                  fill={planetColor}
+                  fontSize={getPlanetFontSize(planet.key, true, highlighted)}
+                  fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
+                  fontWeight="900"
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  style={{ userSelect: 'none', ...sp.posStyle }}
+                  stroke={planetColor}
+                  strokeWidth={isAsteroid(planet.key) ? 0.3 : 0.5}
+                  {...(!smoothTransitions && textRotation ? { transform: `rotate(${textRotation}, ${planetPos.x}, ${planetPos.y})` } : {})}
+                >
+                  {getPlanetDescription(planet.key) && <title>{getPlanetDescription(planet.key)}</title>}
+                  {getPlanetSymbol(planet.key)}
+                </text>
+              );
+            })()}
 
             {/* Retrograde indicator */}
             {showRetrogrades && planet.data.retrograde && (() => {
@@ -757,73 +784,83 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             onClick={(e) => { e.stopPropagation(); onPlanetClick?.(planet.key, 'B', e); }}
           >
             {/* Degree (innermost) */}
-            {degreePos && (
-              <text
-                x={degreePos.x}
-                y={degreePos.y}
-                fill={COLORS.textSecondary}
-                fontSize={degreeBSize}
-                fontFamily="Arial, sans-serif"
-                fontWeight="bold"
-                textAnchor="middle"
-                dominantBaseline="central"
-                style={{ userSelect: 'none' }}
-              >
-                {degInSign}°
-              </text>
-            )}
+            {degreePos && (() => {
+              const sp = smoothPos(degreePos.x, degreePos.y);
+              return (
+                <text
+                  {...sp.posProps}
+                  fill={COLORS.textSecondary}
+                  fontSize={degreeBSize}
+                  fontFamily="Arial, sans-serif"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  style={{ userSelect: 'none', ...sp.posStyle }}
+                >
+                  {degInSign}°
+                </text>
+              );
+            })()}
 
             {/* Degree symbol (between degrees and minutes, colored by degree element) */}
-            {signPos && (
-              <text
-                x={signPos.x}
-                y={signPos.y}
-                fill={getSignColor(deg.degreeIndex * 30)}
-                fontSize={highlighted ? signBSize * highlightScale : signBSize}
-                fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
-                fontWeight="bold"
-                textAnchor="middle"
-                dominantBaseline="central"
-                style={{ userSelect: 'none', transition: 'font-size 0.15s ease-out' }}
-              >
-                {deg.degreeSymbol}
-              </text>
-            )}
+            {signPos && (() => {
+              const sp = smoothPos(signPos.x, signPos.y, 'font-size 0.15s ease-out');
+              return (
+                <text
+                  {...sp.posProps}
+                  fill={getSignColor(deg.degreeIndex * 30)}
+                  fontSize={highlighted ? signBSize * highlightScale : signBSize}
+                  fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  style={{ userSelect: 'none', ...sp.posStyle }}
+                >
+                  {deg.degreeSymbol}
+                </text>
+              );
+            })()}
 
             {/* Minutes */}
-            {minutePos && (
-              <text
-                x={minutePos.x}
-                y={minutePos.y}
-                fill={COLORS.textSecondary}
-                fontSize={minuteBSize}
-                fontFamily="Arial, sans-serif"
-                textAnchor="middle"
-                dominantBaseline="central"
-                style={{ userSelect: 'none' }}
-              >
-                {minutes.toString().padStart(2, '0')}'
-              </text>
-            )}
+            {minutePos && (() => {
+              const sp = smoothPos(minutePos.x, minutePos.y);
+              return (
+                <text
+                  {...sp.posProps}
+                  fill={COLORS.textSecondary}
+                  fontSize={minuteBSize}
+                  fontFamily="Arial, sans-serif"
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  style={{ userSelect: 'none', ...sp.posStyle }}
+                >
+                  {minutes.toString().padStart(2, '0')}'
+                </text>
+              );
+            })()}
 
             {/* Planet symbol (outermost) - enlarged when highlighted, smaller for angles/asteroids */}
-            <text
-              x={planetPos.x}
-              y={planetPos.y}
-              fill={planetColor}
-              fontSize={getPlanetFontSize(planet.key, false, highlighted)}
-              fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
-              fontWeight="900"
-              textAnchor="middle"
-              dominantBaseline="central"
-              style={{ userSelect: 'none', transition: 'font-size 0.15s ease-out' }}
-              stroke={planetColor}
-              strokeWidth={isAsteroid(planet.key) ? 0.3 : 0.5}
-              {...(textRotation ? { transform: `rotate(${textRotation}, ${planetPos.x}, ${planetPos.y})` } : {})}
-            >
-              {getPlanetDescription(planet.key) && <title>{getPlanetDescription(planet.key)}</title>}
-              {getPlanetSymbol(planet.key)}
-            </text>
+            {(() => {
+              const sp = smoothPos(planetPos.x, planetPos.y, 'font-size 0.15s ease-out');
+              return (
+                <text
+                  {...sp.posProps}
+                  fill={planetColor}
+                  fontSize={getPlanetFontSize(planet.key, false, highlighted)}
+                  fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
+                  fontWeight="900"
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  style={{ userSelect: 'none', ...sp.posStyle }}
+                  stroke={planetColor}
+                  strokeWidth={isAsteroid(planet.key) ? 0.3 : 0.5}
+                  {...(!smoothTransitions && textRotation ? { transform: `rotate(${textRotation}, ${planetPos.x}, ${planetPos.y})` } : {})}
+                >
+                  {getPlanetDescription(planet.key) && <title>{getPlanetDescription(planet.key)}</title>}
+                  {getPlanetSymbol(planet.key)}
+                </text>
+              );
+            })()}
 
             {/* Retrograde indicator */}
             {showRetrogrades && planet.data.retrograde && (() => {
@@ -880,73 +917,83 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             onClick={(e) => { e.stopPropagation(); onPlanetClick?.(planet.key, 'Composite', e); }}
           >
             {/* Degree (innermost) */}
-            {degreePos && (
-              <text
-                x={degreePos.x}
-                y={degreePos.y}
-                fill={COLORS.textSecondary}
-                fontSize={degreeASize}
-                fontFamily="Arial, sans-serif"
-                fontWeight="bold"
-                textAnchor="middle"
-                dominantBaseline="central"
-                style={{ userSelect: 'none', ...smoothStyle }}
-              >
-                {degInSign}°
-              </text>
-            )}
+            {degreePos && (() => {
+              const sp = smoothPos(degreePos.x, degreePos.y);
+              return (
+                <text
+                  {...sp.posProps}
+                  fill={COLORS.textSecondary}
+                  fontSize={degreeASize}
+                  fontFamily="Arial, sans-serif"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  style={{ userSelect: 'none', ...sp.posStyle }}
+                >
+                  {degInSign}°
+                </text>
+              );
+            })()}
 
             {/* Degree symbol (between degrees and minutes, colored by degree element) */}
-            {signPos && (
-              <text
-                x={signPos.x}
-                y={signPos.y}
-                fill={getSignColor(deg.degreeIndex * 30)}
-                fontSize={highlighted ? signASize * highlightScale : signASize}
-                fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
-                fontWeight="bold"
-                textAnchor="middle"
-                dominantBaseline="central"
-                style={{ userSelect: 'none', transition: `font-size 0.15s ease-out${smoothTransitions ? `, x ${SMOOTH_DURATION} ${SMOOTH_EASE}, y ${SMOOTH_DURATION} ${SMOOTH_EASE}` : ''}` }}
-              >
-                {deg.degreeSymbol}
-              </text>
-            )}
+            {signPos && (() => {
+              const sp = smoothPos(signPos.x, signPos.y, 'font-size 0.15s ease-out');
+              return (
+                <text
+                  {...sp.posProps}
+                  fill={getSignColor(deg.degreeIndex * 30)}
+                  fontSize={highlighted ? signASize * highlightScale : signASize}
+                  fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  style={{ userSelect: 'none', ...sp.posStyle }}
+                >
+                  {deg.degreeSymbol}
+                </text>
+              );
+            })()}
 
             {/* Minutes */}
-            {minutePos && (
-              <text
-                x={minutePos.x}
-                y={minutePos.y}
-                fill={COLORS.textSecondary}
-                fontSize={minuteASize}
-                fontFamily="Arial, sans-serif"
-                textAnchor="middle"
-                dominantBaseline="central"
-                style={{ userSelect: 'none', ...smoothStyle }}
-              >
-                {minutes.toString().padStart(2, '0')}'
-              </text>
-            )}
+            {minutePos && (() => {
+              const sp = smoothPos(minutePos.x, minutePos.y);
+              return (
+                <text
+                  {...sp.posProps}
+                  fill={COLORS.textSecondary}
+                  fontSize={minuteASize}
+                  fontFamily="Arial, sans-serif"
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  style={{ userSelect: 'none', ...sp.posStyle }}
+                >
+                  {minutes.toString().padStart(2, '0')}'
+                </text>
+              );
+            })()}
 
             {/* Planet symbol (outermost) - enlarged when highlighted, smaller for angles/asteroids */}
-            <text
-              x={planetPos.x}
-              y={planetPos.y}
-              fill={planetColor}
-              fontSize={getPlanetFontSize(planet.key, true, highlighted)}
-              fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
-              fontWeight="900"
-              textAnchor="middle"
-              dominantBaseline="central"
-              style={{ userSelect: 'none', transition: `font-size 0.15s ease-out${smoothTransitions ? `, x ${SMOOTH_DURATION} ${SMOOTH_EASE}, y ${SMOOTH_DURATION} ${SMOOTH_EASE}` : ''}` }}
-              stroke={planetColor}
-              strokeWidth={isAsteroid(planet.key) ? 0.3 : 0.5}
-              {...(textRotation ? { transform: `rotate(${textRotation}, ${planetPos.x}, ${planetPos.y})` } : {})}
-            >
-              {getPlanetDescription(planet.key) && <title>{getPlanetDescription(planet.key)}</title>}
-              {getPlanetSymbol(planet.key)}
-            </text>
+            {(() => {
+              const sp = smoothPos(planetPos.x, planetPos.y, 'font-size 0.15s ease-out');
+              return (
+                <text
+                  {...sp.posProps}
+                  fill={planetColor}
+                  fontSize={getPlanetFontSize(planet.key, true, highlighted)}
+                  fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
+                  fontWeight="900"
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  style={{ userSelect: 'none', ...sp.posStyle }}
+                  stroke={planetColor}
+                  strokeWidth={isAsteroid(planet.key) ? 0.3 : 0.5}
+                  {...(!smoothTransitions && textRotation ? { transform: `rotate(${textRotation}, ${planetPos.x}, ${planetPos.y})` } : {})}
+                >
+                  {getPlanetDescription(planet.key) && <title>{getPlanetDescription(planet.key)}</title>}
+                  {getPlanetSymbol(planet.key)}
+                </text>
+              );
+            })()}
 
             {/* Retrograde indicator */}
             {showRetrogrades && planet.data.retrograde && (() => {

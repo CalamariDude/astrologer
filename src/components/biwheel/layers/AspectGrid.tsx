@@ -50,6 +50,8 @@ interface AspectGridProps {
   straightLines?: boolean;
   /** Show animated flow particles */
   showEffects?: boolean;
+  /** Animate aspect lines smoothly during birth-time shift */
+  smoothTransitions?: boolean;
 }
 
 /**
@@ -231,7 +233,11 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
   declinationsB,
   straightLines = false,
   showEffects = true,
+  smoothTransitions = false,
 }) => {
+  const aspectTransitionStyle: React.CSSProperties = smoothTransitions
+    ? { transition: 'd 0.5s cubic-bezier(0.25, 0.1, 0.25, 1)' }
+    : {};
   const { cx, cy, planetARing, planetBRing, innerCircle, singlePlanetRing } = dimensions;
   const isSingleWheel = mode !== 'synastry';
 
@@ -341,7 +347,7 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
                 strokeOpacity={line.opacity}
                 strokeLinecap="round"
                 filter={isHighlighted ? `url(#${idPrefix}-glow-strong)` : undefined}
-                style={{ cursor: onAspectClick ? 'pointer' : 'default' }}
+                style={{ cursor: onAspectClick ? 'pointer' : 'default', ...aspectTransitionStyle }}
                 onClick={(e) => { e.stopPropagation(); onAspectClick?.(line.aspect, e); }}
                 onMouseEnter={(e) => onAspectHover?.(line.aspect, e)}
                 onMouseLeave={() => onAspectHover?.(null)}
@@ -361,6 +367,7 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
                     strokeOpacity={0.2}
                     strokeLinecap="round"
                     filter={`url(#${idPrefix}-glow-strong)`}
+                    style={aspectTransitionStyle}
                   />
                 )}
 
@@ -374,7 +381,7 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
                   strokeDasharray={dashArray}
                   strokeLinecap="round"
                   filter={isHighlighted ? `url(#${idPrefix}-glow)` : undefined}
-                  style={{ cursor: onAspectClick ? 'pointer' : 'default' }}
+                  style={{ cursor: onAspectClick ? 'pointer' : 'default', ...aspectTransitionStyle }}
                   onClick={(e) => { e.stopPropagation(); onAspectClick?.(line.aspect, e); }}
                   onMouseEnter={(e) => onAspectHover?.(line.aspect, e)}
                   onMouseLeave={() => onAspectHover?.(null)}

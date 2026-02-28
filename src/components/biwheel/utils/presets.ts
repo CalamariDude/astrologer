@@ -68,6 +68,18 @@ export function deletePreset(id: string): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
 }
 
+export function reorderPresets(orderedIds: string[]): ChartPreset[] {
+  const presets = loadPresets();
+  const byId = new Map(presets.map(p => [p.id, p]));
+  const reordered = orderedIds.map(id => byId.get(id)).filter(Boolean) as ChartPreset[];
+  // Append any that weren't in orderedIds (safety)
+  for (const p of presets) {
+    if (!orderedIds.includes(p.id)) reordered.push(p);
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(reordered));
+  return reordered;
+}
+
 export function renamePreset(id: string, name: string): void {
   const presets = loadPresets();
   const preset = presets.find(p => p.id === id);

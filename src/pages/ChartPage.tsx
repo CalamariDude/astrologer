@@ -174,7 +174,7 @@ function InlineBirthForm({
   const inputBase = "w-full bg-transparent text-sm placeholder:text-muted-foreground/50 focus:outline-none";
 
   return (
-    <div className="rounded-xl border border-border/60 bg-gradient-to-b from-card to-card/80 shadow-sm overflow-hidden">
+    <div className="rounded-xl border border-border/60 bg-gradient-to-b from-card to-card/80 shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 bg-muted/30">
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{label}</h3>
@@ -232,23 +232,24 @@ function InlineBirthForm({
                 }
               }}
               onBlur={() => {
-                setTimeout(() => setShowNameDropdown(false), 150);
+                setTimeout(() => setShowNameDropdown(false), 250);
               }}
               className={inputBase}
               autoComplete="off"
             />
           </div>
           {showNameDropdown && nameSuggestions.length > 0 && (
-            <div className="absolute z-50 left-3 right-3 top-full mt-1 border border-border/60 rounded-lg bg-card shadow-lg max-h-44 overflow-y-auto">
+            <div className="absolute z-[100] left-0 right-0 top-full mt-1 border border-border/60 rounded-lg bg-card shadow-xl max-h-52 overflow-y-auto">
               {nameSuggestions.map((p, i) => (
                 <button
                   key={`${p.name}-${p.date}-${i}`}
                   onMouseDown={(e) => e.preventDefault()}
+                  onTouchStart={(e) => e.preventDefault()}
                   onClick={() => {
                     onChange({ name: p.name, date: p.date, time: p.time, location: p.location, lat: p.lat, lng: p.lng });
                     setShowNameDropdown(false);
                   }}
-                  className="w-full text-left px-3 py-2.5 text-sm hover:bg-muted/60 border-b border-border/20 last:border-0 transition-colors"
+                  className="w-full text-left px-3 py-3 text-sm hover:bg-muted/60 active:bg-muted/80 border-b border-border/20 last:border-0 transition-colors"
                 >
                   <span className="font-medium">{p.name}</span>
                   <span className="text-xs text-muted-foreground/70 ml-2">
@@ -464,6 +465,42 @@ export default function ChartPage() {
   const [activeTabIndex, setActiveTabIndex] = useState(() => {
     return sessionRestore?.activeTabIndex ?? 0;
   });
+
+  // Tab drag-to-reorder state
+  const [dragTabIndex, setDragTabIndex] = useState<number | null>(null);
+  const [dragOverTabIndex, setDragOverTabIndex] = useState<number | null>(null);
+  const tabDragLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tabDragStartPos = useRef<{ x: number; y: number } | null>(null);
+
+  const handleTabDragEnd = useCallback(() => {
+    if (dragTabIndex !== null && dragOverTabIndex !== null && dragTabIndex !== dragOverTabIndex) {
+      setTabs(prev => {
+        const next = [...prev];
+        const [moved] = next.splice(dragTabIndex, 1);
+        next.splice(dragOverTabIndex, 0, moved);
+        // Adjust active tab index to follow the active tab
+        if (activeTabIndex === dragTabIndex) {
+          setActiveTabIndex(dragOverTabIndex);
+        } else if (dragTabIndex < activeTabIndex && dragOverTabIndex >= activeTabIndex) {
+          setActiveTabIndex(activeTabIndex - 1);
+        } else if (dragTabIndex > activeTabIndex && dragOverTabIndex <= activeTabIndex) {
+          setActiveTabIndex(activeTabIndex + 1);
+        }
+        return next;
+      });
+    }
+    setDragTabIndex(null);
+    setDragOverTabIndex(null);
+  }, [dragTabIndex, dragOverTabIndex, activeTabIndex]);
+
+  // Live preview of reordered tabs while dragging
+  const previewTabs = useMemo(() => {
+    if (dragTabIndex === null || dragOverTabIndex === null || dragTabIndex === dragOverTabIndex) return tabs.map((t, i) => ({ tab: t, origIndex: i }));
+    const items = tabs.map((t, i) => ({ tab: t, origIndex: i }));
+    const [moved] = items.splice(dragTabIndex, 1);
+    items.splice(dragOverTabIndex, 0, moved);
+    return items;
+  }, [tabs, dragTabIndex, dragOverTabIndex]);
 
   // Derived values from active chart tab
   const currentTab = tabs[Math.min(activeTabIndex, tabs.length - 1)];
@@ -1310,27 +1347,67 @@ export default function ChartPage() {
         <div className="border-b border-border/50 bg-muted/20">
           <div className="container px-2 md:px-6">
             <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-hide py-1">
-              {tabs.map((tab, i) => (
-                <button
-                  key={tab.id}
-                  onClick={() => handleSwitchTab(i)}
-                  className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-xs font-medium transition-colors whitespace-nowrap ${
-                    i === activeTabIndex
-                      ? 'bg-background text-foreground border border-b-0 border-border/50'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                  }`}
-                >
-                  <span className="max-w-[120px] truncate">{getTabLabel(tab)}</span>
-                  {tabs.length > 1 && (
-                    <span
-                      onClick={(e) => { e.stopPropagation(); handleCloseTab(i); }}
-                      className="w-4 h-4 flex items-center justify-center rounded-sm opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:bg-muted transition-opacity cursor-pointer"
-                    >
-                      <X className="w-2.5 h-2.5" />
-                    </span>
-                  )}
-                </button>
-              ))}
+              {previewTabs.map(({ tab, origIndex }) => {
+                const isDragging = dragTabIndex === origIndex;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => { if (dragTabIndex === null) handleSwitchTab(origIndex); }}
+                    className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-xs font-medium whitespace-nowrap ${
+                      origIndex === activeTabIndex
+                        ? 'bg-background text-foreground border border-b-0 border-border/50'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    }`}
+                    style={{
+                      transition: dragTabIndex !== null ? 'transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s ease, box-shadow 0.2s ease' : 'color 0.15s',
+                      transform: isDragging ? 'scale(1.08)' : 'scale(1)',
+                      opacity: isDragging ? 0.5 : 1,
+                      zIndex: isDragging ? 10 : 0,
+                      position: 'relative',
+                      boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
+                    }}
+                    draggable
+                    onDragStart={() => setDragTabIndex(origIndex)}
+                    onDragOver={(e) => { e.preventDefault(); setDragOverTabIndex(origIndex); }}
+                    onDragEnter={() => setDragOverTabIndex(origIndex)}
+                    onDragEnd={handleTabDragEnd}
+                    onTouchStart={(e) => {
+                      tabDragStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                      tabDragLongPressTimer.current = setTimeout(() => {
+                        setDragTabIndex(origIndex);
+                      }, 400);
+                    }}
+                    onTouchMove={(e) => {
+                      if (tabDragLongPressTimer.current && tabDragStartPos.current) {
+                        const dx = Math.abs(e.touches[0].clientX - tabDragStartPos.current.x);
+                        const dy = Math.abs(e.touches[0].clientY - tabDragStartPos.current.y);
+                        if (dx > 8 || dy > 8) { clearTimeout(tabDragLongPressTimer.current); tabDragLongPressTimer.current = null; }
+                      }
+                      if (dragTabIndex !== null) {
+                        const touch = e.touches[0];
+                        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+                        const tabEl = el?.closest('[data-tab-index]');
+                        if (tabEl) setDragOverTabIndex(Number(tabEl.getAttribute('data-tab-index')));
+                      }
+                    }}
+                    onTouchEnd={() => {
+                      if (tabDragLongPressTimer.current) { clearTimeout(tabDragLongPressTimer.current); tabDragLongPressTimer.current = null; }
+                      if (dragTabIndex !== null) handleTabDragEnd();
+                    }}
+                    data-tab-index={origIndex}
+                  >
+                    <span className="max-w-[120px] truncate">{getTabLabel(tab)}</span>
+                    {tabs.length > 1 && (
+                      <span
+                        onClick={(e) => { e.stopPropagation(); handleCloseTab(origIndex); }}
+                        className="w-4 h-4 flex items-center justify-center rounded-sm opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:bg-muted transition-opacity cursor-pointer"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
               {tabs.length < 10 && (
                 <button
                   onClick={handleNewTab}
