@@ -73,6 +73,7 @@ export const GuestSessionView: React.FC<GuestSessionViewProps> = ({ session }) =
 
   const dailyRef = useRef<any>(null);
   const broadcastRef = useRef<BroadcastManager | null>(null);
+  const remoteAudioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
 
   const hostDisconnected = now - lastHeartbeat > 30_000;
 
@@ -163,6 +164,17 @@ export const GuestSessionView: React.FC<GuestSessionViewProps> = ({ session }) =
           });
         }
         if (event.track?.kind === 'audio') {
+          // Create an <audio> element to play remote audio (createCallObject doesn't auto-play)
+          const audioStream = new MediaStream([event.track]);
+          const audioEl = document.createElement('audio');
+          audioEl.srcObject = audioStream;
+          audioEl.autoplay = true;
+          audioEl.playsInline = true;
+          audioEl.style.display = 'none';
+          document.body.appendChild(audioEl);
+          audioEl.play().catch(() => {});
+          remoteAudioElementsRef.current.set(pid, audioEl);
+
           setRemoteParticipants((prev) => {
             if (prev.find((p) => p.id === pid)) return prev;
             return [...prev, { id: pid, name: event.participant?.user_name || 'Participant', videoStream: null }];
@@ -178,6 +190,14 @@ export const GuestSessionView: React.FC<GuestSessionViewProps> = ({ session }) =
             prev.map((p) => p.id === pid ? { ...p, videoStream: null } : p)
           );
         }
+        if (event.track?.kind === 'audio') {
+          const audioEl = remoteAudioElementsRef.current.get(pid);
+          if (audioEl) {
+            audioEl.srcObject = null;
+            audioEl.remove();
+            remoteAudioElementsRef.current.delete(pid);
+          }
+        }
       });
 
       callObject.on('participant-joined', (event: any) => {
@@ -192,6 +212,13 @@ export const GuestSessionView: React.FC<GuestSessionViewProps> = ({ session }) =
       callObject.on('participant-left', (event: any) => {
         const pid = event.participant?.session_id;
         if (!pid) return;
+        // Clean up audio element
+        const audioEl = remoteAudioElementsRef.current.get(pid);
+        if (audioEl) {
+          audioEl.srcObject = null;
+          audioEl.remove();
+          remoteAudioElementsRef.current.delete(pid);
+        }
         setRemoteParticipants((prev) => prev.filter((p) => p.id !== pid));
       });
 
@@ -265,6 +292,12 @@ export const GuestSessionView: React.FC<GuestSessionViewProps> = ({ session }) =
     return () => {
       previewStream?.getTracks().forEach(t => t.stop());
       broadcastRef.current?.destroy();
+      // Clean up remote audio elements
+      remoteAudioElementsRef.current.forEach((audioEl) => {
+        audioEl.srcObject = null;
+        audioEl.remove();
+      });
+      remoteAudioElementsRef.current.clear();
       try { dailyRef.current?.leave(); } catch {}
       try { dailyRef.current?.destroy(); } catch {}
     };

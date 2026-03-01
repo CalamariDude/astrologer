@@ -4,7 +4,7 @@
  * Each tile shows video, speaking indicator, label pill, and initials placeholder when video is off.
  */
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { User } from 'lucide-react';
 import { getInitials } from './VideoFeed';
 
@@ -28,10 +28,7 @@ const VideoTile: React.FC<{
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hasVideo, setHasVideo] = useState(false);
 
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.srcObject = participant.stream;
-    }
+  const checkVideoTracks = useCallback(() => {
     if (participant.stream) {
       const videoTracks = participant.stream.getVideoTracks();
       setHasVideo(videoTracks.length > 0 && videoTracks[0].enabled && videoTracks[0].readyState === 'live');
@@ -39,6 +36,39 @@ const VideoTile: React.FC<{
       setHasVideo(false);
     }
   }, [participant.stream]);
+
+  useEffect(() => {
+    const videoEl = videoRef.current;
+    if (videoEl) {
+      videoEl.srcObject = participant.stream;
+      videoEl.play().catch(() => {});
+    }
+
+    checkVideoTracks();
+
+    if (!participant.stream) return;
+
+    const videoTracks = participant.stream.getVideoTracks();
+    const track = videoTracks[0];
+    if (!track) return;
+
+    const onEnded = () => setHasVideo(false);
+    const onMute = () => checkVideoTracks();
+    const onUnmute = () => {
+      checkVideoTracks();
+      if (videoEl) videoEl.play().catch(() => {});
+    };
+
+    track.addEventListener('ended', onEnded);
+    track.addEventListener('mute', onMute);
+    track.addEventListener('unmute', onUnmute);
+
+    return () => {
+      track.removeEventListener('ended', onEnded);
+      track.removeEventListener('mute', onMute);
+      track.removeEventListener('unmute', onUnmute);
+    };
+  }, [participant.stream, checkVideoTracks]);
 
   return (
     <div
@@ -50,28 +80,26 @@ const VideoTile: React.FC<{
         transition: 'border-color 0.2s, box-shadow 0.2s',
       }}
     >
-      {participant.stream && hasVideo ? (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted={participant.muted ?? false}
-          className="w-full h-full object-cover"
-          style={participant.mirrored ? { transform: 'scaleX(-1)' } : undefined}
-        />
-      ) : (
-        <>
-          <video ref={videoRef} autoPlay playsInline muted={participant.muted ?? false} className="hidden" />
-          <div className="w-full h-full flex items-center justify-center bg-zinc-800">
-            {participant.name ? (
-              <span className="text-white/70 font-semibold text-3xl">
-                {getInitials(participant.name)}
-              </span>
-            ) : (
-              <User className="text-white/40 w-10 h-10" />
-            )}
-          </div>
-        </>
+      {/* Always render one video element — hide visually when no video */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted={participant.muted ?? false}
+        className={`w-full h-full object-cover ${hasVideo ? '' : 'hidden'}`}
+        style={participant.mirrored ? { transform: 'scaleX(-1)' } : undefined}
+      />
+
+      {!hasVideo && (
+        <div className="w-full h-full flex items-center justify-center bg-zinc-800">
+          {participant.name ? (
+            <span className="text-white/70 font-semibold text-3xl">
+              {getInitials(participant.name)}
+            </span>
+          ) : (
+            <User className="text-white/40 w-10 h-10" />
+          )}
+        </div>
       )}
 
       {/* Label pill */}

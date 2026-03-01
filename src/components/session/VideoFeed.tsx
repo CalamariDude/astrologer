@@ -67,11 +67,8 @@ export const VideoFeed: React.FC<VideoFeedProps> = ({
   const resizeStartWidth = useRef(0);
   const resizeStartPosX = useRef(0);
 
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.srcObject = stream;
-    }
-    // Check if stream has an active video track
+  // Check if video tracks are live
+  const checkVideoTracks = useCallback(() => {
     if (stream) {
       const videoTracks = stream.getVideoTracks();
       setHasVideo(videoTracks.length > 0 && videoTracks[0].enabled && videoTracks[0].readyState === 'live');
@@ -79,6 +76,43 @@ export const VideoFeed: React.FC<VideoFeedProps> = ({
       setHasVideo(false);
     }
   }, [stream]);
+
+  // Set srcObject and listen for track state changes
+  useEffect(() => {
+    const videoEl = videoRef.current;
+    if (videoEl) {
+      videoEl.srcObject = stream;
+      // Force play in case autoplay is blocked
+      videoEl.play().catch(() => {});
+    }
+
+    checkVideoTracks();
+
+    if (!stream) return;
+
+    const videoTracks = stream.getVideoTracks();
+    const track = videoTracks[0];
+    if (!track) return;
+
+    // Listen for track state changes
+    const onEnded = () => setHasVideo(false);
+    const onMute = () => checkVideoTracks();
+    const onUnmute = () => {
+      checkVideoTracks();
+      // Re-play after unmute
+      if (videoEl) videoEl.play().catch(() => {});
+    };
+
+    track.addEventListener('ended', onEnded);
+    track.addEventListener('mute', onMute);
+    track.addEventListener('unmute', onUnmute);
+
+    return () => {
+      track.removeEventListener('ended', onEnded);
+      track.removeEventListener('mute', onMute);
+      track.removeEventListener('unmute', onUnmute);
+    };
+  }, [stream, checkVideoTracks]);
 
   const height = width / ASPECT_RATIO;
 
@@ -163,31 +197,27 @@ export const VideoFeed: React.FC<VideoFeedProps> = ({
       onPointerUp={onPointerUp}
       onDoubleClick={onDoubleClick}
     >
-      {/* Video or placeholder */}
-      {stream && hasVideo ? (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted={muted}
-          className="w-full h-full object-cover"
-          style={mirrored ? { transform: 'scaleX(-1)' } : undefined}
-        />
-      ) : (
-        <>
-          {/* Hidden video element to keep srcObject attached */}
-          <video ref={videoRef} autoPlay playsInline muted={muted} className="hidden" />
-          {/* Video-off placeholder */}
-          <div className="w-full h-full flex items-center justify-center bg-zinc-800">
-            {label ? (
-              <span className="text-white/70 font-semibold" style={{ fontSize: Math.max(16, width * 0.15) }}>
-                {getInitials(label)}
-              </span>
-            ) : (
-              <User className="text-white/40" style={{ width: Math.max(20, width * 0.2), height: Math.max(20, width * 0.2) }} />
-            )}
-          </div>
-        </>
+      {/* Always render one video element — hide visually when no video */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted={muted}
+        className={`w-full h-full object-cover ${hasVideo ? '' : 'hidden'}`}
+        style={mirrored ? { transform: 'scaleX(-1)' } : undefined}
+      />
+
+      {/* Video-off placeholder — shown when no live video track */}
+      {!hasVideo && (
+        <div className="w-full h-full flex items-center justify-center bg-zinc-800">
+          {label ? (
+            <span className="text-white/70 font-semibold" style={{ fontSize: Math.max(16, width * 0.15) }}>
+              {getInitials(label)}
+            </span>
+          ) : (
+            <User className="text-white/40" style={{ width: Math.max(20, width * 0.2), height: Math.max(20, width * 0.2) }} />
+          )}
+        </div>
       )}
 
       {/* Label — centered pill at bottom */}
