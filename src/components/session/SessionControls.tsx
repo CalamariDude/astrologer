@@ -1,11 +1,12 @@
 /**
  * SessionControls — Floating bar at bottom-center of chart when session is active
- * Shows timer, recording dot, mic/video toggle, guest status, pause/resume.
+ * Shows timer, recording dot, mic/video toggle, device picker, share link, guest status, pause/resume.
  * Ending the session is done via the toolbar "End Session" button.
  */
 
-import React from 'react';
-import { Mic, MicOff, Video, VideoOff, Pause, Play, UserCheck, UserX, LayoutGrid, Monitor } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Mic, MicOff, Video, VideoOff, Pause, Play, UserCheck, UserX, LayoutGrid, Monitor, Link2, ChevronUp, Camera } from 'lucide-react';
+import type { MediaDeviceInfo } from '@/hooks/useSession';
 
 interface SessionControlsProps {
   duration: number; // seconds
@@ -20,6 +21,16 @@ interface SessionControlsProps {
   onResume: () => void;
   viewMode?: 'chart' | 'video';
   onToggleViewMode?: () => void;
+  // Share link
+  onCopyShareLink?: () => void;
+  // Device picker
+  audioDevices?: MediaDeviceInfo[];
+  videoDevices?: MediaDeviceInfo[];
+  currentAudioDeviceId?: string;
+  currentVideoDeviceId?: string;
+  onSwitchAudioDevice?: (deviceId: string) => void;
+  onSwitchVideoDevice?: (deviceId: string) => void;
+  onRefreshDevices?: () => void;
 }
 
 function formatDuration(seconds: number): string {
@@ -27,6 +38,63 @@ function formatDuration(seconds: number): string {
   const s = seconds % 60;
   return `${m}:${String(s).padStart(2, '0')}`;
 }
+
+/** Dropdown for selecting mic or camera */
+const DevicePickerDropdown: React.FC<{
+  icon: React.ReactNode;
+  devices: MediaDeviceInfo[];
+  currentDeviceId: string;
+  onSelect: (deviceId: string) => void;
+  onRefresh?: () => void;
+  label: string;
+}> = ({ icon, devices, currentDeviceId, onSelect, onRefresh, label }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    onRefresh?.();
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open, onRefresh]);
+
+  if (devices.length <= 1) return null;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="p-1 rounded-full transition-colors text-white/40 hover:text-white/70"
+        title={`Change ${label}`}
+      >
+        <ChevronUp className={`w-3 h-3 transition-transform ${open ? '' : 'rotate-180'}`} />
+      </button>
+      {open && (
+        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/10 rounded-lg shadow-2xl py-1 min-w-[200px] max-w-[280px]">
+          <div className="px-3 py-1.5 text-[10px] font-medium text-white/40 uppercase tracking-wider flex items-center gap-1.5">
+            {icon} {label}
+          </div>
+          {devices.map((d) => (
+            <button
+              key={d.deviceId}
+              onClick={() => { onSelect(d.deviceId); setOpen(false); }}
+              className={`w-full text-left px-3 py-2 text-xs transition-colors truncate ${
+                d.deviceId === currentDeviceId
+                  ? 'text-white bg-white/10'
+                  : 'text-white/60 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              {d.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const SessionControls: React.FC<SessionControlsProps> = ({
   duration,
@@ -41,6 +109,14 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   onResume,
   viewMode,
   onToggleViewMode,
+  onCopyShareLink,
+  audioDevices = [],
+  videoDevices = [],
+  currentAudioDeviceId = '',
+  currentVideoDeviceId = '',
+  onSwitchAudioDevice,
+  onSwitchVideoDevice,
+  onRefreshDevices,
 }) => {
   return (
     <div
@@ -55,23 +131,58 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
 
       <div className="w-px h-5 bg-white/20" />
 
-      {/* Mic toggle */}
-      <button
-        onClick={onToggleMute}
-        className={`p-2 rounded-full transition-colors ${isMuted ? 'bg-red-500/20 text-red-400' : 'text-white/70 hover:text-white'}`}
-        title={isMuted ? 'Unmute' : 'Mute'}
-      >
-        {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-      </button>
+      {/* Mic toggle + device picker */}
+      <div className="flex items-center">
+        <button
+          onClick={onToggleMute}
+          className={`p-2 rounded-full transition-colors ${isMuted ? 'bg-red-500/20 text-red-400' : 'text-white/70 hover:text-white'}`}
+          title={isMuted ? 'Unmute' : 'Mute'}
+        >
+          {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+        </button>
+        {onSwitchAudioDevice && (
+          <DevicePickerDropdown
+            icon={<Mic className="w-3 h-3" />}
+            devices={audioDevices}
+            currentDeviceId={currentAudioDeviceId}
+            onSelect={onSwitchAudioDevice}
+            onRefresh={onRefreshDevices}
+            label="Microphone"
+          />
+        )}
+      </div>
 
-      {/* Video toggle */}
-      <button
-        onClick={onToggleVideo}
-        className={`p-2 rounded-full transition-colors ${isVideoOff ? 'bg-red-500/20 text-red-400' : 'text-white/70 hover:text-white'}`}
-        title={isVideoOff ? 'Turn camera on' : 'Turn camera off'}
-      >
-        {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
-      </button>
+      {/* Video toggle + device picker */}
+      <div className="flex items-center">
+        <button
+          onClick={onToggleVideo}
+          className={`p-2 rounded-full transition-colors ${isVideoOff ? 'bg-red-500/20 text-red-400' : 'text-white/70 hover:text-white'}`}
+          title={isVideoOff ? 'Turn camera on' : 'Turn camera off'}
+        >
+          {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+        </button>
+        {onSwitchVideoDevice && (
+          <DevicePickerDropdown
+            icon={<Camera className="w-3 h-3" />}
+            devices={videoDevices}
+            currentDeviceId={currentVideoDeviceId}
+            onSelect={onSwitchVideoDevice}
+            onRefresh={onRefreshDevices}
+            label="Camera"
+          />
+        )}
+      </div>
+
+      {/* Share link */}
+      {onCopyShareLink && (
+        <button
+          onClick={onCopyShareLink}
+          className="p-2 rounded-full transition-colors text-white/70 hover:text-white"
+          title="Copy session link"
+        >
+          <Link2 className="w-5 h-5" />
+        </button>
+      )}
 
       {/* Guest status */}
       <div

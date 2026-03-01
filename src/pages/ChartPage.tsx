@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useSearchParams, Link } from 'react-router-dom';
-import { Loader2, MapPin, Plus, X, Pencil, LogIn, User, Calendar, Clock, Search, Sparkles, Grid3X3, RotateCcw, Gauge, Table2, TrendingUp, CalendarClock, ArrowUpDown, StickyNote, LogOut, ChevronDown, Shield, Keyboard, Settings, CreditCard, FolderOpen, Radio, AlertTriangle } from 'lucide-react';
+import { Loader2, MapPin, Plus, X, Pencil, LogIn, User, Calendar, Clock, Search, Sparkles, Grid3X3, RotateCcw, Gauge, Table2, TrendingUp, CalendarClock, ArrowUpDown, StickyNote, LogOut, ChevronDown, Shield, Keyboard, Settings, CreditCard, FolderOpen, Radio, AlertTriangle, Link2 } from 'lucide-react';
 import { SaveChartButton } from '@/components/charts/SaveChartButton';
 import { getSavedCharts, getSavedChartsAsync, invalidateChartsCache, type SavedChart } from '@/components/charts/SaveChartButton';
 import { toast } from 'sonner';
@@ -1706,6 +1706,17 @@ export default function ChartPage() {
                         navigator.clipboard.writeText(shareLink).catch(() => {});
                       }}
                     />
+                    {liveSession.isSessionActive && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={liveSession.copyShareLink}
+                        className="gap-1.5 text-xs"
+                      >
+                        <Link2 className="w-3 h-3" />
+                        Copy Link
+                      </Button>
+                    )}
                   </div>
                   <div className="shrink-0">
                     {webglSupported && (
@@ -1962,6 +1973,14 @@ export default function ChartPage() {
           onToggleVideo={liveSession.toggleVideo}
           onPause={liveSession.pauseSession}
           onResume={liveSession.resumeSession}
+          onCopyShareLink={liveSession.copyShareLink}
+          audioDevices={liveSession.audioDevices}
+          videoDevices={liveSession.videoDevices}
+          currentAudioDeviceId={liveSession.currentAudioDeviceId}
+          currentVideoDeviceId={liveSession.currentVideoDeviceId}
+          onSwitchAudioDevice={liveSession.switchAudioDevice}
+          onSwitchVideoDevice={liveSession.switchVideoDevice}
+          onRefreshDevices={liveSession.refreshDevices}
           viewMode={viewMode}
           onToggleViewMode={() => setViewMode(v => {
             const next = v === 'chart' ? 'video' : 'chart';

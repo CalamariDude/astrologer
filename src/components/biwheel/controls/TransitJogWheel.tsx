@@ -218,6 +218,20 @@ export const TransitJogWheel: React.FC<TransitJogWheelProps> = ({
   });
 
   return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+      {/* Label above knob */}
+      <span
+        style={{
+          color: textMuted,
+          fontSize: Math.max(10, size * 0.12),
+          fontWeight: 600,
+          fontFamily: "'Inter', system-ui, sans-serif",
+          lineHeight: 1,
+          opacity: 0.7,
+        }}
+      >
+        Transit
+      </span>
     <div
       ref={wheelRef}
       onPointerDown={handlePointerDown}
@@ -335,6 +349,7 @@ export const TransitJogWheel: React.FC<TransitJogWheelProps> = ({
           50% { opacity: 0.4; transform: translateX(-50%) scale(0.7); }
         }
       `}</style>
+    </div>
     </div>
   );
 };

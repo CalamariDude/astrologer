@@ -56,84 +56,86 @@ export const PLANET_GROUPS = {
 
 // Extended asteroids (for optional inclusion via API)
 // Using first 5 letters of asteroid name for labels (smaller font in PlanetRing)
+// NOTE: Asteroid descriptions temporarily disabled — uncomment to restore interpretations
 export const ASTEROIDS = {
   // Major Asteroids (Main Belt)
-  astraea: { symbol: 'Astra', name: 'Astraea', color: '#9C27B0', group: 'major', description: 'The thread that won\'t stay cut. Things you thought were finished resurfacing on their own schedule.' },
-  hebe: { symbol: 'Hebe', name: 'Hebe', color: '#E91E63', group: 'major', description: 'What becomes essential by being overlooked. The ordinary thing that turns out to be structural.' },
-  iris: { symbol: 'Iris', name: 'Iris', color: '#FF9800', group: 'major', description: 'Clarity without softening. Reflecting things back exactly as they are, whether or not you asked.' },
-  flora: { symbol: 'Flora', name: 'Flora', color: '#4CAF50', group: 'major', description: 'Spreading by breaking apart. Influence that works through scattering, not staying whole.' },
-  metis: { symbol: 'Metis', name: 'Metis', color: '#607D8B', group: 'major', description: 'Trying before knowing. Intelligence built from failed attempts and adjusted approaches.' },
-  eunomia: { symbol: 'Eunom', name: 'Eunomia', color: '#795548', group: 'major', description: 'Things that work because they\'re arranged right. Order that earns itself.' },
-  psyche: { symbol: 'Psych', name: 'Psyche', color: '#9C27B0', group: 'major', description: 'What\'s left when the surface is stripped away. Exposed core, undisguised material.' },
-  euphrosyne: { symbol: 'Euphr', name: 'Euphrosyne', color: '#F06292', group: 'major', description: 'Making something new from the collision. Lineage that starts from being knocked off course.' },
-  europa: { symbol: 'Europ', name: 'Europa', color: '#2196F3', group: 'major', description: 'Absorbing the hit and continuing. Stability that exists because the worst already happened.' },
-  cybele: { symbol: 'Cybel', name: 'Cybele', color: '#8D6E63', group: 'major', description: 'Standing in the doorway between systems. Not arriving, not leaving\u2014holding the threshold.' },
-  sylvia: { symbol: 'Sylvi', name: 'Sylvia', color: '#00BCD4', group: 'major', description: 'Holding together while being made of pieces. Coherence from fragments, not from being solid.' },
-  thisbe: { symbol: 'Thisb', name: 'Thisbe', color: '#F48FB1', group: 'major', description: 'Mattering without announcing it. Presence that counts by staying, not by performing.' },
-  minerva: { symbol: 'Miner', name: 'Minerva', color: '#3F51B5', group: 'major', description: 'Intelligence that\'s distributed, not singular. Knowing that comes from balancing multiple things at once.' },
-  elektra: { symbol: 'Elekt', name: 'Elektra', color: '#FFC107', group: 'major', description: 'The invisible coordination holding complexity together. Architecture you don\'t see until it stops working.' },
-  kleopatra: { symbol: 'Kleop', name: 'Kleopatra', color: '#673AB7', group: 'major', description: 'Staying whole under pressure through engineering, not luck. Fragments held by spin and effort.' },
-  bamberga: { symbol: 'Bambe', name: 'Bamberga', color: '#795548', group: 'major', description: 'Insight that arrives in bursts, not steady streams. Cycles of dimness and sudden brilliance.' },
-  davida: { symbol: 'David', name: 'Davida', color: '#607D8B', group: 'major', description: 'Watching before moving. The patience to scan the whole picture first.' },
-  interamnia: { symbol: 'Inter', name: 'Interamnia', color: '#455A64', group: 'major', description: 'Unchanging bedrock. The part that doesn\'t move because everything else depends on it.' },
-  hygeia: { symbol: 'Hygei', name: 'Hygeia', color: '#66BB6A', group: 'major', description: 'Functioning with damage intact. Continuity that includes the cracks, not despite them.' },
+  astraea: { symbol: 'Astra', name: 'Astraea', color: '#9C27B0', group: 'major', description: '' /* 'The thread that won\'t stay cut. Things you thought were finished resurfacing on their own schedule.' */ },
+  hebe: { symbol: 'Hebe', name: 'Hebe', color: '#E91E63', group: 'major', description: '' /* 'What becomes essential by being overlooked. The ordinary thing that turns out to be structural.' */ },
+  iris: { symbol: 'Iris', name: 'Iris', color: '#FF9800', group: 'major', description: '' /* 'Clarity without softening. Reflecting things back exactly as they are, whether or not you asked.' */ },
+  flora: { symbol: 'Flora', name: 'Flora', color: '#4CAF50', group: 'major', description: '' /* 'Spreading by breaking apart. Influence that works through scattering, not staying whole.' */ },
+  metis: { symbol: 'Metis', name: 'Metis', color: '#607D8B', group: 'major', description: '' /* 'Trying before knowing. Intelligence built from failed attempts and adjusted approaches.' */ },
+  eunomia: { symbol: 'Eunom', name: 'Eunomia', color: '#795548', group: 'major', description: '' /* 'Things that work because they\'re arranged right. Order that earns itself.' */ },
+  psyche: { symbol: 'Psych', name: 'Psyche', color: '#9C27B0', group: 'major', description: '' /* 'What\'s left when the surface is stripped away. Exposed core, undisguised material.' */ },
+  euphrosyne: { symbol: 'Euphr', name: 'Euphrosyne', color: '#F06292', group: 'major', description: '' /* 'Making something new from the collision. Lineage that starts from being knocked off course.' */ },
+  europa: { symbol: 'Europ', name: 'Europa', color: '#2196F3', group: 'major', description: '' /* 'Absorbing the hit and continuing. Stability that exists because the worst already happened.' */ },
+  cybele: { symbol: 'Cybel', name: 'Cybele', color: '#8D6E63', group: 'major', description: '' /* 'Standing in the doorway between systems. Not arriving, not leaving\u2014holding the threshold.' */ },
+  sylvia: { symbol: 'Sylvi', name: 'Sylvia', color: '#00BCD4', group: 'major', description: '' /* 'Holding together while being made of pieces. Coherence from fragments, not from being solid.' */ },
+  thisbe: { symbol: 'Thisb', name: 'Thisbe', color: '#F48FB1', group: 'major', description: '' /* 'Mattering without announcing it. Presence that counts by staying, not by performing.' */ },
+  minerva: { symbol: 'Miner', name: 'Minerva', color: '#3F51B5', group: 'major', description: '' /* 'Intelligence that\'s distributed, not singular. Knowing that comes from balancing multiple things at once.' */ },
+  elektra: { symbol: 'Elekt', name: 'Elektra', color: '#FFC107', group: 'major', description: '' /* 'The invisible coordination holding complexity together. Architecture you don\'t see until it stops working.' */ },
+  kleopatra: { symbol: 'Kleop', name: 'Kleopatra', color: '#673AB7', group: 'major', description: '' /* 'Staying whole under pressure through engineering, not luck. Fragments held by spin and effort.' */ },
+  bamberga: { symbol: 'Bambe', name: 'Bamberga', color: '#795548', group: 'major', description: '' /* 'Insight that arrives in bursts, not steady streams. Cycles of dimness and sudden brilliance.' */ },
+  davida: { symbol: 'David', name: 'Davida', color: '#607D8B', group: 'major', description: '' /* 'Watching before moving. The patience to scan the whole picture first.' */ },
+  interamnia: { symbol: 'Inter', name: 'Interamnia', color: '#455A64', group: 'major', description: '' /* 'Unchanging bedrock. The part that doesn\'t move because everything else depends on it.' */ },
+  hygeia: { symbol: 'Hygei', name: 'Hygeia', color: '#66BB6A', group: 'major', description: '' /* 'Functioning with damage intact. Continuity that includes the cracks, not despite them.' */ },
 
   // Love & Relationship
-  eros: { symbol: 'Eros', name: 'Eros', color: '#E91E63', group: 'love', description: 'The pull that starts things moving. Magnetism before the mind catches up.' },
-  fama: { symbol: 'Fama', name: 'Fama', color: '#FFC107', group: 'love', description: 'How your signal carries. The version of you that travels when you\'re not in the room.' },
+  eros: { symbol: 'Eros', name: 'Eros', color: '#E91E63', group: 'love', description: '' /* 'The pull that starts things moving. Magnetism before the mind catches up.' */ },
+  fama: { symbol: 'Fama', name: 'Fama', color: '#FFC107', group: 'love', description: '' /* 'How your signal carries. The version of you that travels when you\'re not in the room.' */ },
 
   // Near-Earth & Special
-  icarus: { symbol: 'Icaru', name: 'Icarus', color: '#FF5722', group: 'near_earth', description: 'Going too far in, then swinging all the way back out. The overextension you can\'t stop yourself from repeating.' },
-  toro: { symbol: 'Toro', name: 'Toro', color: '#D32F2F', group: 'near_earth', description: 'What keeps coming back around. People, patterns, and unfinished business that orbit you.' },
-  ganymed: { symbol: 'Ganym', name: 'Ganymed', color: '#7B1FA2', group: 'near_earth', description: 'Seeing clearly because you\'re close but not inside. The outsider\'s vantage point.' },
-  apophis: { symbol: 'Apoph', name: 'Apophis', color: '#B71C1C', group: 'near_earth', description: 'The near-miss that changes everything anyway. Destabilization from proximity, not impact.' },
+  icarus: { symbol: 'Icaru', name: 'Icarus', color: '#FF5722', group: 'near_earth', description: '' /* 'Going too far in, then swinging all the way back out. The overextension you can\'t stop yourself from repeating.' */ },
+  toro: { symbol: 'Toro', name: 'Toro', color: '#D32F2F', group: 'near_earth', description: '' /* 'What keeps coming back around. People, patterns, and unfinished business that orbit you.' */ },
+  ganymed: { symbol: 'Ganym', name: 'Ganymed', color: '#7B1FA2', group: 'near_earth', description: '' /* 'Seeing clearly because you\'re close but not inside. The outsider\'s vantage point.' */ },
+  apophis: { symbol: 'Apoph', name: 'Apophis', color: '#B71C1C', group: 'near_earth', description: '' /* 'The near-miss that changes everything anyway. Destabilization from proximity, not impact.' */ },
 
   // Centaurs
-  pholus: { symbol: 'Pholu', name: 'Pholus', color: '#795548', group: 'centaurs', description: 'One small thing uncorking everything. The moment a contained situation stops being contained.' },
-  nessus: { symbol: 'Nessu', name: 'Nessus', color: '#4E342E', group: 'centaurs', description: 'Damage that teaches itself to repeat. The loop that needs to be named before it breaks.' },
-  nyx: { symbol: 'Nyx', name: 'Nyx', color: '#1A237E', group: 'centaurs', description: 'Productive darkness. What resets in the space where you can\'t see clearly yet.' },
+  pholus: { symbol: 'Pholu', name: 'Pholus', color: '#795548', group: 'centaurs', description: '' /* 'One small thing uncorking everything. The moment a contained situation stops being contained.' */ },
+  nessus: { symbol: 'Nessu', name: 'Nessus', color: '#4E342E', group: 'centaurs', description: '' /* 'Damage that teaches itself to repeat. The loop that needs to be named before it breaks.' */ },
+  nyx: { symbol: 'Nyx', name: 'Nyx', color: '#1A237E', group: 'centaurs', description: '' /* 'Productive darkness. What resets in the space where you can\'t see clearly yet.' */ },
 
   // Trans-Neptunian Objects
-  eris: { symbol: 'Eris', name: 'Eris', color: '#B71C1C', group: 'tno', description: 'The truth nobody wanted brought up. Awareness forced through disruption.' },
-  sedna: { symbol: 'Sedna', name: 'Sedna', color: '#0D47A1', group: 'tno', description: 'What survives total isolation. Identity that holds at the farthest remove.' },
-  makemake: { symbol: 'Makem', name: 'Makemake', color: '#F9A825', group: 'tno', description: 'Original instructions preserved. The template that exists before anyone builds from it.' },
-  haumea: { symbol: 'Haume', name: 'Haumea', color: '#43A047', group: 'tno', description: 'Fast regeneration. Clearing the old and replacing it before the gap is felt.' },
-  quaoar: { symbol: 'Quaoa', name: 'Quaoar', color: '#00695C', group: 'tno', description: 'Maintaining structure when everything around it is chaotic. Quiet anchor in noise.' },
-  varuna: { symbol: 'Varun', name: 'Varuna', color: '#1565C0', group: 'tno', description: 'Reach that doesn\'t let go. Systems that persist through sheer span.' },
-  ixion: { symbol: 'Ixion', name: 'Ixion', color: '#880E4F', group: 'tno', description: 'Movement that ignores the rules. Momentum that breaks through because it refuses to follow the lane.' },
-  orcus: { symbol: 'Orcus', name: 'Orcus', color: '#212121', group: 'tno', description: 'Agreements that don\'t expire. What you owe regardless of how things turned out.' },
-  gonggong: { symbol: 'Gongg', name: 'Gonggong', color: '#1A237E', group: 'tno', description: 'Displacement that eventually becomes the reason for return. Exile as rediscovery engine.' },
-  salacia: { symbol: 'Salac', name: 'Salacia', color: '#00BCD4', group: 'tno', description: 'Connection held across distance. Bonds that work through parallel orbit, not possession.' },
-  varda: { symbol: 'Varda', name: 'Varda', color: '#7B1FA2', group: 'tno', description: 'Authority nobody notices. Governance so quiet that others orbit it without realizing.' },
+  eris: { symbol: 'Eris', name: 'Eris', color: '#B71C1C', group: 'tno', description: '' /* 'The truth nobody wanted brought up. Awareness forced through disruption.' */ },
+  sedna: { symbol: 'Sedna', name: 'Sedna', color: '#0D47A1', group: 'tno', description: '' /* 'What survives total isolation. Identity that holds at the farthest remove.' */ },
+  makemake: { symbol: 'Makem', name: 'Makemake', color: '#F9A825', group: 'tno', description: '' /* 'Original instructions preserved. The template that exists before anyone builds from it.' */ },
+  haumea: { symbol: 'Haume', name: 'Haumea', color: '#43A047', group: 'tno', description: '' /* 'Fast regeneration. Clearing the old and replacing it before the gap is felt.' */ },
+  quaoar: { symbol: 'Quaoa', name: 'Quaoar', color: '#00695C', group: 'tno', description: '' /* 'Maintaining structure when everything around it is chaotic. Quiet anchor in noise.' */ },
+  varuna: { symbol: 'Varun', name: 'Varuna', color: '#1565C0', group: 'tno', description: '' /* 'Reach that doesn\'t let go. Systems that persist through sheer span.' */ },
+  ixion: { symbol: 'Ixion', name: 'Ixion', color: '#880E4F', group: 'tno', description: '' /* 'Movement that ignores the rules. Momentum that breaks through because it refuses to follow the lane.' */ },
+  orcus: { symbol: 'Orcus', name: 'Orcus', color: '#212121', group: 'tno', description: '' /* 'Agreements that don\'t expire. What you owe regardless of how things turned out.' */ },
+  gonggong: { symbol: 'Gongg', name: 'Gonggong', color: '#1A237E', group: 'tno', description: '' /* 'Displacement that eventually becomes the reason for return. Exile as rediscovery engine.' */ },
+  salacia: { symbol: 'Salac', name: 'Salacia', color: '#00BCD4', group: 'tno', description: '' /* 'Connection held across distance. Bonds that work through parallel orbit, not possession.' */ },
+  varda: { symbol: 'Varda', name: 'Varda', color: '#7B1FA2', group: 'tno', description: '' /* 'Authority nobody notices. Governance so quiet that others orbit it without realizing.' */ },
 
   // Fate & Karmic
-  nemesis: { symbol: 'Nemes', name: 'Nemesis', color: '#795548', group: 'fate', description: 'The correction that arrives without anger. What balances out because imbalance can\'t sustain.' },
+  nemesis: { symbol: 'Nemes', name: 'Nemesis', color: '#795548', group: 'fate', description: '' /* 'The correction that arrives without anger. What balances out because imbalance can\'t sustain.' */ },
 
   // Lunar Points (calculated)
-  truelilith: { symbol: 'Lil(o)', name: 'True Lilith', color: '#880E4F', group: 'lunar', description: 'The part that won\'t perform for approval. Unedited instinct, oscillating and alive.' },
-  meanlilith: { symbol: 'MnLil', name: 'Mean Lilith', color: '#AD1457', group: 'lunar', description: 'What gets pushed underground because it doesn\'t fit. The exiled wanting.' },
-  whitemoon: { symbol: 'WhtMn', name: 'White Moon', color: '#E0E0E0', group: 'lunar', description: 'Where your intentions are actually clean. The rare unburdened impulse.' },
-  lilithast: { symbol: 'LilAs', name: 'Lilith (ast)', color: '#C2185B', group: 'lunar', description: 'Embodied refusal. The physical expression of what you won\'t tame.' },
+  truelilith: { symbol: 'Lil(o)', name: 'True Lilith', color: '#880E4F', group: 'lunar', description: '' /* 'The part that won\'t perform for approval. Unedited instinct, oscillating and alive.' */ },
+  meanlilith: { symbol: 'MnLil', name: 'Mean Lilith', color: '#AD1457', group: 'lunar', description: '' /* 'What gets pushed underground because it doesn\'t fit. The exiled wanting.' */ },
+  whitemoon: { symbol: 'WhtMn', name: 'White Moon', color: '#E0E0E0', group: 'lunar', description: '' /* 'Where your intentions are actually clean. The rare unburdened impulse.' */ },
+  lilithast: { symbol: 'LilAs', name: 'Lilith (ast)', color: '#C2185B', group: 'lunar', description: '' /* 'Embodied refusal. The physical expression of what you won\'t tame.' */ },
 
   // Calculated Points
-  vertex: { symbol: 'Vertx', name: 'Vertex', color: '#9C27B0', group: 'points', description: 'The intersection you didn\'t arrange. Where circumstance overrides planning.' },
-  sophia: { symbol: 'Sophi', name: 'Sophia', color: '#7C4DFF', group: 'points', description: 'Knowing that arrives without study. Wisdom that was always there, waiting to be recognized.' },
+  vertex: { symbol: 'Vertx', name: 'Vertex', color: '#9C27B0', group: 'points', description: '' /* 'The intersection you didn\'t arrange. Where circumstance overrides planning.' */ },
+  sophia: { symbol: 'Sophi', name: 'Sophia', color: '#7C4DFF', group: 'points', description: '' /* 'Knowing that arrives without study. Wisdom that was always there, waiting to be recognized.' */ },
 } as const;
 
 // Arabic Parts (Lots) - calculated client-side from ASC + Planet1 - Planet2
+// NOTE: Arabic Part descriptions temporarily disabled — uncomment to restore interpretations
 export const ARABIC_PARTS = {
-  lot_fortune:  { symbol: '\u2295', name: 'Lot of Fortune', color: '#FFD700', group: 'arabic', description: 'Where things tend to land well for you without forcing it. ASC + Moon \u2212 Sun.', formula: { add: 'moon', subtract: 'sun' } },
-  lot_spirit:   { symbol: '\u2297', name: 'Lot of Spirit', color: '#B0BEC5', group: 'arabic', description: 'Where your will actually originates before circumstances shape it. ASC + Sun \u2212 Moon.', formula: { add: 'sun', subtract: 'moon' } },
-  lot_eros:     { symbol: 'L.Er', name: 'Lot of Eros', color: '#E91E63', group: 'arabic', description: 'What you reach for when want overrides logic. ASC + Venus \u2212 Mars.', formula: { add: 'venus', subtract: 'mars' } },
-  lot_marriage: { symbol: 'L.Ma', name: 'Lot of Marriage', color: '#F48FB1', group: 'arabic', description: 'The shape commitment takes when you actually mean it. ASC + Venus \u2212 Saturn.', formula: { add: 'venus', subtract: 'saturn' } },
-  lot_wealth:   { symbol: 'L.We', name: 'Lot of Wealth', color: '#FF8F00', group: 'arabic', description: 'Where material things accumulate or don\'t. Your relationship with having enough. ASC + Jupiter \u2212 Saturn.', formula: { add: 'jupiter', subtract: 'saturn' } },
-  lot_victory:  { symbol: 'L.Vi', name: 'Lot of Victory', color: '#FF6D00', group: 'arabic', description: 'The kind of winning that feels like yours. ASC + Jupiter \u2212 Spirit.', formula: { add: 'jupiter', subtract: 'lot_spirit' } },
-  lot_commerce: { symbol: 'L.Co', name: 'Lot of Commerce', color: '#FDD835', group: 'arabic', description: 'How you negotiate, exchange, and move value around. ASC + Mercury \u2212 Sun.', formula: { add: 'mercury', subtract: 'sun' } },
-  lot_passion:  { symbol: 'L.Pa', name: 'Lot of Passion', color: '#D32F2F', group: 'arabic', description: 'Where your drive runs hot and unmanaged. Raw forward motion. ASC + Mars \u2212 Sun.', formula: { add: 'mars', subtract: 'sun' } },
-  lot_mother:   { symbol: 'L.Mo', name: 'Lot of Mother', color: '#AB47BC', group: 'arabic', description: 'The imprint of being cared for, or the gap where it should have been. ASC + Moon \u2212 Venus.', formula: { add: 'moon', subtract: 'venus' } },
-  lot_father:   { symbol: 'L.Fa', name: 'Lot of Father', color: '#5C6BC0', group: 'arabic', description: 'The weight of expectation passed down. Structure inherited or resisted. ASC + Saturn \u2212 Sun.', formula: { add: 'saturn', subtract: 'sun' } },
-  lot_children: { symbol: 'L.Ch', name: 'Lot of Children', color: '#66BB6A', group: 'arabic', description: 'What you bring into the world and what it becomes without you. ASC + Jupiter \u2212 Moon.', formula: { add: 'jupiter', subtract: 'moon' } },
-  lot_travel:   { symbol: 'L.Tr', name: 'Lot of Travel', color: '#29B6F6', group: 'arabic', description: 'Where movement changes you. Leaving as a form of becoming. ASC + Saturn \u2212 Mars.', formula: { add: 'saturn', subtract: 'mars' } },
+  lot_fortune:  { symbol: '\u2295', name: 'Lot of Fortune', color: '#FFD700', group: 'arabic', description: '' /* 'Where things tend to land well for you without forcing it. ASC + Moon − Sun.' */, formula: { add: 'moon', subtract: 'sun' } },
+  lot_spirit:   { symbol: '\u2297', name: 'Lot of Spirit', color: '#B0BEC5', group: 'arabic', description: '' /* 'Where your will actually originates before circumstances shape it. ASC + Sun − Moon.' */, formula: { add: 'sun', subtract: 'moon' } },
+  lot_eros:     { symbol: 'L.Er', name: 'Lot of Eros', color: '#E91E63', group: 'arabic', description: '' /* 'What you reach for when want overrides logic. ASC + Venus − Mars.' */, formula: { add: 'venus', subtract: 'mars' } },
+  lot_marriage: { symbol: 'L.Ma', name: 'Lot of Marriage', color: '#F48FB1', group: 'arabic', description: '' /* 'The shape commitment takes when you actually mean it. ASC + Venus − Saturn.' */, formula: { add: 'venus', subtract: 'saturn' } },
+  lot_wealth:   { symbol: 'L.We', name: 'Lot of Wealth', color: '#FF8F00', group: 'arabic', description: '' /* 'Where material things accumulate or don\'t. Your relationship with having enough. ASC + Jupiter − Saturn.' */, formula: { add: 'jupiter', subtract: 'saturn' } },
+  lot_victory:  { symbol: 'L.Vi', name: 'Lot of Victory', color: '#FF6D00', group: 'arabic', description: '' /* 'The kind of winning that feels like yours. ASC + Jupiter − Spirit.' */, formula: { add: 'jupiter', subtract: 'lot_spirit' } },
+  lot_commerce: { symbol: 'L.Co', name: 'Lot of Commerce', color: '#FDD835', group: 'arabic', description: '' /* 'How you negotiate, exchange, and move value around. ASC + Mercury − Sun.' */, formula: { add: 'mercury', subtract: 'sun' } },
+  lot_passion:  { symbol: 'L.Pa', name: 'Lot of Passion', color: '#D32F2F', group: 'arabic', description: '' /* 'Where your drive runs hot and unmanaged. Raw forward motion. ASC + Mars − Sun.' */, formula: { add: 'mars', subtract: 'sun' } },
+  lot_mother:   { symbol: 'L.Mo', name: 'Lot of Mother', color: '#AB47BC', group: 'arabic', description: '' /* 'The imprint of being cared for, or the gap where it should have been. ASC + Moon − Venus.' */, formula: { add: 'moon', subtract: 'venus' } },
+  lot_father:   { symbol: 'L.Fa', name: 'Lot of Father', color: '#5C6BC0', group: 'arabic', description: '' /* 'The weight of expectation passed down. Structure inherited or resisted. ASC + Saturn − Sun.' */, formula: { add: 'saturn', subtract: 'sun' } },
+  lot_children: { symbol: 'L.Ch', name: 'Lot of Children', color: '#66BB6A', group: 'arabic', description: '' /* 'What you bring into the world and what it becomes without you. ASC + Jupiter − Moon.' */, formula: { add: 'jupiter', subtract: 'moon' } },
+  lot_travel:   { symbol: 'L.Tr', name: 'Lot of Travel', color: '#29B6F6', group: 'arabic', description: '' /* 'Where movement changes you. Leaving as a form of becoming. ASC + Saturn − Mars.' */, formula: { add: 'saturn', subtract: 'mars' } },
 } as const;
 
 /** Set of all Arabic Part keys (for filtering from API calls) */

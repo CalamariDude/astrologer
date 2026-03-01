@@ -365,13 +365,13 @@ export const BirthTimeShiftKnob: React.FC<BirthTimeShiftKnobProps> = ({
               background: 'none',
               border: `1px solid ${border}`,
               color: textMuted,
-              fontSize: Math.max(8, size * 0.1),
+              fontSize: Math.max(11, size * 0.13),
               cursor: 'pointer',
-              padding: '1px 5px',
+              padding: '2px 8px',
               borderRadius: 4,
               opacity: 0.7,
               fontFamily: "'Inter', system-ui, sans-serif",
-              lineHeight: 1.2,
+              lineHeight: 1.3,
             }}
             onMouseEnter={(e) => { (e.target as HTMLElement).style.opacity = '1'; }}
             onMouseLeave={(e) => { (e.target as HTMLElement).style.opacity = '0.7'; }}

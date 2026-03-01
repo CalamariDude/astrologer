@@ -30,7 +30,14 @@ export interface RemoteParticipant {
   id: string;
   name: string;
   videoStream: MediaStream | null;
+  audioStream: MediaStream | null;
   hasAudio: boolean;
+}
+
+export interface MediaDeviceInfo {
+  deviceId: string;
+  label: string;
+  kind: 'audioinput' | 'videoinput' | 'audiooutput';
 }
 
 interface UseSessionReturn {
@@ -52,6 +59,15 @@ interface UseSessionReturn {
   reconnecting: boolean;
   activeSpeakerId: string | null;
 
+  // Device selection
+  audioDevices: MediaDeviceInfo[];
+  videoDevices: MediaDeviceInfo[];
+  currentAudioDeviceId: string;
+  currentVideoDeviceId: string;
+  switchAudioDevice: (deviceId: string) => Promise<void>;
+  switchVideoDevice: (deviceId: string) => Promise<void>;
+  refreshDevices: () => Promise<void>;
+
   // Actions
   startSession: (title: string, chartSnapshot: SessionChartSnapshot, getSnapshot: () => ChartStateSnapshot) => Promise<string>;
   endSession: () => Promise<void>;
@@ -61,6 +77,7 @@ interface UseSessionReturn {
   resumeSession: () => Promise<void>;
   toggleMute: () => void;
   toggleVideo: () => void;
+  copyShareLink: () => void;
 
   // Recording callbacks
   recordStateChange: (type: SessionEventType, payload: Record<string, any>) => void;
@@ -82,11 +99,18 @@ export function useSession(): UseSessionReturn {
   const [remoteParticipants, setRemoteParticipants] = useState<RemoteParticipant[]>([]);
   const [reconnecting, setReconnecting] = useState(false);
   const [activeSpeakerId, setActiveSpeakerId] = useState<string | null>(null);
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  const [currentAudioDeviceId, setCurrentAudioDeviceId] = useState('');
+  const [currentVideoDeviceId, setCurrentVideoDeviceId] = useState('');
   const [otherWindowSession, setOtherWindowSession] = useState<{
     sessionId: string;
     title: string;
     shareToken: string;
   } | null>(null);
+
+  // Map of remote participant id → HTMLAudioElement for playing remote audio
+  const remoteAudioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
 
   // Stored credentials from reconnect endpoint (used by takeOverSession)
   const pendingReconnectRef = useRef<{
@@ -163,9 +187,27 @@ export function useSession(): UseSessionReturn {
       // Remote participant
       if (event.track?.kind === 'audio' && pid) {
         audioRecorderRef.current?.addRemoteTrack(pid, event.track);
+
+        // Play remote audio through an <audio> element (createCallObject doesn't auto-play remote audio)
+        const audioStream = new MediaStream([event.track]);
+        const existingEl = remoteAudioElementsRef.current.get(pid);
+        if (existingEl) {
+          existingEl.srcObject = audioStream;
+        } else {
+          const audioEl = document.createElement('audio');
+          audioEl.srcObject = audioStream;
+          audioEl.autoplay = true;
+          audioEl.playsInline = true;
+          // Append to DOM so browser plays it
+          audioEl.style.display = 'none';
+          document.body.appendChild(audioEl);
+          audioEl.play().catch(() => {});
+          remoteAudioElementsRef.current.set(pid, audioEl);
+        }
+
         setRemoteParticipants((prev) => {
           const existing = prev.find((p) => p.id === pid);
-          if (existing) return prev.map((p) => p.id === pid ? { ...p, hasAudio: true } : p);
+          if (existing) return prev.map((p) => p.id === pid ? { ...p, hasAudio: true, audioStream } : p);
           // New participant
           toast.success(`${event.participant?.user_name || 'Guest'} joined`);
           try {
@@ -178,7 +220,7 @@ export function useSession(): UseSessionReturn {
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
             osc.start(); osc.stop(ctx.currentTime + 0.3);
           } catch {}
-          return [...prev, { id: pid, name: event.participant?.user_name || 'Guest', videoStream: null, hasAudio: true }];
+          return [...prev, { id: pid, name: event.participant?.user_name || 'Guest', videoStream: null, audioStream, hasAudio: true }];
         });
       }
       if (event.track?.kind === 'video' && pid) {
@@ -193,6 +235,16 @@ export function useSession(): UseSessionReturn {
       if (event.participant?.local || !pid) return;
       if (event.track?.kind === 'audio') {
         audioRecorderRef.current?.removeRemoteTrack(pid);
+        // Remove audio element
+        const audioEl = remoteAudioElementsRef.current.get(pid);
+        if (audioEl) {
+          audioEl.srcObject = null;
+          audioEl.remove();
+          remoteAudioElementsRef.current.delete(pid);
+        }
+        setRemoteParticipants((prev) =>
+          prev.map((p) => p.id === pid ? { ...p, hasAudio: false, audioStream: null } : p)
+        );
       }
       if (event.track?.kind === 'video') {
         setRemoteParticipants((prev) =>
@@ -205,6 +257,13 @@ export function useSession(): UseSessionReturn {
       const pid = event.participant?.session_id;
       if (!pid) return;
       audioRecorderRef.current?.removeRemoteTrack(pid);
+      // Cleanup audio element
+      const audioEl = remoteAudioElementsRef.current.get(pid);
+      if (audioEl) {
+        audioEl.srcObject = null;
+        audioEl.remove();
+        remoteAudioElementsRef.current.delete(pid);
+      }
       setRemoteParticipants((prev) => prev.filter((p) => p.id !== pid));
     });
 
@@ -214,7 +273,7 @@ export function useSession(): UseSessionReturn {
       // Pre-create entry (tracks arrive via track-started)
       setRemoteParticipants((prev) => {
         if (prev.find((p) => p.id === pid)) return prev;
-        return [...prev, { id: pid, name: event.participant?.user_name || 'Guest', videoStream: null, hasAudio: false }];
+        return [...prev, { id: pid, name: event.participant?.user_name || 'Guest', videoStream: null, audioStream: null, hasAudio: false }];
       });
       // Send current chart state to the new participant so they don't start with stale DB snapshot
       const currentState = snapshotGetterRef.current?.();
@@ -339,6 +398,9 @@ export function useSession(): UseSessionReturn {
     await callObject.join({ url: room_url, token: host_token });
     setCallActive(true);
 
+    // Enumerate available devices now that we're in a call
+    refreshDevices();
+
     // Start audio recording — track may not be available immediately after join
     const startAudioRecording = async (track: MediaStreamTrack) => {
       const audioRecorder = new AudioRecorder();
@@ -441,6 +503,7 @@ export function useSession(): UseSessionReturn {
     try {
       await callObject.join({ url: roomUrl, token: hostToken });
       setCallActive(true);
+      refreshDevices();
     } catch (joinErr) {
       // Token may be expired — try getting a fresh one from the reconnect endpoint
       try {
@@ -453,6 +516,7 @@ export function useSession(): UseSessionReturn {
             persistSession({ sessionId, roomUrl, hostToken: reconnectData.host_token, startedAt });
             await callObject.join({ url: roomUrl, token: reconnectData.host_token });
             setCallActive(true);
+            refreshDevices();
           } else {
             throw new Error('Could not get fresh token');
           }
@@ -650,6 +714,13 @@ export function useSession(): UseSessionReturn {
     setLocalVideoStream(null);
     setRemoteParticipants([]);
 
+    // Cleanup remote audio elements
+    for (const [, audioEl] of remoteAudioElementsRef.current) {
+      audioEl.srcObject = null;
+      audioEl.remove();
+    }
+    remoteAudioElementsRef.current.clear();
+
     if (heartbeatTimerRef.current) {
       clearInterval(heartbeatTimerRef.current);
       heartbeatTimerRef.current = null;
@@ -754,6 +825,64 @@ export function useSession(): UseSessionReturn {
 
   // endCall removed — ending the Daily.co call now ends the session via left-meeting handler
 
+  // ── Device enumeration + switching ─────────────────────────
+  const refreshDevices = useCallback(async () => {
+    if (!dailyRef.current) return;
+    try {
+      const { devices } = await dailyRef.current.enumerateDevices();
+      const audioInputs = (devices || [])
+        .filter((d: any) => d.kind === 'audioinput' && d.deviceId)
+        .map((d: any) => ({ deviceId: d.deviceId, label: d.label || `Mic ${d.deviceId.slice(0, 4)}`, kind: 'audioinput' as const }));
+      const videoInputs = (devices || [])
+        .filter((d: any) => d.kind === 'videoinput' && d.deviceId)
+        .map((d: any) => ({ deviceId: d.deviceId, label: d.label || `Camera ${d.deviceId.slice(0, 4)}`, kind: 'videoinput' as const }));
+      setAudioDevices(audioInputs);
+      setVideoDevices(videoInputs);
+
+      // Set current device IDs from Daily.co
+      const currentInputs = dailyRef.current.getInputDevices?.();
+      if (currentInputs) {
+        // getInputDevices is synchronous and returns { camera, mic, speaker }
+        if (currentInputs.mic?.deviceId) setCurrentAudioDeviceId(currentInputs.mic.deviceId);
+        if (currentInputs.camera?.deviceId) setCurrentVideoDeviceId(currentInputs.camera.deviceId);
+      }
+    } catch (err) {
+      console.error('[Session] Device enumeration failed:', err);
+    }
+  }, []);
+
+  const switchAudioDevice = useCallback(async (deviceId: string) => {
+    if (!dailyRef.current) return;
+    try {
+      await dailyRef.current.setInputDevicesAsync({ audioDeviceId: deviceId });
+      setCurrentAudioDeviceId(deviceId);
+    } catch (err) {
+      console.error('[Session] Failed to switch audio device:', err);
+      toast.error('Failed to switch microphone');
+    }
+  }, []);
+
+  const switchVideoDevice = useCallback(async (deviceId: string) => {
+    if (!dailyRef.current) return;
+    try {
+      await dailyRef.current.setInputDevicesAsync({ videoDeviceId: deviceId });
+      setCurrentVideoDeviceId(deviceId);
+    } catch (err) {
+      console.error('[Session] Failed to switch video device:', err);
+      toast.error('Failed to switch camera');
+    }
+  }, []);
+
+  // ── Copy share link ────────────────────────────────────────
+  const copyShareLink = useCallback(() => {
+    if (!shareUrl) return;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      toast.success('Session link copied!');
+    }).catch(() => {
+      toast.error('Failed to copy link');
+    });
+  }, [shareUrl]);
+
   // ── Recording callbacks ───────────────────────────────────
   const recordStateChange = useCallback((type: SessionEventType, payload: Record<string, any>) => {
     console.log('[Session] recordStateChange:', type, 'hasBroadcast:', !!broadcastRef.current, 'planets:', (payload as any).visiblePlanets?.length, 'asteroids:', (payload as any).enabledAsteroidGroups?.length);
@@ -789,6 +918,12 @@ export function useSession(): UseSessionReturn {
       try { dailyRef.current?.destroy(); } catch {}
       if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current);
       if (durationTimerRef.current) clearInterval(durationTimerRef.current);
+      // Cleanup remote audio elements
+      for (const [, audioEl] of remoteAudioElementsRef.current) {
+        audioEl.srcObject = null;
+        audioEl.remove();
+      }
+      remoteAudioElementsRef.current.clear();
     };
   }, []);
 
@@ -809,6 +944,13 @@ export function useSession(): UseSessionReturn {
     remoteParticipants,
     reconnecting,
     activeSpeakerId,
+    audioDevices,
+    videoDevices,
+    currentAudioDeviceId,
+    currentVideoDeviceId,
+    switchAudioDevice,
+    switchVideoDevice,
+    refreshDevices,
     startSession,
     endSession,
     dismissSession,
@@ -817,6 +959,7 @@ export function useSession(): UseSessionReturn {
     resumeSession,
     toggleMute,
     toggleVideo,
+    copyShareLink,
     recordStateChange,
     recordCursor,
     setSnapshotGetter: useCallback((getter: () => ChartStateSnapshot) => {

@@ -22,7 +22,7 @@ import { calculateSynastryAspects, calculateNatalAspects, type AspectType, type 
 import { calculateSolarArc } from './utils/solarArcCalculations';
 import { ZodiacRing, type SignData } from './layers/ZodiacRing';
 import { HouseOverlay, type HouseHoverData } from './layers/HouseOverlay';
-import { PlanetRing, preparePlanets } from './layers/PlanetRing';
+import { PlanetRing, preparePlanets, MIN_SPACING_INNER, REPEL_ZONE_INNER } from './layers/PlanetRing';
 import { TransitRing } from './layers/TransitRing';
 // ProgressedRing no longer used - progressed planets are integrated into effectiveChart
 import { DecanRing } from './layers/DecanRing';
@@ -1745,7 +1745,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   );
 
   const placedPlanetsB = useMemo(
-    () => preparePlanets(displayChartB, state.visiblePlanets, dimensions, dimensions.planetBRing),
+    () => preparePlanets(displayChartB, state.visiblePlanets, dimensions, dimensions.planetBRing, 0, { minSpacing: MIN_SPACING_INNER, repelZone: REPEL_ZONE_INNER }),
     [displayChartB, state.visiblePlanets, dimensions]
   );
 

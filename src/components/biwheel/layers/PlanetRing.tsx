@@ -53,8 +53,13 @@ interface PlanetRingProps {
  * gradually, so there is never a sudden jump. This gives buttery-smooth
  * movement when planets shift (e.g. birth-time knob scrubbing).
  */
-const MIN_SPACING = 4;   // target spacing in degrees
-const REPEL_ZONE  = 8;   // planets further apart than this don't interact
+const MIN_SPACING = 4;   // target spacing in degrees (outer ring)
+const REPEL_ZONE  = 8;   // planets further apart than this don't interact (outer ring)
+
+// Inner ring needs more angular separation because the smaller radius
+// means the same degree spans fewer pixels — glyphs overlap otherwise
+export const MIN_SPACING_INNER = 6;
+export const REPEL_ZONE_INNER  = 12;
 
 /** Signed angular difference (handles 0°/360° wrap), result in -180..180 */
 function angularDiff(a: number, b: number): number {
@@ -64,31 +69,31 @@ function angularDiff(a: number, b: number): number {
   return d;
 }
 
-function resolveCollisions(planets: PlacedPlanet[]): void {
+function resolveCollisions(planets: PlacedPlanet[], minSpacing = MIN_SPACING, repelZone = REPEL_ZONE): void {
   if (planets.length < 2) return;
 
   // Sort ONCE by original longitude — this order is preserved throughout
   planets.sort((a, b) => a.longitude - b.longitude);
 
   // Iterative soft-repulsion: each pass nudges overlapping pairs apart
-  for (let pass = 0; pass < 16; pass++) {
+  for (let pass = 0; pass < 24; pass++) {
     let anyPush = false;
     for (let i = 0; i < planets.length; i++) {
       for (let j = i + 1; j < planets.length; j++) {
         const gap = angularDiff(planets[i].displayLongitude, planets[j].displayLongitude);
         const absGap = Math.abs(gap);
 
-        if (absGap < REPEL_ZONE && absGap > 0.01) {
+        if (absGap < repelZone && absGap > 0.01) {
           // Push proportionally: stronger when closer, gentle at edges
-          const strength = absGap < MIN_SPACING
-            ? (MIN_SPACING - absGap) * 0.4     // strong push below min spacing
-            : (REPEL_ZONE - absGap) * 0.05;    // gentle nudge in the buffer zone
+          const strength = absGap < minSpacing
+            ? (minSpacing - absGap) * 0.4     // strong push below min spacing
+            : (repelZone - absGap) * 0.05;    // gentle nudge in the buffer zone
           const dir = gap > 0 ? 1 : -1;
           planets[i].displayLongitude -= dir * strength;
           planets[j].displayLongitude += dir * strength;
           planets[i].hasCollision = true;
           planets[j].hasCollision = true;
-          if (absGap < MIN_SPACING) anyPush = true;
+          if (absGap < minSpacing) anyPush = true;
         }
       }
     }
@@ -110,7 +115,8 @@ export function preparePlanets(
   visiblePlanets: Set<string>,
   dimensions: ChartDimensions,
   ringRadius: number,
-  rotationOffset: number = 0
+  rotationOffset: number = 0,
+  collisionSpacing?: { minSpacing: number; repelZone: number }
 ): PlacedPlanet[] {
   const { cx, cy } = dimensions;
   const planets: PlacedPlanet[] = [];
@@ -211,7 +217,7 @@ export function preparePlanets(
   planets.sort((a, b) => a.longitude - b.longitude);
 
   // Apply advanced collision resolution
-  resolveCollisions(planets);
+  resolveCollisions(planets, collisionSpacing?.minSpacing, collisionSpacing?.repelZone);
 
   // Calculate final positions
   return planets.map((p) => {
@@ -359,22 +365,18 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
     decanInner, tickBToA
   } = dimensions;
 
-  // Smooth positioning: when active, uses GPU-accelerated CSS transform instead of SVG x/y attributes
+  // Smooth positioning: always uses CSS transform for positioning to avoid rendering-method
+  // switch glitches. When smoothTransitions is true, adds CSS transition for animation.
   // Returns { posProps, posStyle } — spread posProps on the element and merge posStyle into style
   const smoothPos = (x: number, y: number, extraTransition?: string): { posProps: { x?: number; y?: number }; posStyle: React.CSSProperties } => {
-    if (!smoothTransitions) {
-      return {
-        posProps: { x, y },
-        posStyle: extraTransition ? { transition: extraTransition } : {},
-      };
-    }
-    const transitions = [`transform ${SMOOTH_DURATION} ${SMOOTH_EASE}`];
+    const transitions: string[] = [];
+    if (smoothTransitions) transitions.push(`transform ${SMOOTH_DURATION} ${SMOOTH_EASE}`);
     if (extraTransition) transitions.push(extraTransition);
     return {
       posProps: {},
       posStyle: {
         transform: `translate(${x}px, ${y}px)`,
-        transition: transitions.join(', '),
+        ...(transitions.length ? { transition: transitions.join(', ') } : {}),
       },
     };
   };
@@ -397,7 +399,9 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
   const planetsB = React.useMemo(() => {
     if (mode === 'personA' || mode === 'composite' || !chartB) return [];
     const radius = isSingleWheel ? singleRingRadius : planetBRing;
-    return preparePlanets(chartB, visiblePlanets, dimensions, radius, rotationOffset);
+    // Inner ring needs wider spacing — smaller radius means less pixel distance per degree
+    const innerSpacing = isSingleWheel ? undefined : { minSpacing: MIN_SPACING_INNER, repelZone: REPEL_ZONE_INNER };
+    return preparePlanets(chartB, visiblePlanets, dimensions, radius, rotationOffset, innerSpacing);
   }, [chartB, chartB?.angles?.midheaven, chartB?.angles?.ascendant, visiblePlanets, dimensions, planetBRing, singleRingRadius, rotationOffset, mode, isSingleWheel]);
 
   const planetsComposite = React.useMemo(() => {
