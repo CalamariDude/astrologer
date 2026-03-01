@@ -49,10 +49,13 @@ export default function ReplayPlayer({ session }: ReplayPlayerProps) {
   const timerStartRef = useRef(0); // wall-clock time when playback started
   const timerOffsetRef = useRef(0); // ms offset when playback was last started/seeked
 
+  const [audioProcessing, setAudioProcessing] = useState(false);
+  const [sessionData, setSessionData] = useState(session);
+
   const hasAudio = !!audioUrl;
-  const totalMs = session.audio_duration_ms || session.total_duration_ms ||
+  const totalMs = sessionData.audio_duration_ms || sessionData.total_duration_ms ||
     (events.length > 0 ? events[events.length - 1].timestamp_ms + 1000 : 0);
-  const chapters: Chapter[] = (session.chapters || []) as Chapter[];
+  const chapters: Chapter[] = (sessionData.chapters || []) as Chapter[];
 
   // Load events + audio
   useEffect(() => {
@@ -68,13 +71,16 @@ export default function ReplayPlayer({ session }: ReplayPlayerProps) {
           setEvents(eventData as SessionEvent[]);
         }
 
-        // Load audio URL (may fail if no audio was recorded)
+        // Load audio URL (may fail if no audio was recorded or still processing)
         try {
-          const { data: audioData } = await supabase.functions.invoke('astrologer-session-audio-url', {
+          const { data: audioData, error: audioError } = await supabase.functions.invoke('astrologer-session-audio-url', {
             body: { share_token: session.share_token },
           });
           if (!cancelled && audioData?.audio_url) {
             setAudioUrl(audioData.audio_url);
+            setAudioProcessing(false);
+          } else if (!cancelled && audioData?.processing) {
+            setAudioProcessing(true);
           }
         } catch {
           // No audio available — timer mode will be used
@@ -88,6 +94,47 @@ export default function ReplayPlayer({ session }: ReplayPlayerProps) {
 
     return () => { cancelled = true; };
   }, [session.share_token]);
+
+  // Poll for audio + transcript when session is still processing
+  useEffect(() => {
+    if (!audioProcessing && hasAudio) return;
+    // Also poll when session status isn't "ready" yet (transcript/summary may still be generating)
+    const shouldPoll = audioProcessing || !['ready'].includes(sessionData.status);
+    if (!shouldPoll) return;
+
+    let cancelled = false;
+    const poll = setInterval(async () => {
+      if (cancelled) return;
+      // Re-fetch session data for transcript/summary/status updates
+      const { data: freshSession } = await supabase
+        .from('astrologer_sessions')
+        .select('*')
+        .eq('id', session.id)
+        .single();
+      if (cancelled) return;
+      if (freshSession) {
+        setSessionData(freshSession as SessionRecord);
+        if (freshSession.status === 'ready' || freshSession.status === 'failed') {
+          setAudioProcessing(false);
+        }
+      }
+
+      // Try fetching audio URL again
+      if (!hasAudio) {
+        try {
+          const { data: audioData } = await supabase.functions.invoke('astrologer-session-audio-url', {
+            body: { share_token: session.share_token },
+          });
+          if (!cancelled && audioData?.audio_url) {
+            setAudioUrl(audioData.audio_url);
+            setAudioProcessing(false);
+          }
+        } catch {}
+      }
+    }, 10_000); // Poll every 10 seconds
+
+    return () => { cancelled = true; clearInterval(poll); };
+  }, [audioProcessing, hasAudio, sessionData.status, session.id, session.share_token]);
 
   // Apply initial state from chart snapshot (with fallback defaults for older sessions)
   useEffect(() => {
@@ -392,7 +439,8 @@ export default function ReplayPlayer({ session }: ReplayPlayerProps) {
             {replayNameB && <span> & {replayNameB}</span>}
             <span className="opacity-40 mx-1.5">&middot;</span>
             {new Date(session.created_at).toLocaleDateString()}
-            {!hasAudio && <span className="ml-2 text-yellow-600">(No audio)</span>}
+            {!hasAudio && audioProcessing && <span className="ml-2 text-blue-500">(Audio processing...)</span>}
+            {!hasAudio && !audioProcessing && <span className="ml-2 text-yellow-600">(No audio)</span>}
           </p>
         </div>
 
@@ -445,18 +493,25 @@ export default function ReplayPlayer({ session }: ReplayPlayerProps) {
           {/* Summary + transcript sidebar (1/3) */}
           <div className="space-y-4">
             <SessionSummary
-              session={session}
+              session={sessionData}
               chapters={chapters}
               onSeek={handleSeek}
               audioUrl={audioUrl || undefined}
             />
-            <TranscriptPanel
-              transcript={session.transcript || ''}
-              utterances={session.utterances}
-              currentMs={currentMs}
-              totalMs={totalMs}
-              onSeek={handleSeek}
-            />
+            {sessionData.transcript ? (
+              <TranscriptPanel
+                transcript={sessionData.transcript}
+                utterances={sessionData.utterances}
+                currentMs={currentMs}
+                totalMs={totalMs}
+                onSeek={handleSeek}
+              />
+            ) : audioProcessing || !['ready', 'failed'].includes(sessionData.status) ? (
+              <div className="rounded-lg border p-4 text-center text-sm" style={{ borderColor: `${themeFg}20`, color: themeFg, opacity: 0.6 }}>
+                <Loader2 className="w-4 h-4 animate-spin mx-auto mb-2" />
+                Generating transcript...
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

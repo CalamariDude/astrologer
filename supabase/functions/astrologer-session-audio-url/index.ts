@@ -42,14 +42,14 @@ serve(async (req) => {
       });
     }
 
-    if (session.status !== "ready") {
-      return new Response(
-        JSON.stringify({ error: "Session audio not ready", status: session.status }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     if (!session.audio_storage_path) {
+      // No merged audio file yet — check if still processing
+      if (["processing", "ended"].includes(session.status)) {
+        return new Response(
+          JSON.stringify({ error: "Audio is still processing", status: session.status, processing: true }),
+          { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       return new Response(
         JSON.stringify({ error: "No audio recording available" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }

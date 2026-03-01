@@ -55,6 +55,7 @@ export const GuestSessionView: React.FC<GuestSessionViewProps> = ({ session }) =
   const [localVideoStream, setLocalVideoStream] = useState<MediaStream | null>(null);
   const [remoteParticipants, setRemoteParticipants] = useState<RemoteParticipant[]>([]);
   const [viewMode, setViewMode] = useState<'chart' | 'video'>('chart');
+  const [showMobileChart, setShowMobileChart] = useState(false);
 
   // Mutable chart data — updated when host swaps charts mid-session
   const [liveChartA, setLiveChartA] = useState<Record<string, any>>(session.chart_snapshot?.chartA);
@@ -543,10 +544,10 @@ export const GuestSessionView: React.FC<GuestSessionViewProps> = ({ session }) =
       )}
 
       {viewMode === 'video' ? (
-        /* Video gallery mode: side-by-side layout */
-        <div className="flex h-[calc(100vh-64px)]">
-          {/* Video gallery — left 70% */}
-          <div className="w-[70%] h-full min-w-0">
+        /* Video gallery mode: top-down on mobile, side-by-side on desktop */
+        <div className="relative flex flex-col md:flex-row h-[calc(100vh-64px)]">
+          {/* Video gallery — full on mobile, 70% on desktop */}
+          <div className="w-full md:w-[70%] h-full min-w-0">
             <VideoGallery
               participants={[
                 ...remoteParticipants.map((p) => ({
@@ -565,8 +566,9 @@ export const GuestSessionView: React.FC<GuestSessionViewProps> = ({ session }) =
               activeSpeakerId={activeSpeakerId}
             />
           </div>
-          {/* Chart sidebar — right 30%, scrollable */}
-          <div className="w-[30%] h-full overflow-y-auto border-l border-border/30" style={{ backgroundColor: themeBg }}>
+
+          {/* Desktop: chart sidebar (always visible) */}
+          <div className="hidden md:block w-[30%] h-full overflow-y-auto border-l border-border/30" style={{ backgroundColor: themeBg }}>
             <div className="py-4 px-3">
               <div className="mb-3">
                 <h1 className="text-sm font-semibold" style={{ color: themeFg }}>{session.title}</h1>
@@ -604,6 +606,59 @@ export const GuestSessionView: React.FC<GuestSessionViewProps> = ({ session }) =
               />
             </div>
           </div>
+
+          {/* Mobile: floating chart toggle button */}
+          <button
+            onClick={() => setShowMobileChart(!showMobileChart)}
+            className="md:hidden fixed bottom-24 right-3 z-[60] w-11 h-11 rounded-full bg-black/70 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white shadow-lg active:scale-95 transition-transform"
+            title={showMobileChart ? 'Hide chart' : 'Show chart'}
+          >
+            <Monitor className="w-5 h-5" />
+          </button>
+
+          {/* Mobile: chart overlay panel */}
+          {showMobileChart && (
+            <div className="md:hidden fixed inset-x-0 bottom-0 z-[55] rounded-t-2xl shadow-2xl border-t" style={{ backgroundColor: themeBg, borderColor: `${themeFg}20`, height: '55vh' }}>
+              <div className="flex items-center justify-between px-4 py-2" style={{ borderBottom: `1px solid ${themeFg}15` }}>
+                <h2 className="text-xs font-semibold" style={{ color: themeFg }}>
+                  {liveNameA}
+                  {liveNameB && <span style={{ opacity: 0.6 }}> & {liveNameB}</span>}
+                </h2>
+                <button onClick={() => setShowMobileChart(false)} className="p-1" style={{ color: themeFg, opacity: 0.6 }}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                </button>
+              </div>
+              <div className="overflow-y-auto px-3 pb-24" style={{ height: 'calc(55vh - 40px)' }}>
+                <BiWheelMobileWrapper
+                  key={`mobile-${liveNameA}-${liveNameB || ''}`}
+                  chartA={liveChartA}
+                  chartB={liveChartB || liveChartA}
+                  nameA={liveNameA}
+                  nameB={liveNameB || liveNameA}
+                  initialChartMode={(chartSnapshot.mode === 'natal' ? 'personA' : chartSnapshot.mode) as any || 'personA'}
+                  initialTheme={chartSnapshot.theme}
+                  readOnly
+                  externalState={externalState}
+                  enableTransits
+                  enableComposite={!!liveChartB}
+                  enableProgressed
+                  enableRelocated
+                  originalLocation={birthA?.lat ? { lat: birthA.lat, lng: birthA.lng, name: birthA.location || 'Birth Location' } : undefined}
+                  locationB={birthB?.lat ? { lat: birthB.lat, lng: birthB.lng, name: birthB.location || 'Birth Location' } : undefined}
+                  birthDateA={birthA?.date}
+                  birthTimeA={birthA?.time}
+                  birthDateB={birthB?.date}
+                  birthTimeB={birthB?.time}
+                  onFetchTransits={handleFetchTransits}
+                  onFetchComposite={liveChartB ? handleFetchComposite : undefined}
+                  onFetchProgressed={handleFetchProgressed}
+                  onFetchRelocated={handleFetchRelocated}
+                  onFetchAsteroidData={handleFetchAsteroidData}
+                  remoteCursor={<RemoteCursor x={cursor.x} y={cursor.y} label={hostName} />}
+                />
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <>

@@ -52,7 +52,7 @@ serve(async (req) => {
     let summary = "";
     let chapters: { title: string; timestamp_ms: number; description: string }[] = [];
 
-    const xaiKey = Deno.env.get("XAI_API_KEY") || Deno.env.get("COSMOSIS_GROK_API_KEY");
+    const xaiKey = Deno.env.get("XAI_API_KEY") || Deno.env.get("GROK_API_KEY") || Deno.env.get("COSMOSIS_GROK_API_KEY");
     const transcript = session.transcript || "";
     const audioDurationMs = session.audio_duration_ms || 0;
 

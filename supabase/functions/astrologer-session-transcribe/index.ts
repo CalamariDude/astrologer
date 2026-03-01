@@ -65,35 +65,40 @@ serve(async (req) => {
     let utterances: { start_ms: number; end_ms: number; speaker: number; text: string }[] = [];
 
     if (deepgramKey) {
-      const dgRes = await fetch(
-        "https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&paragraphs=true&diarize=true&utterances=true",
-        {
-          method: "POST",
-          headers: {
-            "Authorization": `Token ${deepgramKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ url: signedUrlData.signedUrl }),
+      try {
+        const dgRes = await fetch(
+          "https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&paragraphs=true&diarize=true&utterances=true",
+          {
+            method: "POST",
+            headers: {
+              "Authorization": `Token ${deepgramKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ url: signedUrlData.signedUrl }),
+          }
+        );
+
+        if (dgRes.ok) {
+          const dgData = await dgRes.json();
+          transcript = dgData?.results?.channels?.[0]?.alternatives?.[0]?.transcript || "";
+          audioDurationMs = Math.round((dgData?.metadata?.duration || 0) * 1000);
+
+          // Extract utterances with speaker diarization
+          const rawUtterances = dgData?.results?.utterances || [];
+          utterances = rawUtterances.map((u: any) => ({
+            start_ms: Math.round((u.start || 0) * 1000),
+            end_ms: Math.round((u.end || 0) * 1000),
+            speaker: u.speaker ?? 0,
+            text: u.transcript || "",
+          }));
+        } else {
+          const errText = await dgRes.text();
+          console.error("Deepgram error:", errText);
+          // Don't throw — continue without transcript so audio is still available
         }
-      );
-
-      if (dgRes.ok) {
-        const dgData = await dgRes.json();
-        transcript = dgData?.results?.channels?.[0]?.alternatives?.[0]?.transcript || "";
-        audioDurationMs = Math.round((dgData?.metadata?.duration || 0) * 1000);
-
-        // Extract utterances with speaker diarization
-        const rawUtterances = dgData?.results?.utterances || [];
-        utterances = rawUtterances.map((u: any) => ({
-          start_ms: Math.round((u.start || 0) * 1000),
-          end_ms: Math.round((u.end || 0) * 1000),
-          speaker: u.speaker ?? 0,
-          text: u.transcript || "",
-        }));
-      } else {
-        const errText = await dgRes.text();
-        console.error("Deepgram error:", errText);
-        throw new Error(`Deepgram transcription failed: ${dgRes.status}`);
+      } catch (dgErr) {
+        console.error("Deepgram request failed:", dgErr);
+        // Continue without transcript
       }
     } else {
       console.warn("DEEPGRAM_API_KEY not set — skipping transcription");

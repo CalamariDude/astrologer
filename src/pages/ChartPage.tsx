@@ -658,6 +658,7 @@ export default function ChartPage() {
 
   const [showGalactic, setShowGalactic] = useState(false);
   const [viewMode, setViewMode] = useState<'chart' | 'video'>('chart');
+  const [showMobileChart, setShowMobileChart] = useState(false);
 
   // Bidirectional view mode sync — listen for remote changes
   useEffect(() => {
@@ -1521,10 +1522,10 @@ export default function ChartPage() {
       {/* ── Chart Content ───────────────────────────────────── */}
       {hasChart && personA ? (
         liveSession.isSessionActive && viewMode === 'video' ? (
-        /* Video gallery mode: side-by-side layout */
-        <div className="flex h-[calc(100vh-64px)]" style={{ marginTop: 0 }}>
-          {/* Video gallery — left 70% */}
-          <div className="w-[70%] h-full min-w-0">
+        /* Video gallery mode: top-down on mobile, side-by-side on desktop */
+        <div className="relative flex flex-col md:flex-row h-[calc(100vh-64px)]" style={{ marginTop: 0 }}>
+          {/* Video gallery — full on mobile, 70% on desktop */}
+          <div className="w-full md:w-[70%] h-full min-w-0">
             <VideoGallery
               participants={[
                 ...liveSession.remoteParticipants.map((p) => ({
@@ -1543,11 +1544,11 @@ export default function ChartPage() {
               activeSpeakerId={liveSession.activeSpeakerId}
             />
           </div>
-          {/* Chart sidebar — right 30%, scrollable */}
-          <div className="w-[30%] h-full overflow-y-auto border-l border-border/30 bg-background">
+
+          {/* Desktop: chart sidebar (always visible) */}
+          <div className="hidden md:block w-[30%] h-full overflow-y-auto border-l border-border/30 bg-background">
             <div className="py-4 space-y-4 px-3">
               <div>
-                {/* Compact name header */}
                 <div className="mb-2">
                   <h1 className="text-sm font-semibold tracking-tight truncate">
                     {personAData.name || 'Unnamed'}
@@ -1604,6 +1605,63 @@ export default function ChartPage() {
               </div>
             </div>
           </div>
+
+          {/* Mobile: floating chart toggle button */}
+          <button
+            onClick={() => setShowMobileChart(!showMobileChart)}
+            className="md:hidden fixed bottom-24 right-3 z-[60] w-11 h-11 rounded-full bg-black/70 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white shadow-lg active:scale-95 transition-transform"
+            title={showMobileChart ? 'Hide chart' : 'Show chart'}
+          >
+            <Monitor className="w-5 h-5" />
+          </button>
+
+          {/* Mobile: chart overlay panel */}
+          {showMobileChart && (
+            <div className="md:hidden fixed inset-x-0 bottom-0 z-[55] bg-background border-t border-border rounded-t-2xl shadow-2xl" style={{ height: '55vh' }}>
+              <div className="flex items-center justify-between px-4 py-2 border-b border-border/50">
+                <h2 className="text-xs font-semibold">
+                  {personAData.name || 'Chart'}
+                  {personBData && hasSynastry && (
+                    <span className="text-muted-foreground font-normal"> & {personBData.name}</span>
+                  )}
+                </h2>
+                <button onClick={() => setShowMobileChart(false)} className="p-1 text-muted-foreground">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                </button>
+              </div>
+              <div className="overflow-y-auto px-3 pb-24" style={{ height: 'calc(55vh - 40px)' }}>
+                <BiWheelMobileWrapper
+                  key={`mobile-${currentTab.id}`}
+                  chartA={personA.natalChart}
+                  chartB={hasSynastry ? personB!.natalChart : personA.natalChart}
+                  nameA={personA.name || 'Person A'}
+                  nameB={hasSynastry ? (personB!.name || 'Person B') : (personA.name || 'Person A')}
+                  initialChartMode={sharedChartOptionsRef.current?.mode || initialMode as any}
+                  enableTransits={true}
+                  enableComposite={hasSynastry}
+                  enableProgressed={true}
+                  enableRelocated={true}
+                  enableBirthTimeShift={true}
+                  onFetchTransits={handleFetchTransits}
+                  onFetchComposite={hasSynastry ? handleFetchComposite : undefined}
+                  onFetchProgressed={handleFetchProgressed}
+                  onFetchRelocated={handleFetchRelocated}
+                  onFetchShiftedNatal={handleFetchShiftedNatal}
+                  onFetchAsteroidData={handleFetchAsteroidData}
+                  initialTheme={themeReady ? pageTheme : undefined}
+                  originalLocation={originalLocationA}
+                  locationB={originalLocationB}
+                  birthDateA={personA.date}
+                  birthTimeA={personA.time}
+                  birthDateB={hasSynastry ? personB!.date : undefined}
+                  birthTimeB={hasSynastry ? personB!.time : undefined}
+                  readOnly
+                  onStateChange={liveSession.recordStateChange}
+                  onCursorMove={liveSession.recordCursor}
+                />
+              </div>
+            </div>
+          )}
         </div>
         ) : (
         <div className="container py-4 md:py-6 space-y-4 md:space-y-6 px-2 md:px-6">
