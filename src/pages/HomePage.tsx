@@ -535,7 +535,7 @@ export default function HomePage() {
         />
 
         <FeatureShowcase
-          tag="Age-Degree Activations"
+          tag="Planetary Activations"
           headline={<>Every degree<br className="hidden sm:block" /> tells a story.</>}
           body="See which planets activate at your current age — one degree per year. A unique timeline view showing exactly when each natal planet lights up across your lifetime."
           reversed
@@ -543,7 +543,7 @@ export default function HomePage() {
           visual={
             <div className="relative group">
               <div className="absolute -inset-10 bg-gradient-to-br from-teal-500/[0.07] to-cyan-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
-              <img src="/agedegree.webp" alt="Age-Degree Activations timeline" loading="lazy" className="w-full h-auto relative drop-shadow-2xl rounded-2xl" />
+              <img src="/agedegree.webp" alt="Planetary Activations timeline" loading="lazy" className="w-full h-auto relative drop-shadow-2xl rounded-2xl" />
             </div>
           }
         />
@@ -859,11 +859,11 @@ export default function HomePage() {
             100% { width: 100%; }
           }
         `}</style>
-        <section className="relative py-32 sm:py-44 md:py-56 px-4 sm:px-6 overflow-hidden bg-[#07050F]">
+        <section className="relative py-32 sm:py-44 md:py-56 px-4 sm:px-6 overflow-hidden bg-background">
           {/* Subtle grid background */}
           <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
             <div className="absolute inset-0" style={{
-              backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.03) 1px, transparent 0)',
+              backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(0,0,0,0.03) 1px, transparent 0)',
               backgroundSize: '40px 40px',
             }} />
             {/* Ambient glow */}
@@ -874,16 +874,16 @@ export default function HomePage() {
 
             {/* ─ Header ─ */}
             <div className="text-center max-w-2xl">
-              <div className="inline-flex items-center gap-2 text-[11px] sm:text-xs font-bold uppercase tracking-[0.25em] mb-5 text-rose-400/80">
+              <div className="inline-flex items-center gap-2 text-[11px] sm:text-xs font-bold uppercase tracking-[0.25em] mb-5 text-rose-500/80">
                 Pro — Live Sessions
-                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-rose-500/25 text-rose-300 rounded border border-rose-500/30">New</span>
+                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-rose-500/10 text-rose-500 rounded border border-rose-500/20">New</span>
               </div>
               <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05]">
-                <span className="bg-gradient-to-r from-rose-200 via-orange-200 to-amber-200 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-rose-600 via-orange-600 to-amber-600 bg-clip-text text-transparent">
                   Deliver readings.<br className="hidden sm:block" /> Live.
                 </span>
               </h2>
-              <p className="mt-6 sm:mt-8 text-base sm:text-lg md:text-xl leading-relaxed text-white/40 max-w-xl mx-auto">
+              <p className="mt-6 sm:mt-8 text-base sm:text-lg md:text-xl leading-relaxed text-foreground/50 max-w-xl mx-auto">
                 Conduct a live consultation with your client. Share your chart in real-time, talk through it together, and record everything — chart movements, audio, and your cursor — for instant replay.
               </p>
             </div>
@@ -891,21 +891,21 @@ export default function HomePage() {
             {/* ─ Visual 1: Client's Live View ─ */}
             <div className="w-full max-w-5xl">
               <div className="text-center mb-8 sm:mb-10">
-                <div className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.25em] text-white/25 mb-2">What your client sees</div>
-                <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-white">The chart, live. Your cursor guiding them.</h3>
+                <div className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.25em] text-foreground/30 mb-2">What your client sees</div>
+                <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-foreground">The chart, live. Your cursor guiding them.</h3>
               </div>
               <div className="relative group">
-                <div className="absolute -inset-12 bg-gradient-to-br from-rose-500/[0.08] via-orange-500/[0.04] to-transparent rounded-[3rem] blur-3xl opacity-70" />
-                <div className="absolute -inset-[1.5px] rounded-2xl bg-gradient-to-br from-rose-500/20 via-orange-500/10 to-amber-500/20 opacity-50" />
-                <div className="relative bg-[#0a0d14] rounded-2xl border border-white/[0.08] overflow-hidden drop-shadow-2xl">
+                <div className="absolute -inset-12 bg-gradient-to-br from-rose-500/[0.06] via-orange-500/[0.03] to-transparent rounded-[3rem] blur-3xl opacity-70" />
+                <div className="absolute -inset-[1.5px] rounded-2xl bg-gradient-to-br from-rose-500/15 via-orange-500/8 to-amber-500/15 opacity-50" />
+                <div className="relative bg-white rounded-2xl border border-black/[0.08] overflow-hidden drop-shadow-2xl">
 
                   {/* Top bar */}
-                  <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-white/[0.06] bg-white/[0.02]">
+                  <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-black/[0.06] bg-black/[0.02]">
                     <div className="flex items-center gap-3">
                       <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                      <span className="text-xs sm:text-sm font-medium text-white/50">Live Session — Sarah's Natal Reading</span>
+                      <span className="text-xs sm:text-sm font-medium text-black/50">Live Session — Sarah's Natal Reading</span>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-white/30">
+                    <div className="flex items-center gap-2 text-xs text-black/30">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                       <span>24:37</span>
                     </div>
@@ -919,18 +919,18 @@ export default function HomePage() {
                       <svg viewBox="0 0 400 400" className="w-[260px] h-[260px] sm:w-[340px] sm:h-[340px]" style={{ animation: 'spin 180s linear infinite' }}>
                         {/* Zodiac ring segments */}
                         {[
-                          { color: '#3d2215', text: '#ff7733' },  /* Aries - Fire */
-                          { color: '#15332a', text: '#33bb55' },  /* Taurus - Earth */
-                          { color: '#33290a', text: '#ddaa22' },  /* Gemini - Air */
-                          { color: '#0a2533', text: '#33aadd' },  /* Cancer - Water */
-                          { color: '#3d2215', text: '#ff7733' },  /* Leo - Fire */
-                          { color: '#15332a', text: '#33bb55' },  /* Virgo - Earth */
-                          { color: '#33290a', text: '#ddaa22' },  /* Libra - Air */
-                          { color: '#0a2533', text: '#33aadd' },  /* Scorpio - Water */
-                          { color: '#3d2215', text: '#ff7733' },  /* Sag - Fire */
-                          { color: '#15332a', text: '#33bb55' },  /* Cap - Earth */
-                          { color: '#33290a', text: '#ddaa22' },  /* Aqua - Air */
-                          { color: '#0a2533', text: '#33aadd' },  /* Pisces - Water */
+                          { color: '#fff0e6', text: '#cc5500' },  /* Aries - Fire */
+                          { color: '#e6f5ed', text: '#228855' },  /* Taurus - Earth */
+                          { color: '#fff8e6', text: '#aa8800' },  /* Gemini - Air */
+                          { color: '#e6f2ff', text: '#2288bb' },  /* Cancer - Water */
+                          { color: '#fff0e6', text: '#cc5500' },  /* Leo - Fire */
+                          { color: '#e6f5ed', text: '#228855' },  /* Virgo - Earth */
+                          { color: '#fff8e6', text: '#aa8800' },  /* Libra - Air */
+                          { color: '#e6f2ff', text: '#2288bb' },  /* Scorpio - Water */
+                          { color: '#fff0e6', text: '#cc5500' },  /* Sag - Fire */
+                          { color: '#e6f5ed', text: '#228855' },  /* Cap - Earth */
+                          { color: '#fff8e6', text: '#aa8800' },  /* Aqua - Air */
+                          { color: '#e6f2ff', text: '#2288bb' },  /* Pisces - Water */
                         ].map((seg, i) => {
                           const startAngle = i * 30 - 90;
                           const endAngle = startAngle + 30;
@@ -944,26 +944,26 @@ export default function HomePage() {
                             <g key={i}>
                               <path
                                 d={`M${200+r1*Math.cos(sa)},${200+r1*Math.sin(sa)} A${r1},${r1} 0 0,1 ${200+r1*Math.cos(ea)},${200+r1*Math.sin(ea)} L${200+r2*Math.cos(ea)},${200+r2*Math.sin(ea)} A${r2},${r2} 0 0,0 ${200+r2*Math.cos(sa)},${200+r2*Math.sin(sa)} Z`}
-                                fill={seg.color} stroke="rgba(255,255,255,0.08)" strokeWidth="0.5"
+                                fill={seg.color} stroke="rgba(0,0,0,0.06)" strokeWidth="0.5"
                               />
-                              <g transform={`translate(${cx - 6}, ${cy - 6})`} opacity="0.7">
+                              <g transform={`translate(${cx - 6}, ${cy - 6})`} opacity="0.8">
                                 <path d={ZODIAC_GLYPHS[i]} fill="none" stroke={seg.text} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
                               </g>
                             </g>
                           );
                         })}
                         {/* Zodiac ring borders */}
-                        <circle cx="200" cy="200" r="195" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
-                        <circle cx="200" cy="200" r="175" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+                        <circle cx="200" cy="200" r="195" fill="none" stroke="rgba(0,0,0,0.1)" strokeWidth="1" />
+                        <circle cx="200" cy="200" r="175" fill="none" stroke="rgba(0,0,0,0.1)" strokeWidth="1" />
                         {/* House lines */}
                         {[0,30,60,90,120,150,180,210,240,270,300,330].map((a) => {
                           const rad = (a - 90) * Math.PI / 180;
-                          return <line key={a} x1={200+80*Math.cos(rad)} y1={200+80*Math.sin(rad)} x2={200+175*Math.cos(rad)} y2={200+175*Math.sin(rad)} stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />;
+                          return <line key={a} x1={200+80*Math.cos(rad)} y1={200+80*Math.sin(rad)} x2={200+175*Math.cos(rad)} y2={200+175*Math.sin(rad)} stroke="rgba(0,0,0,0.06)" strokeWidth="0.5" />;
                         })}
                         {/* Inner circle */}
-                        <circle cx="200" cy="200" r="80" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
+                        <circle cx="200" cy="200" r="80" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="0.5" />
                         {/* Planet ring circle */}
-                        <circle cx="200" cy="200" r="148" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="0.5" />
+                        <circle cx="200" cy="200" r="148" fill="none" stroke="rgba(0,0,0,0.04)" strokeWidth="0.5" />
                         {/* Planets at realistic positions */}
                         {[
                           { glyph: '\u2609', angle: 340, color: '#FFB300' },   /* Sun */
@@ -997,7 +997,7 @@ export default function HomePage() {
                         {/* House numbers */}
                         {[1,2,3,4,5,6,7,8,9,10,11,12].map((h) => {
                           const rad = ((h-1)*30 + 15 - 90) * Math.PI / 180;
-                          return <text key={h} x={200+125*Math.cos(rad)} y={200+125*Math.sin(rad)} textAnchor="middle" dominantBaseline="central" fill="rgba(255,255,255,0.12)" fontSize="9">{h}</text>;
+                          return <text key={h} x={200+125*Math.cos(rad)} y={200+125*Math.sin(rad)} textAnchor="middle" dominantBaseline="central" fill="rgba(0,0,0,0.15)" fontSize="9">{h}</text>;
                         })}
                       </svg>
                     </div>
@@ -1016,37 +1016,37 @@ export default function HomePage() {
 
                     {/* Video feeds floating (top right) — subtle float animation */}
                     <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex flex-col gap-2" style={{ animation: 'videoFeedFloat 4s ease-in-out infinite' }}>
-                      <div className="w-16 h-12 sm:w-20 sm:h-14 rounded-lg bg-gradient-to-br from-amber-900/60 to-orange-900/40 border border-white/10 flex items-center justify-center overflow-hidden shadow-xl">
-                        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-xs font-bold text-black">JD</div>
+                      <div className="w-16 h-12 sm:w-20 sm:h-14 rounded-lg bg-gradient-to-br from-amber-50 to-orange-50 border border-black/[0.08] flex items-center justify-center overflow-hidden shadow-lg">
+                        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-xs font-bold text-white">JD</div>
                       </div>
-                      <div className="w-16 h-12 sm:w-20 sm:h-14 rounded-lg bg-gradient-to-br from-indigo-900/60 to-violet-900/40 border border-white/10 flex items-center justify-center overflow-hidden shadow-xl">
+                      <div className="w-16 h-12 sm:w-20 sm:h-14 rounded-lg bg-gradient-to-br from-indigo-50 to-violet-50 border border-black/[0.08] flex items-center justify-center overflow-hidden shadow-lg">
                         <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center text-xs font-bold text-white">SM</div>
                       </div>
                     </div>
 
                     {/* Floating session controls (bottom center) */}
                     <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2">
-                      <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-full bg-black/60 border border-white/10 backdrop-blur-sm shadow-2xl" style={{ animation: 'controlsGlow 3s ease-in-out infinite' }}>
+                      <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-full bg-black/70 border border-black/10 backdrop-blur-sm shadow-2xl" style={{ animation: 'controlsGlow 3s ease-in-out infinite' }}>
                         {/* Mic */}
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/10 flex items-center justify-center">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-white/70"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/15 flex items-center justify-center">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-white/80"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
                         </div>
                         {/* Camera */}
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/10 flex items-center justify-center">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-white/70"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/15 flex items-center justify-center">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-white/80"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>
                         </div>
                         {/* Divider */}
-                        <div className="w-px h-5 bg-white/10 mx-0.5" />
+                        <div className="w-px h-5 bg-white/15 mx-0.5" />
                         {/* Recording indicator */}
                         <div className="flex items-center gap-1.5 px-2">
                           <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                          <span className="text-[10px] sm:text-xs font-mono text-white/50">24:37</span>
+                          <span className="text-[10px] sm:text-xs font-mono text-white/60">24:37</span>
                         </div>
                         {/* Divider */}
-                        <div className="w-px h-5 bg-white/10 mx-0.5" />
+                        <div className="w-px h-5 bg-white/15 mx-0.5" />
                         {/* End */}
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-rose-500/20 flex items-center justify-center">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-rose-400"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-rose-500/30 flex items-center justify-center">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-rose-300"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
                         </div>
                       </div>
                     </div>
@@ -1084,12 +1084,12 @@ export default function HomePage() {
                     ),
                   },
                 ].map((s) => (
-                  <div key={s.step} className="relative text-center sm:text-left p-5 sm:p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
-                    <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 mb-4">
+                  <div key={s.step} className="relative text-center sm:text-left p-5 sm:p-6 rounded-2xl bg-black/[0.02] border border-black/[0.06]">
+                    <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/15 text-rose-500 mb-4">
                       {s.icon}
                     </div>
-                    <h4 className="text-base sm:text-lg font-semibold text-white mb-2">{s.title}</h4>
-                    <p className="text-sm text-white/35 leading-relaxed">{s.desc}</p>
+                    <h4 className="text-base sm:text-lg font-semibold text-foreground mb-2">{s.title}</h4>
+                    <p className="text-sm text-foreground/40 leading-relaxed">{s.desc}</p>
                   </div>
                 ))}
               </div>
@@ -1098,57 +1098,57 @@ export default function HomePage() {
             {/* ─ Visual 2: Replay Player ─ */}
             <div className="w-full max-w-5xl">
               <div className="text-center mb-8 sm:mb-10">
-                <div className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.25em] text-white/25 mb-2">After the session</div>
-                <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-white">Every word. Every chart movement. Preserved.</h3>
+                <div className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.25em] text-foreground/30 mb-2">After the session</div>
+                <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-foreground">Every word. Every chart movement. Preserved.</h3>
               </div>
               <div className="relative group">
-                <div className="absolute -inset-12 bg-gradient-to-br from-orange-500/[0.06] via-amber-500/[0.04] to-transparent rounded-[3rem] blur-3xl opacity-70" />
-                <div className="absolute -inset-[1.5px] rounded-2xl bg-gradient-to-br from-orange-500/15 via-amber-500/10 to-rose-500/15 opacity-50" />
-                <div className="relative bg-[#0a0d14] rounded-2xl border border-white/[0.08] overflow-hidden drop-shadow-2xl">
+                <div className="absolute -inset-12 bg-gradient-to-br from-orange-500/[0.04] via-amber-500/[0.03] to-transparent rounded-[3rem] blur-3xl opacity-70" />
+                <div className="absolute -inset-[1.5px] rounded-2xl bg-gradient-to-br from-orange-500/10 via-amber-500/8 to-rose-500/10 opacity-50" />
+                <div className="relative bg-white rounded-2xl border border-black/[0.08] overflow-hidden drop-shadow-2xl">
 
                   {/* Replay header */}
-                  <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-white/[0.06] bg-white/[0.02]">
+                  <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-black/[0.06] bg-black/[0.02]">
                     <div className="flex items-center gap-3">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-amber-400"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                      <span className="text-xs sm:text-sm font-medium text-white/60">Sarah's Natal Reading — Feb 24, 2026</span>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-amber-500"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                      <span className="text-xs sm:text-sm font-medium text-black/60">Sarah's Natal Reading — Feb 24, 2026</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="hidden sm:inline text-[10px] text-white/25 uppercase tracking-wider">42 min</span>
-                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/[0.04] border border-white/[0.06]">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-white/40"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                        <span className="text-[10px] text-white/40">Download</span>
+                      <span className="hidden sm:inline text-[10px] text-black/30 uppercase tracking-wider">42 min</span>
+                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-black/[0.03] border border-black/[0.06]">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-black/40"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                        <span className="text-[10px] text-black/40">Download</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex flex-col lg:flex-row">
                     {/* Left: Chart + waveform */}
-                    <div className="flex-1 p-4 sm:p-6 border-b lg:border-b-0 lg:border-r border-white/[0.06]">
+                    <div className="flex-1 p-4 sm:p-6 border-b lg:border-b-0 lg:border-r border-black/[0.06]">
                       {/* Mini chart in replay — realistic SVG */}
                       <div className="flex items-center justify-center mb-6 relative">
                         <svg viewBox="0 0 300 300" className="w-[180px] h-[180px] sm:w-[220px] sm:h-[220px]">
                           {/* Zodiac ring */}
                           {[
-                            '#3d2215','#15332a','#33290a','#0a2533',
-                            '#3d2215','#15332a','#33290a','#0a2533',
-                            '#3d2215','#15332a','#33290a','#0a2533',
+                            '#fff0e6','#e6f5ed','#fff8e6','#e6f2ff',
+                            '#fff0e6','#e6f5ed','#fff8e6','#e6f2ff',
+                            '#fff0e6','#e6f5ed','#fff8e6','#e6f2ff',
                           ].map((color, i) => {
                             const sa = (i * 30 - 90) * Math.PI / 180;
                             const ea = ((i+1) * 30 - 90) * Math.PI / 180;
                             const r1 = 128, r2 = 145;
-                            return <path key={i} d={`M${150+r1*Math.cos(sa)},${150+r1*Math.sin(sa)} A${r1},${r1} 0 0,1 ${150+r1*Math.cos(ea)},${150+r1*Math.sin(ea)} L${150+r2*Math.cos(ea)},${150+r2*Math.sin(ea)} A${r2},${r2} 0 0,0 ${150+r2*Math.cos(sa)},${150+r2*Math.sin(sa)} Z`} fill={color} stroke="rgba(255,255,255,0.06)" strokeWidth="0.3" />;
+                            return <path key={i} d={`M${150+r1*Math.cos(sa)},${150+r1*Math.sin(sa)} A${r1},${r1} 0 0,1 ${150+r1*Math.cos(ea)},${150+r1*Math.sin(ea)} L${150+r2*Math.cos(ea)},${150+r2*Math.sin(ea)} A${r2},${r2} 0 0,0 ${150+r2*Math.cos(sa)},${150+r2*Math.sin(sa)} Z`} fill={color} stroke="rgba(0,0,0,0.06)" strokeWidth="0.3" />;
                           })}
-                          <circle cx="150" cy="150" r="145" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="0.5" />
-                          <circle cx="150" cy="150" r="128" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="0.5" />
+                          <circle cx="150" cy="150" r="145" fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="0.5" />
+                          <circle cx="150" cy="150" r="128" fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="0.5" />
                           {/* House lines */}
                           {[0,30,60,90,120,150,180,210,240,270,300,330].map((a) => {
                             const rad = (a-90)*Math.PI/180;
-                            return <line key={a} x1={150+55*Math.cos(rad)} y1={150+55*Math.sin(rad)} x2={150+128*Math.cos(rad)} y2={150+128*Math.sin(rad)} stroke="rgba(255,255,255,0.04)" strokeWidth="0.3" />;
+                            return <line key={a} x1={150+55*Math.cos(rad)} y1={150+55*Math.sin(rad)} x2={150+128*Math.cos(rad)} y2={150+128*Math.sin(rad)} stroke="rgba(0,0,0,0.04)" strokeWidth="0.3" />;
                           })}
-                          <circle cx="150" cy="150" r="55" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="0.3" />
+                          <circle cx="150" cy="150" r="55" fill="none" stroke="rgba(0,0,0,0.04)" strokeWidth="0.3" />
                           {/* Zodiac signs */}
                           {ZODIAC_GLYPHS.map((glyphPath, i) => {
-                            const colors = ['#ff7733','#33bb55','#ddaa22','#33aadd','#ff7733','#33bb55','#ddaa22','#33aadd','#ff7733','#33bb55','#ddaa22','#33aadd'];
+                            const colors = ['#cc5500','#228855','#aa8800','#2288bb','#cc5500','#228855','#aa8800','#2288bb','#cc5500','#228855','#aa8800','#2288bb'];
                             const rad = (i*30+15-90)*Math.PI/180;
                             const cx = 150+136*Math.cos(rad);
                             const cy = 150+136*Math.sin(rad);
@@ -1201,7 +1201,7 @@ export default function HomePage() {
                                 className="flex-1 rounded-full"
                                 style={{
                                   height: `${heights[i]}%`,
-                                  backgroundColor: played ? 'rgba(251,146,60,0.45)' : 'rgba(255,255,255,0.06)',
+                                  backgroundColor: played ? 'rgba(234,88,12,0.4)' : 'rgba(0,0,0,0.06)',
                                 }}
                               />
                             );
@@ -1209,24 +1209,24 @@ export default function HomePage() {
                         </div>
                         {/* Playback bar */}
                         <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
-                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 text-white/70 ml-0.5"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+                          <div className="w-7 h-7 rounded-full bg-black/[0.06] flex items-center justify-center flex-shrink-0">
+                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 text-black/50 ml-0.5"><polygon points="6 3 20 12 6 21 6 3"/></svg>
                           </div>
-                          <div className="flex-1 h-1 bg-white/[0.06] rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-orange-400 to-amber-400 rounded-full" style={{ animation: 'replayProgress 20s linear infinite' }} />
+                          <div className="flex-1 h-1 bg-black/[0.06] rounded-full overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-orange-500 to-amber-500 rounded-full" style={{ animation: 'replayProgress 20s linear infinite' }} />
                           </div>
-                          <span className="text-[10px] font-mono text-white/30 flex-shrink-0">24:37 / 41:52</span>
+                          <span className="text-[10px] font-mono text-black/30 flex-shrink-0">24:37 / 41:52</span>
                         </div>
                         {/* Playback speed */}
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <button className="px-2 py-0.5 rounded text-[10px] font-medium bg-white/[0.08] text-white/50">1x</button>
-                            <button className="px-2 py-0.5 rounded text-[10px] font-medium text-white/25">1.5x</button>
-                            <button className="px-2 py-0.5 rounded text-[10px] font-medium text-white/25">2x</button>
+                            <button className="px-2 py-0.5 rounded text-[10px] font-medium bg-black/[0.06] text-black/50">1x</button>
+                            <button className="px-2 py-0.5 rounded text-[10px] font-medium text-black/25">1.5x</button>
+                            <button className="px-2 py-0.5 rounded text-[10px] font-medium text-black/25">2x</button>
                           </div>
                           <div className="flex items-center gap-2">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-white/25"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                            <span className="text-[10px] text-white/25">Share replay</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-black/25"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                            <span className="text-[10px] text-black/25">Share replay</span>
                           </div>
                         </div>
                       </div>
@@ -1235,20 +1235,20 @@ export default function HomePage() {
                     {/* Right: Chapters + Transcript + Summary */}
                     <div className="lg:w-[380px] flex flex-col">
                       {/* Tab switcher */}
-                      <div className="flex border-b border-white/[0.06]">
+                      <div className="flex border-b border-black/[0.06]">
                         {(['Chapters', 'Transcript', 'Summary'] as const).map((tab) => (
                           <button
                             key={tab}
                             onClick={() => setReplayTab(tab)}
                             className={`relative flex-1 py-2.5 text-[11px] sm:text-xs font-medium transition-colors ${
                               replayTab === tab
-                                ? 'text-amber-400 border-b border-amber-400'
-                                : 'text-white/25 hover:text-white/40'
+                                ? 'text-amber-600 border-b border-amber-500'
+                                : 'text-black/25 hover:text-black/40'
                             }`}
                           >
                             {tab}
                             {replayTab !== tab && (
-                              <span className="absolute -top-1 -right-0.5 flex h-[14px] items-center px-1 rounded-full bg-amber-500/20 text-amber-400 text-[8px] font-bold uppercase tracking-wider animate-pulse">
+                              <span className="absolute -top-1 -right-0.5 flex h-[14px] items-center px-1 rounded-full bg-amber-500/15 text-amber-600 text-[8px] font-bold uppercase tracking-wider animate-pulse">
                                 try
                               </span>
                             )}
@@ -1272,19 +1272,19 @@ export default function HomePage() {
                             ].map((ch) => (
                               <div key={ch.time} className={`flex gap-3 px-3 py-2.5 rounded-lg transition-colors cursor-pointer ${
                                 ch.active
-                                  ? 'bg-amber-500/10 border border-amber-500/20'
-                                  : 'border border-transparent hover:bg-white/[0.02]'
+                                  ? 'bg-amber-500/10 border border-amber-500/15'
+                                  : 'border border-transparent hover:bg-black/[0.02]'
                               }`}>
                                 <div className="flex flex-col items-center flex-shrink-0 pt-0.5">
-                                  <div className={`w-2 h-2 rounded-full ${ch.active ? 'bg-amber-400' : ch.past ? 'bg-white/20' : 'bg-white/[0.06]'}`} />
-                                  <div className="w-px flex-1 bg-white/[0.06] mt-1" />
+                                  <div className={`w-2 h-2 rounded-full ${ch.active ? 'bg-amber-500' : ch.past ? 'bg-black/20' : 'bg-black/[0.08]'}`} />
+                                  <div className="w-px flex-1 bg-black/[0.06] mt-1" />
                                 </div>
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-2">
-                                    <span className={`text-[10px] font-mono ${ch.active ? 'text-amber-400' : 'text-white/25'}`}>{ch.time}</span>
+                                    <span className={`text-[10px] font-mono ${ch.active ? 'text-amber-600' : 'text-black/25'}`}>{ch.time}</span>
                                   </div>
-                                  <div className={`text-xs sm:text-sm font-medium mt-0.5 ${ch.active ? 'text-white/80' : ch.past ? 'text-white/50' : 'text-white/30'}`}>{ch.title}</div>
-                                  <div className="text-[10px] sm:text-[11px] text-white/20 mt-0.5 leading-relaxed">{ch.desc}</div>
+                                  <div className={`text-xs sm:text-sm font-medium mt-0.5 ${ch.active ? 'text-black/75' : ch.past ? 'text-black/50' : 'text-black/30'}`}>{ch.title}</div>
+                                  <div className="text-[10px] sm:text-[11px] text-black/25 mt-0.5 leading-relaxed">{ch.desc}</div>
                                 </div>
                               </div>
                             ))}
@@ -1308,17 +1308,17 @@ export default function HomePage() {
                               { time: '15:28', speaker: 'Astrologer', text: "It creates friction between your drive to act and the need for structure. But it also builds incredible discipline over time." },
                             ].map((line, i) => (
                               <div key={i} className="flex gap-2.5">
-                                <span className="text-[10px] font-mono text-white/20 w-8 flex-shrink-0 pt-0.5 text-right">{line.time}</span>
+                                <span className="text-[10px] font-mono text-black/20 w-8 flex-shrink-0 pt-0.5 text-right">{line.time}</span>
                                 <div className="min-w-0">
-                                  <span className={`text-[10px] font-semibold ${line.speaker === 'Astrologer' ? 'text-amber-400/70' : 'text-sky-400/70'}`}>
+                                  <span className={`text-[10px] font-semibold ${line.speaker === 'Astrologer' ? 'text-amber-600/70' : 'text-sky-600/70'}`}>
                                     {line.speaker}
                                   </span>
-                                  <p className="text-[11px] sm:text-xs text-white/40 leading-relaxed mt-0.5">{line.text}</p>
+                                  <p className="text-[11px] sm:text-xs text-black/45 leading-relaxed mt-0.5">{line.text}</p>
                                 </div>
                               </div>
                             ))}
                             <div className="text-center pt-2">
-                              <span className="text-[10px] text-white/15 italic">Scroll for more...</span>
+                              <span className="text-[10px] text-black/20 italic">Scroll for more...</span>
                             </div>
                           </div>
                         )}
@@ -1328,25 +1328,25 @@ export default function HomePage() {
                           <div className="space-y-4">
                             <div>
                               <div className="flex items-center gap-1.5 mb-2">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-amber-400/60"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .963L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
-                                <span className="text-[11px] font-semibold text-amber-400/80 uppercase tracking-wider">AI Summary</span>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-amber-500/70"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .963L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
+                                <span className="text-[11px] font-semibold text-amber-600/80 uppercase tracking-wider">AI Summary</span>
                               </div>
-                              <p className="text-[11px] sm:text-xs text-white/40 leading-relaxed">
+                              <p className="text-[11px] sm:text-xs text-black/45 leading-relaxed">
                                 This session explored a Pisces Sun/7th house native with a strong Moon-Venus conjunction in Taurus. The chart emphasizes relational identity, emotional warmth, and a need for stability. The Mars-Saturn square introduces constructive tension around assertiveness and discipline.
                               </p>
                             </div>
 
                             <div>
-                              <div className="text-[10px] font-semibold text-white/30 uppercase tracking-wider mb-1.5">Key Themes</div>
+                              <div className="text-[10px] font-semibold text-black/30 uppercase tracking-wider mb-1.5">Key Themes</div>
                               <div className="flex flex-wrap gap-1.5">
                                 {['Relationships', 'Emotional Security', 'Career Growth', 'Discipline', 'Saturn Return'].map((theme) => (
-                                  <span key={theme} className="px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-[10px] text-white/35">{theme}</span>
+                                  <span key={theme} className="px-2 py-0.5 rounded-full bg-black/[0.03] border border-black/[0.06] text-[10px] text-black/40">{theme}</span>
                                 ))}
                               </div>
                             </div>
 
                             <div>
-                              <div className="text-[10px] font-semibold text-white/30 uppercase tracking-wider mb-1.5">Placements Discussed</div>
+                              <div className="text-[10px] font-semibold text-black/30 uppercase tracking-wider mb-1.5">Placements Discussed</div>
                               <div className="space-y-1">
                                 {[
                                   { glyph: '\u2653', label: 'Sun in Pisces', house: '7th House' },
@@ -1356,16 +1356,16 @@ export default function HomePage() {
                                   { glyph: '\u2643', label: 'Jupiter transit to MC', house: '10th House' },
                                 ].map((p) => (
                                   <div key={p.label} className="flex items-center gap-2 text-[11px]">
-                                    <span className="text-amber-400/50 text-xs">{p.glyph}</span>
-                                    <span className="text-white/40">{p.label}</span>
-                                    <span className="text-white/15 text-[10px]">{p.house}</span>
+                                    <span className="text-amber-500/60 text-xs">{p.glyph}</span>
+                                    <span className="text-black/45">{p.label}</span>
+                                    <span className="text-black/20 text-[10px]">{p.house}</span>
                                   </div>
                                 ))}
                               </div>
                             </div>
 
                             <div>
-                              <div className="text-[10px] font-semibold text-white/30 uppercase tracking-wider mb-1.5">Action Items</div>
+                              <div className="text-[10px] font-semibold text-black/30 uppercase tracking-wider mb-1.5">Action Items</div>
                               <div className="space-y-1">
                                 {[
                                   'Review Saturn return timeline (exact dates provided)',
@@ -1373,10 +1373,10 @@ export default function HomePage() {
                                   'Leverage Jupiter-MC transit for career moves',
                                 ].map((item, i) => (
                                   <div key={i} className="flex items-start gap-2 text-[11px]">
-                                    <span className="text-amber-400/40 mt-0.5">
+                                    <span className="text-amber-500/50 mt-0.5">
                                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><polyline points="20 6 9 17 4 12"/></svg>
                                     </span>
-                                    <span className="text-white/35">{item}</span>
+                                    <span className="text-black/40">{item}</span>
                                   </div>
                                 ))}
                               </div>
@@ -1412,15 +1412,15 @@ export default function HomePage() {
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
                 )},
               ].map((f) => (
-                <span key={f.label} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-white/50 text-xs sm:text-sm">
-                  <span className="text-rose-400/70">{f.icon}</span>
+                <span key={f.label} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/[0.03] border border-black/[0.06] text-black/50 text-xs sm:text-sm">
+                  <span className="text-rose-500/70">{f.icon}</span>
                   {f.label}
                 </span>
               ))}
             </div>
 
             {/* Pro badge */}
-            <span className="inline-block px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] sm:text-xs font-bold uppercase tracking-[0.15em]">
+            <span className="inline-block px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/15 text-amber-600 text-[10px] sm:text-xs font-bold uppercase tracking-[0.15em]">
               Astrologer Pro
             </span>
           </div>
@@ -1431,13 +1431,12 @@ export default function HomePage() {
           tag="Pro — AI Readings"
           headline={<>The most powerful<br className="hidden sm:block" /> AI chart reader ever built.</>}
           body="Ask any question about your chart and get a deep, personalized interpretation that draws from every planet, aspect, and house position — not generic horoscope copy. Works across natal, synastry, transit, and composite charts. Powered by the latest frontier AI models with full access to your exact placements."
-          dark
           reversed
           visual={
             <div className="relative group flex items-center justify-center">
-              <div className="absolute -inset-10 bg-gradient-to-br from-violet-500/[0.08] to-blue-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
-              <div className="relative bg-[#0d1117] rounded-2xl border border-white/10 p-5 sm:p-6 w-full max-w-sm drop-shadow-2xl">
-                <div className="text-xs text-white/40 font-bold uppercase tracking-wider mb-4">AI Reading</div>
+              <div className="absolute -inset-10 bg-gradient-to-br from-violet-500/[0.06] to-blue-500/[0.03] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
+              <div className="relative bg-white rounded-2xl border border-black/[0.08] p-5 sm:p-6 w-full max-w-sm drop-shadow-2xl">
+                <div className="text-xs text-black/40 font-bold uppercase tracking-wider mb-4">AI Reading</div>
                 {/* Question pills */}
                 <div className="space-y-2 mb-5">
                   {[
@@ -1448,29 +1447,29 @@ export default function HomePage() {
                   ].map((item) => (
                     <div key={item.q} className={`px-3 py-2.5 rounded-lg text-sm transition-colors ${
                       item.active
-                        ? 'bg-violet-500/15 border border-violet-500/25 text-white/80'
-                        : 'bg-white/[0.03] border border-white/[0.06] text-white/40'
+                        ? 'bg-violet-500/10 border border-violet-500/20 text-black/75'
+                        : 'bg-black/[0.02] border border-black/[0.06] text-black/40'
                     }`}>
                       {item.q}
                     </div>
                   ))}
                 </div>
                 {/* Mock AI response */}
-                <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] p-4">
+                <div className="rounded-xl bg-black/[0.02] border border-black/[0.06] p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-5 h-5 rounded-full bg-gradient-to-br from-violet-400 to-blue-500 flex items-center justify-center">
                       <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5} className="w-3 h-3"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     </div>
-                    <span className="text-xs font-medium text-violet-300/70">AI Interpretation</span>
+                    <span className="text-xs font-medium text-violet-600/70">AI Interpretation</span>
                   </div>
-                  <div className="space-y-2 text-[12px] leading-relaxed text-white/35">
+                  <div className="space-y-2 text-[12px] leading-relaxed text-black/40">
                     <p>Your Sun in Pisces in the 7th house suggests your core identity is deeply tied to partnership and empathy. You shine brightest when connecting...</p>
-                    <p className="text-white/20">With Venus conjunct your Moon in the 5th, your creative expression and emotional...</p>
+                    <p className="text-black/25">With Venus conjunct your Moon in the 5th, your creative expression and emotional...</p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between mt-4">
-                  <span className="text-[10px] text-white/20">3 readings remaining this month</span>
-                  <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-bold uppercase">Pro: Unlimited</span>
+                  <span className="text-[10px] text-black/25">3 readings remaining this month</span>
+                  <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/15 text-amber-600 text-[9px] font-bold uppercase">Pro: Unlimited</span>
                 </div>
               </div>
             </div>
@@ -1534,37 +1533,36 @@ export default function HomePage() {
           headline={<>Take your charts<br className="hidden sm:block" /> anywhere.</>}
           body="Export as a high-resolution PNG, a print-ready PDF, or email the chart directly to a client with your notes attached. Share any chart via link — no account required to view."
           reversed
-          dark
           visual={
             <div className="relative group flex items-center justify-center">
-              <div className="absolute -inset-10 bg-gradient-to-br from-sky-500/[0.06] to-indigo-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
+              <div className="absolute -inset-10 bg-gradient-to-br from-sky-500/[0.05] to-indigo-500/[0.03] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
               <div className="relative w-full max-w-sm space-y-3">
                 {[
                   { format: 'PNG', desc: 'High-resolution image (3x)', icon: (
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                  ), color: '#22c55e' },
+                  ), color: '#16a34a' },
                   { format: 'PDF', desc: 'Print-ready A4 document', icon: (
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>
-                  ), color: '#ef4444', pro: true },
+                  ), color: '#dc2626', pro: true },
                   { format: 'Email', desc: 'Send chart + notes to anyone', icon: (
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-                  ), color: '#8b5cf6' },
+                  ), color: '#7c3aed' },
                   { format: 'Link', desc: 'Shareable URL — no login needed', icon: (
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                  ), color: '#06b6d4' },
+                  ), color: '#0891b2' },
                 ].map((item) => (
-                  <div key={item.format} className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.05] transition-colors">
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: item.color + '15', color: item.color }}>
+                  <div key={item.format} className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-white border border-black/[0.06] hover:bg-black/[0.01] transition-colors shadow-sm">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: item.color + '12', color: item.color }}>
                       {item.icon}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-white/80">{item.format}</span>
-                        {'pro' in item && item.pro && <span className="text-[8px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 font-bold uppercase">Pro</span>}
+                        <span className="text-sm font-semibold text-black/75">{item.format}</span>
+                        {'pro' in item && item.pro && <span className="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-600 font-bold uppercase">Pro</span>}
                       </div>
-                      <span className="text-[11px] text-white/30">{item.desc}</span>
+                      <span className="text-[11px] text-black/35">{item.desc}</span>
                     </div>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 text-white/15 flex-shrink-0"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 text-black/15 flex-shrink-0"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                   </div>
                 ))}
               </div>
@@ -1576,34 +1574,33 @@ export default function HomePage() {
           tag="Import"
           headline={<>Already use<br className="hidden sm:block" /> Astro.com?</>}
           body="Paste your profile data from Astro.com and we'll import all your saved charts instantly."
-          dark
           visual={
             <div className="relative group flex items-center justify-center">
-              <div className="absolute -inset-10 bg-gradient-to-br from-blue-500/[0.06] to-emerald-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
-              <div className="relative bg-[#0d1117] rounded-2xl border border-white/10 p-5 sm:p-6 w-full max-w-sm drop-shadow-2xl">
-                <div className="text-xs text-white/40 font-bold uppercase tracking-wider mb-4">Import from Astro.com</div>
+              <div className="absolute -inset-10 bg-gradient-to-br from-blue-500/[0.05] to-emerald-500/[0.03] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
+              <div className="relative bg-white rounded-2xl border border-black/[0.08] p-5 sm:p-6 w-full max-w-sm drop-shadow-2xl">
+                <div className="text-xs text-black/40 font-bold uppercase tracking-wider mb-4">Import from Astro.com</div>
                 <div className="space-y-2">
                   {/* Imported chart cards */}
                   {[
-                    { name: 'Sarah Mitchell', date: 'Mar 17, 1998', sign: '\u2653\uFE0E', color: '#6366f1' },
-                    { name: 'David Chen', date: 'Aug 3, 1995', sign: '\u264C\uFE0E', color: '#f59e0b' },
-                    { name: 'Emma Rodriguez', date: 'Dec 21, 2001', sign: '\u2650\uFE0E', color: '#8b5cf6' },
+                    { name: 'Sarah Mitchell', date: 'Mar 17, 1998', sign: '\u2653\uFE0E', color: '#4f46e5' },
+                    { name: 'David Chen', date: 'Aug 3, 1995', sign: '\u264C\uFE0E', color: '#d97706' },
+                    { name: 'Emma Rodriguez', date: 'Dec 21, 2001', sign: '\u2650\uFE0E', color: '#7c3aed' },
                   ].map((person, i) => (
-                    <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06]">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-lg flex-shrink-0" style={{ backgroundColor: person.color + '20', color: person.color }}>
+                    <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-black/[0.02] border border-black/[0.06]">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-lg flex-shrink-0" style={{ backgroundColor: person.color + '12', color: person.color }}>
                         {person.sign}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm text-white/80 font-medium truncate">{person.name}</div>
-                        <div className="text-[11px] text-white/30">{person.date}</div>
+                        <div className="text-sm text-black/75 font-medium truncate">{person.name}</div>
+                        <div className="text-[11px] text-black/35">{person.date}</div>
                       </div>
-                      <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                      <svg className="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                     </div>
                   ))}
                 </div>
                 <div className="flex items-center gap-3 mt-4">
-                  <div className="flex-1 h-10 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-                    <span className="text-emerald-400 text-sm font-semibold">Save 3 Charts</span>
+                  <div className="flex-1 h-10 rounded-lg bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center">
+                    <span className="text-emerald-600 text-sm font-semibold">Save 3 Charts</span>
                   </div>
                 </div>
               </div>
@@ -1629,7 +1626,7 @@ export default function HomePage() {
               'Natal Chart Wheel', 'Synastry Biwheel', 'Composite Charts',
               'Progressed Charts & Solar Arc', 'Solar & Lunar Returns', 'Aspect Grid with Interpretations',
               'Profections', 'Ephemeris Tables', 'Graphic Ephemeris',
-              'Transit Timeline', 'Declination Analysis', 'Age-Degree Activations',
+              'Transit Timeline', 'Declination Analysis', 'Planetary Activations',
               '50+ Asteroids & Arabic Parts', 'Chart Notes', 'Save up to 3 Charts',
               'Shareable Chart Links', 'PNG Export', '10 Chart Themes',
               '3D Galactic Mode', 'Astro.com Import', 'Keyboard Shortcuts',

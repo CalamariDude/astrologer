@@ -6,6 +6,8 @@ import { getSavedCharts, getSavedChartsAsync, invalidateChartsCache, type SavedC
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { DateInput } from '@/components/ui/DateInput';
+import { TimeInput } from '@/components/ui/TimeInput';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BiWheelMobileWrapper } from '@/components/biwheel';
 import { swissEphemeris } from '@/api/swissEphemeris';
@@ -25,6 +27,7 @@ import { ASTEROID_GROUPS } from '@/components/biwheel/types';
 import { GalacticToggle } from '@/components/galactic/GalacticToggle';
 import { useWebGLSupport } from '@/hooks/useWebGLSupport';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { KeyboardShortcutsHelp } from '@/components/ui/KeyboardShortcutsHelp';
 import { TAB_VALUES } from '@/lib/keyboardShortcuts';
 import * as analytics from '@/lib/analytics';
@@ -144,7 +147,9 @@ function InlineBirthForm({
   const [results, setResults] = useState<GeoResult[]>([]);
   const [nameSuggestions, setNameSuggestions] = useState<SavedPerson[]>([]);
   const [showNameDropdown, setShowNameDropdown] = useState(false);
+  const [nameSelectedIdx, setNameSelectedIdx] = useState(-1);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const nameDropdownRef = useRef<HTMLDivElement>(null);
 
   const searchLocation = useCallback(async () => {
     if (!data.location || data.location.length < 2) return;
@@ -209,6 +214,7 @@ function InlineBirthForm({
               onChange={(e) => {
                 const val = e.target.value;
                 onChange({ ...data, name: val });
+                setNameSelectedIdx(-1);
                 if (val.length > 0 && savedPersons.length > 0) {
                   const filtered = savedPersons.filter(p =>
                     p.name.toLowerCase().includes(val.toLowerCase())
@@ -222,6 +228,25 @@ function InlineBirthForm({
                   setShowNameDropdown(false);
                 }
               }}
+              onKeyDown={(e) => {
+                if (!showNameDropdown || nameSuggestions.length === 0) return;
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  setNameSelectedIdx(i => Math.min(i + 1, nameSuggestions.length - 1));
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  setNameSelectedIdx(i => Math.max(i - 1, -1));
+                } else if (e.key === 'Enter' && nameSelectedIdx >= 0) {
+                  e.preventDefault();
+                  const p = nameSuggestions[nameSelectedIdx];
+                  onChange({ name: p.name, date: p.date, time: p.time, location: p.location, lat: p.lat, lng: p.lng });
+                  setShowNameDropdown(false);
+                  setNameSelectedIdx(-1);
+                } else if (e.key === 'Escape') {
+                  setShowNameDropdown(false);
+                  setNameSelectedIdx(-1);
+                }
+              }}
               onFocus={() => {
                 if (savedPersons.length > 0) {
                   const filtered = data.name
@@ -229,27 +254,33 @@ function InlineBirthForm({
                     : savedPersons;
                   setNameSuggestions(filtered);
                   setShowNameDropdown(filtered.length > 0);
+                  setNameSelectedIdx(-1);
                 }
               }}
               onBlur={() => {
-                setTimeout(() => setShowNameDropdown(false), 250);
+                setTimeout(() => { setShowNameDropdown(false); setNameSelectedIdx(-1); }, 250);
               }}
               className={inputBase}
               autoComplete="off"
             />
           </div>
           {showNameDropdown && nameSuggestions.length > 0 && (
-            <div className="absolute z-[100] left-0 right-0 top-full mt-1 border border-border/60 rounded-lg bg-card shadow-xl max-h-52 overflow-y-auto">
+            <div ref={nameDropdownRef} className="absolute z-[100] left-0 right-0 top-full mt-1 border border-border/60 rounded-lg bg-card shadow-xl max-h-52 overflow-y-auto">
               {nameSuggestions.map((p, i) => (
                 <button
                   key={`${p.name}-${p.date}-${i}`}
+                  ref={el => { if (i === nameSelectedIdx && el) el.scrollIntoView({ block: 'nearest' }); }}
                   onMouseDown={(e) => e.preventDefault()}
                   onTouchStart={(e) => e.preventDefault()}
+                  onMouseEnter={() => setNameSelectedIdx(i)}
                   onClick={() => {
                     onChange({ name: p.name, date: p.date, time: p.time, location: p.location, lat: p.lat, lng: p.lng });
                     setShowNameDropdown(false);
+                    setNameSelectedIdx(-1);
                   }}
-                  className="w-full text-left px-3 py-3 text-sm hover:bg-muted/60 active:bg-muted/80 border-b border-border/20 last:border-0 transition-colors"
+                  className={`w-full text-left px-3 py-3 text-sm border-b border-border/20 last:border-0 transition-colors ${
+                    i === nameSelectedIdx ? 'bg-accent' : 'hover:bg-muted/60 active:bg-muted/80'
+                  }`}
                 >
                   <span className="font-medium">{p.name}</span>
                   <span className="text-xs text-muted-foreground/70 ml-2">
@@ -265,20 +296,18 @@ function InlineBirthForm({
         <div className="grid grid-cols-1 sm:grid-cols-2 sm:divide-x divide-border/30">
           <div className="group flex items-center gap-3 px-3 py-2.5 border-b border-border/30 transition-colors group-focus-within:border-foreground/20">
             <Calendar className="w-4 h-4 text-muted-foreground/50 shrink-0" />
-            <input
-              type="date"
+            <DateInput
               value={data.date}
-              onChange={(e) => onChange({ ...data, date: e.target.value })}
-              className={inputBase}
+              onChange={(date) => onChange({ ...data, date })}
+              className={`${inputBase} border-none ring-0 ring-offset-0 focus-within:ring-0 focus-within:ring-offset-0 h-auto px-0`}
             />
           </div>
           <div className="group flex items-center gap-3 px-3 py-2.5 border-b border-border/30 transition-colors group-focus-within:border-foreground/20">
             <Clock className="w-4 h-4 text-muted-foreground/50 shrink-0" />
-            <input
-              type="time"
+            <TimeInput
               value={data.time}
-              onChange={(e) => onChange({ ...data, time: e.target.value })}
-              className={inputBase}
+              onChange={(time) => onChange({ ...data, time })}
+              className={`${inputBase} border-none ring-0 ring-offset-0 focus-within:ring-0 focus-within:ring-offset-0 h-auto px-0`}
             />
           </div>
         </div>
@@ -419,6 +448,7 @@ export default function ChartPage() {
   const { user, signOut } = useAuth();
   const { isPaid, relocatedRemaining, useRelocatedCredit } = useSubscription();
   const liveSession = useSession();
+  const isMobile = useIsMobile();
   // Live chart state ref — updated by onStateChange so snapshots capture current state
   const liveChartStateRef = useRef<ChartStateSnapshot | null>(null);
   // BiWheel writes its current state here directly (no callbacks needed for snapshots)
@@ -628,6 +658,11 @@ export default function ChartPage() {
 
   const [showGalactic, setShowGalactic] = useState(false);
   const [viewMode, setViewMode] = useState<'chart' | 'video'>('chart');
+
+  // Bidirectional view mode sync — listen for remote changes
+  useEffect(() => {
+    liveSession.onRemoteViewMode((mode) => setViewMode(mode));
+  }, [liveSession.onRemoteViewMode]);
   const handleGalacticToggle = useCallback(() => {
     setShowGalactic((v) => {
       analytics.trackGalacticModeToggled({ enabled: !v });
@@ -1344,27 +1379,29 @@ export default function ChartPage() {
 
       {/* ── Chart Tabs Bar ─────────────────────────────────── */}
       {(tabs.length > 1 || hasChart) && (
-        <div className="border-b border-border/50 bg-muted/20">
+        <div className="bg-muted/20">
           <div className="container px-2 md:px-6">
-            <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-hide py-1">
+            <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-hide pt-1" style={{ marginBottom: -1 }}>
               {previewTabs.map(({ tab, origIndex }) => {
                 const isDragging = dragTabIndex === origIndex;
+                const isActive = origIndex === activeTabIndex;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => { if (dragTabIndex === null) handleSwitchTab(origIndex); }}
                     className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-xs font-medium whitespace-nowrap ${
-                      origIndex === activeTabIndex
-                        ? 'bg-background text-foreground border border-b-0 border-border/50'
+                      isActive
+                        ? 'bg-background text-foreground border border-b-background border-border/50'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                     }`}
                     style={{
                       transition: dragTabIndex !== null ? 'transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s ease, box-shadow 0.2s ease' : 'color 0.15s',
                       transform: isDragging ? 'scale(1.08)' : 'scale(1)',
                       opacity: isDragging ? 0.5 : 1,
-                      zIndex: isDragging ? 10 : 0,
+                      zIndex: isDragging ? 10 : isActive ? 1 : 0,
                       position: 'relative',
                       boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
+                      marginBottom: isActive ? 0 : undefined,
                     }}
                     draggable
                     onDragStart={() => setDragTabIndex(origIndex)}
@@ -1397,10 +1434,15 @@ export default function ChartPage() {
                     data-tab-index={origIndex}
                   >
                     <span className="max-w-[120px] truncate">{getTabLabel(tab)}</span>
-                    {tabs.length > 1 && (
+                    {/* Close button: desktop = hover-visible on all tabs; mobile = only on active tab */}
+                    {tabs.length > 1 && (isActive || !isMobile) && (
                       <span
                         onClick={(e) => { e.stopPropagation(); handleCloseTab(origIndex); }}
-                        className="w-4 h-4 flex items-center justify-center rounded-sm opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:bg-muted transition-opacity cursor-pointer"
+                        className={`w-4 h-4 flex items-center justify-center rounded-sm transition-opacity cursor-pointer ${
+                          isActive
+                            ? 'opacity-40 hover:opacity-100 hover:bg-muted'
+                            : 'opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:bg-muted'
+                        }`}
                       >
                         <X className="w-2.5 h-2.5" />
                       </span>
@@ -1419,6 +1461,7 @@ export default function ChartPage() {
               )}
             </div>
           </div>
+          <div className="border-b border-border/50" />
         </div>
       )}
 
@@ -1766,7 +1809,7 @@ export default function ChartPage() {
               {[
                 { value: 'aspect-grid', icon: Grid3X3, label: 'Aspects' },
                 { value: 'profections', icon: RotateCcw, label: 'Profections' },
-                { value: 'age-degree', icon: Gauge, label: 'Age Degree' },
+                { value: 'age-degree', icon: Gauge, label: 'Activations' },
                 { value: 'ephemeris', icon: Table2, label: 'Ephemeris' },
                 { value: 'graphic-eph', icon: TrendingUp, label: 'Graphic Eph.' },
                 { value: 'transits', icon: CalendarClock, label: 'Transits' },
@@ -1920,7 +1963,11 @@ export default function ChartPage() {
           onPause={liveSession.pauseSession}
           onResume={liveSession.resumeSession}
           viewMode={viewMode}
-          onToggleViewMode={() => setViewMode(v => v === 'chart' ? 'video' : 'chart')}
+          onToggleViewMode={() => setViewMode(v => {
+            const next = v === 'chart' ? 'video' : 'chart';
+            liveSession.recordStateChange('view_mode', { mode: next });
+            return next;
+          })}
         />
       )}
 

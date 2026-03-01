@@ -66,6 +66,9 @@ interface UseSessionReturn {
   recordStateChange: (type: SessionEventType, payload: Record<string, any>) => void;
   recordCursor: (x: number, y: number) => void;
   setSnapshotGetter: (getter: () => ChartStateSnapshot) => void;
+
+  // Bidirectional callbacks from guests
+  onRemoteViewMode: (cb: (mode: 'chart' | 'video') => void) => void;
 }
 
 export function useSession(): UseSessionReturn {
@@ -102,6 +105,7 @@ export function useSession(): UseSessionReturn {
   const heartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const durationRef = useRef(0);
   const snapshotGetterRef = useRef<(() => ChartStateSnapshot) | null>(null);
+  const remoteViewModeCallbackRef = useRef<((mode: 'chart' | 'video') => void) | null>(null);
   const sessionStartEpochRef = useRef(0); // epoch ms when session started
   const endSessionRef = useRef<() => Promise<void>>();
   const endingRef = useRef(false);
@@ -370,7 +374,13 @@ export function useSession(): UseSessionReturn {
     // Start broadcast (uses Daily.co sendAppMessage)
     const broadcast = new BroadcastManager();
     broadcastRef.current = broadcast;
-    broadcast.createHostChannel(session_id, callObject);
+    broadcast.createHostChannel(session_id, callObject, {
+      onStateChange: (type, payload) => {
+        if (type === 'view_mode') {
+          remoteViewModeCallbackRef.current?.(payload.mode);
+        }
+      },
+    });
 
     // Update status
     await supabase
@@ -493,7 +503,13 @@ export function useSession(): UseSessionReturn {
     // Restart broadcast (uses Daily.co sendAppMessage)
     const broadcast = new BroadcastManager();
     broadcastRef.current = broadcast;
-    broadcast.createHostChannel(sessionId, callObject);
+    broadcast.createHostChannel(sessionId, callObject, {
+      onStateChange: (type, payload) => {
+        if (type === 'view_mode') {
+          remoteViewModeCallbackRef.current?.(payload.mode);
+        }
+      },
+    });
 
     // Resume status
     if (sessionData.status !== 'live') {
@@ -805,6 +821,9 @@ export function useSession(): UseSessionReturn {
     recordCursor,
     setSnapshotGetter: useCallback((getter: () => ChartStateSnapshot) => {
       snapshotGetterRef.current = getter;
+    }, []),
+    onRemoteViewMode: useCallback((cb: (mode: 'chart' | 'video') => void) => {
+      remoteViewModeCallbackRef.current = cb;
     }, []),
   };
 }

@@ -781,22 +781,6 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     });
   }, []);
 
-  // Save current mobile selections as defaults to localStorage
-  const saveDefaults = useCallback(() => {
-    const defaults = {
-      visiblePlanets: Array.from(visiblePlanets),
-      visibleAspects: Array.from(visibleAspects),
-      showHouses,
-      showDegreeMarkers,
-      showRetrogrades,
-      showDecans,
-      rotateToAscendant,
-      chartTheme,
-      enabledAsteroidGroups: Array.from(enabledAsteroidGroups),
-    };
-    localStorage.setItem('biwheel-chart-defaults', JSON.stringify(defaults));
-  }, [visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, showRetrogrades, showDecans, rotateToAscendant, chartTheme, enabledAsteroidGroups]);
-
   // Preset handlers
   const handleSavePreset = useCallback((name: string) => {
     const payload = buildPresetFromState({
@@ -849,6 +833,26 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     setEnabledAsteroidGroups(new Set(preset.enabledAsteroidGroups as AsteroidGroup[]));
     setActivePresetId(preset.id);
     // Allow the effect to skip this batch
+    requestAnimationFrame(() => { isLoadingPresetRef.current = false; });
+  }, [biWheelProps]);
+
+  const handleResetToDefaults = useCallback(() => {
+    isLoadingPresetRef.current = true;
+    setVisiblePlanets(new Set(DEFAULT_PLANETS));
+    setVisibleAspects(new Set(DEFAULT_ASPECTS));
+    setShowHouses(true);
+    setShowDegreeMarkers(true);
+    setShowRetrogrades(true);
+    setShowDecans(false);
+    setStraightAspects(true);
+    setMobileShowEffects(true);
+    setChartTheme('classic');
+    applyTheme('classic');
+    biWheelProps.onThemeChange?.('classic');
+    setRotateToAscendant(true);
+    setZodiacVantage(null);
+    setEnabledAsteroidGroups(new Set());
+    setActivePresetId('__default__');
     requestAnimationFrame(() => { isLoadingPresetRef.current = false; });
   }, [biWheelProps]);
 
@@ -966,146 +970,10 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   return (
     <div ref={containerRef} className="w-full">
       <div>
-        {/* Preset bar + control bar — hidden in readOnly mode (guest live view + replay) */}
+        {/* Control bar — hidden in readOnly mode (guest live view + replay) */}
         {readOnly ? null : <>
-        {/* Preset selector bar — wraps on mobile, scrolls on desktop */}
-        {(presets.length > 0 || showSavePreset) && (
-          <div className={`flex items-center gap-1.5 w-full mb-1 px-1 md:px-2 ${
-            isMobile
-              ? presetsExpanded ? 'flex-wrap' : 'flex-nowrap overflow-hidden'
-              : 'overflow-x-auto scrollbar-hide'
-          }`} style={isMobile && !presetsExpanded ? { maxHeight: 32 } : undefined}>
-            <Bookmark className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-            {previewPresets.map(p => {
-              const isDragging = dragPresetId === p.id;
-              return (
-                <div
-                  key={p.id}
-                  className="flex-shrink-0 relative group"
-                  style={{
-                    transition: dragPresetId ? 'transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s ease' : 'none',
-                    transform: isDragging ? 'scale(1.1)' : 'scale(1)',
-                    opacity: isDragging ? 0.5 : 1,
-                    zIndex: isDragging ? 10 : 0,
-                    filter: isDragging ? 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))' : 'none',
-                  }}
-                  draggable
-                  onDragStart={(e) => { setDragPresetId(p.id); e.dataTransfer.effectAllowed = 'move'; }}
-                  onDragOver={(e) => { e.preventDefault(); setDragOverPresetId(p.id); }}
-                  onDragEnter={() => setDragOverPresetId(p.id)}
-                  onDragEnd={handlePresetDragEnd}
-                  onTouchStart={(e) => {
-                    dragStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                    dragLongPressTimer.current = setTimeout(() => {
-                      setDragPresetId(p.id);
-                    }, 400);
-                  }}
-                  onTouchMove={(e) => {
-                    if (dragLongPressTimer.current && dragStartPos.current) {
-                      const dx = Math.abs(e.touches[0].clientX - dragStartPos.current.x);
-                      const dy = Math.abs(e.touches[0].clientY - dragStartPos.current.y);
-                      if (dx > 8 || dy > 8) { clearTimeout(dragLongPressTimer.current); dragLongPressTimer.current = null; }
-                    }
-                    if (dragPresetId) {
-                      const touch = e.touches[0];
-                      const el = document.elementFromPoint(touch.clientX, touch.clientY);
-                      const presetEl = el?.closest('[data-preset-id]');
-                      if (presetEl) setDragOverPresetId(presetEl.getAttribute('data-preset-id'));
-                    }
-                  }}
-                  onTouchEnd={() => {
-                    if (dragLongPressTimer.current) { clearTimeout(dragLongPressTimer.current); dragLongPressTimer.current = null; }
-                    if (dragPresetId) handlePresetDragEnd();
-                  }}
-                  data-preset-id={p.id}
-                >
-                  <button
-                    onClick={() => { if (!dragPresetId) handleLoadPreset(p); }}
-                    className={`px-2.5 py-1 rounded-full text-[10px] md:text-xs font-medium transition-colors ${
-                      activePresetId === p.id
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted hover:bg-muted/70 text-foreground'
-                    }`}
-                    title={`Load "${p.name}" — applies saved planets, aspects, theme, and display settings`}
-                  >
-                    {p.name}
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDeletePreset(p.id); }}
-                    className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    title={`Delete preset "${p.name}"`}
-                  >
-                    <X className="w-2 h-2" />
-                  </button>
-                </div>
-              );
-            })}
-            {/* Expand/collapse toggle on mobile when presets overflow */}
-            {isMobile && presets.length > 3 && (
-              <button
-                onClick={() => setPresetsExpanded(v => !v)}
-                className="flex-shrink-0 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                title={presetsExpanded ? 'Collapse presets' : 'Show all presets'}
-              >
-                {presetsExpanded ? '▲' : `+${presets.length - 3}`}
-              </button>
-            )}
-            {showSavePreset ? (
-              <form
-                className="flex items-center gap-1 flex-shrink-0"
-                onSubmit={(e) => { e.preventDefault(); if (presetName.trim()) handleSavePreset(presetName.trim()); }}
-              >
-                <input
-                  type="text"
-                  value={presetName}
-                  onChange={(e) => setPresetName(e.target.value)}
-                  placeholder="Preset name"
-                  maxLength={20}
-                  autoFocus
-                  className="w-24 md:w-32 px-2 py-1 rounded-full text-[10px] md:text-xs border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-                  onKeyDown={(e) => { if (e.key === 'Escape') { setShowSavePreset(false); setPresetName(''); } }}
-                />
-                <button
-                  type="submit"
-                  disabled={!presetName.trim()}
-                  className="p-1 rounded-full bg-primary text-primary-foreground disabled:opacity-50"
-                  title="Save this preset with the given name"
-                >
-                  <Check className="w-3 h-3" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setShowSavePreset(false); setPresetName(''); }}
-                  className="p-1 rounded-full hover:bg-muted"
-                  title="Cancel"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </form>
-            ) : presets.length < 10 ? (
-              <button
-                onClick={() => setShowSavePreset(true)}
-                className="flex-shrink-0 flex items-center gap-0.5 px-2 py-1 rounded-full text-[10px] md:text-xs text-muted-foreground hover:bg-muted transition-colors border border-dashed border-muted-foreground/30"
-                title="Save your current chart options (planets, aspects, theme, display) as a reusable preset"
-              >
-                <Plus className="w-3 h-3" />
-                Save Preset
-              </button>
-            ) : null}
-          </div>
-        )}
         <div className="flex items-center justify-between w-full mb-1 md:mb-2 px-1 md:px-2">
-          {/* Save preset button (when no presets exist yet and save form isn't open) */}
-          {presets.length === 0 && !showSavePreset ? (
-            <button
-              onClick={() => setShowSavePreset(true)}
-              className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-muted/70 transition-colors text-muted-foreground"
-              title="Save your current chart options (planets, aspects, theme, display) as a reusable preset — quickly switch between different configurations"
-            >
-              <Bookmark className="w-3.5 h-3.5" />
-              <span className="text-[10px] md:text-xs">Save Preset</span>
-            </button>
-          ) : <div />}
+          <div />
           <div className="flex items-center gap-1 md:gap-2">
             {/* Settings button — mobile opens drawer, desktop toggles sidebar panel */}
             <button
@@ -1347,6 +1215,158 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
           {remoteCursor}
         </div>
 
+        {/* Preset bar — below chart, hidden in readOnly mode */}
+        {!readOnly && (presets.length > 0 || showSavePreset) && (
+          <div className={`flex items-center gap-1.5 w-full mt-1 px-1 md:px-2 pb-1 ${
+            isMobile
+              ? presetsExpanded ? 'flex-wrap' : 'flex-nowrap overflow-hidden'
+              : 'overflow-x-auto scrollbar-hide'
+          }`} style={isMobile && !presetsExpanded ? { maxHeight: 38 } : undefined}>
+            <Bookmark className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+            {/* Default preset chip — always first */}
+            <button
+              onClick={handleResetToDefaults}
+              className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] md:text-xs font-medium transition-colors ${
+                activePresetId === '__default__'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted hover:bg-muted/70 text-foreground'
+              }`}
+              title="Reset all chart options to app defaults"
+            >
+              Default
+            </button>
+            {previewPresets.map(p => {
+              const isDragging = dragPresetId === p.id;
+              return (
+                <div
+                  key={p.id}
+                  className="flex-shrink-0 relative group"
+                  style={{
+                    transition: dragPresetId ? 'transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s ease' : 'none',
+                    transform: isDragging ? 'scale(1.1)' : 'scale(1)',
+                    opacity: isDragging ? 0.5 : 1,
+                    zIndex: isDragging ? 10 : 0,
+                    filter: isDragging ? 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))' : 'none',
+                  }}
+                  draggable
+                  onDragStart={(e) => { setDragPresetId(p.id); e.dataTransfer.effectAllowed = 'move'; }}
+                  onDragOver={(e) => { e.preventDefault(); setDragOverPresetId(p.id); }}
+                  onDragEnter={() => setDragOverPresetId(p.id)}
+                  onDragEnd={handlePresetDragEnd}
+                  onTouchStart={(e) => {
+                    dragStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                    dragLongPressTimer.current = setTimeout(() => {
+                      setDragPresetId(p.id);
+                    }, 400);
+                  }}
+                  onTouchMove={(e) => {
+                    if (dragLongPressTimer.current && dragStartPos.current) {
+                      const dx = Math.abs(e.touches[0].clientX - dragStartPos.current.x);
+                      const dy = Math.abs(e.touches[0].clientY - dragStartPos.current.y);
+                      if (dx > 8 || dy > 8) { clearTimeout(dragLongPressTimer.current); dragLongPressTimer.current = null; }
+                    }
+                    if (dragPresetId) {
+                      const touch = e.touches[0];
+                      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+                      const presetEl = el?.closest('[data-preset-id]');
+                      if (presetEl) setDragOverPresetId(presetEl.getAttribute('data-preset-id'));
+                    }
+                  }}
+                  onTouchEnd={() => {
+                    if (dragLongPressTimer.current) { clearTimeout(dragLongPressTimer.current); dragLongPressTimer.current = null; }
+                    if (dragPresetId) handlePresetDragEnd();
+                  }}
+                  data-preset-id={p.id}
+                >
+                  <button
+                    onClick={() => { if (!dragPresetId) handleLoadPreset(p); }}
+                    className={`px-2.5 py-1 rounded-full text-[10px] md:text-xs font-medium transition-colors ${
+                      activePresetId === p.id
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted hover:bg-muted/70 text-foreground'
+                    }`}
+                    title={`Load "${p.name}" — applies saved planets, aspects, theme, and display settings`}
+                  >
+                    {p.name}
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeletePreset(p.id); }}
+                    className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    title={`Delete preset "${p.name}"`}
+                  >
+                    <X className="w-2 h-2" />
+                  </button>
+                </div>
+              );
+            })}
+            {/* Expand/collapse toggle on mobile when presets overflow */}
+            {isMobile && presets.length > 3 && (
+              <button
+                onClick={() => setPresetsExpanded(v => !v)}
+                className="flex-shrink-0 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                title={presetsExpanded ? 'Collapse presets' : 'Show all presets'}
+              >
+                {presetsExpanded ? '▲' : `+${presets.length - 3}`}
+              </button>
+            )}
+            {showSavePreset ? (
+              <form
+                className="flex items-center gap-1 flex-shrink-0"
+                onSubmit={(e) => { e.preventDefault(); if (presetName.trim()) handleSavePreset(presetName.trim()); }}
+              >
+                <input
+                  type="text"
+                  value={presetName}
+                  onChange={(e) => setPresetName(e.target.value)}
+                  placeholder="Preset name"
+                  maxLength={20}
+                  autoFocus
+                  className="w-24 md:w-32 px-2 py-1 rounded-full text-[10px] md:text-xs border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                  onKeyDown={(e) => { if (e.key === 'Escape') { setShowSavePreset(false); setPresetName(''); } }}
+                />
+                <button
+                  type="submit"
+                  disabled={!presetName.trim()}
+                  className="p-1 rounded-full bg-primary text-primary-foreground disabled:opacity-50"
+                  title="Save this preset with the given name"
+                >
+                  <Check className="w-3 h-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowSavePreset(false); setPresetName(''); }}
+                  className="p-1 rounded-full hover:bg-muted"
+                  title="Cancel"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </form>
+            ) : presets.length < 10 ? (
+              <button
+                onClick={() => setShowSavePreset(true)}
+                className="flex-shrink-0 flex items-center gap-0.5 px-2 py-1 rounded-full text-[10px] md:text-xs text-muted-foreground hover:bg-muted transition-colors border border-dashed border-muted-foreground/30"
+                title="Save your current chart options (planets, aspects, theme, display) as a reusable preset"
+              >
+                <Plus className="w-3 h-3" />
+                Save Preset
+              </button>
+            ) : null}
+          </div>
+        )}
+        {/* Save preset button (when no presets exist yet) */}
+        {!readOnly && presets.length === 0 && !showSavePreset && (
+          <div className="flex justify-start px-1 md:px-2 mt-1">
+            <button
+              onClick={() => setShowSavePreset(true)}
+              className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-muted/70 transition-colors text-muted-foreground"
+              title="Save your current chart options (planets, aspects, theme, display) as a reusable preset — quickly switch between different configurations"
+            >
+              <Bookmark className="w-3.5 h-3.5" />
+              <span className="text-[10px] md:text-xs">Save Preset</span>
+            </button>
+          </div>
+        )}
+
         {/* Mobile drawer for controls — disabled in readOnly mode */}
         <Drawer.Root open={!readOnly && drawerOpen} onOpenChange={readOnly ? undefined : setDrawerOpen}>
           <Drawer.Portal>
@@ -1475,7 +1495,6 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                     setShowBirthTimeShift(show);
                     if (!show) { setTimeShiftA(0); setTimeShiftB(0); biWheelProps.onTimeShiftAChange?.(0); biWheelProps.onTimeShiftBChange?.(0); }
                   }}
-                  onSaveDefaults={saveDefaults}
                   // Presets
                   presets={presets.map(p => ({ id: p.id, name: p.name }))}
                   activePresetId={activePresetId}

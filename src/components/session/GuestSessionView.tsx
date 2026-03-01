@@ -235,6 +235,7 @@ export const GuestSessionView: React.FC<GuestSessionViewProps> = ({ session }) =
                 // Also update chart mode to match the new chart
                 if (payload.mode) next.chartMode = payload.mode;
                 break;
+              case 'view_mode': setViewMode(payload.mode); return prev; // no chart state change
               case 'state_snapshot': Object.assign(next, payload); break;
             }
             return next;
@@ -632,7 +633,11 @@ export const GuestSessionView: React.FC<GuestSessionViewProps> = ({ session }) =
         </button>
         {/* View mode toggle */}
         <button
-          onClick={() => setViewMode(v => v === 'chart' ? 'video' : 'chart')}
+          onClick={() => setViewMode(v => {
+            const next = v === 'chart' ? 'video' : 'chart';
+            broadcastRef.current?.broadcastStateChange('view_mode', { mode: next });
+            return next;
+          })}
           className="p-2 rounded-full transition-colors text-white/70 hover:text-white"
           title={viewMode === 'chart' ? 'Switch to video gallery' : 'Switch to chart view'}
         >

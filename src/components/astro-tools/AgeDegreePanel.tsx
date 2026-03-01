@@ -1,11 +1,11 @@
 /**
- * Age-Degree Activations Panel
+ * Planetary Activations Panel
  * Each planet's degree within its sign corresponds to an age of activation.
- * Every 30 years the cycle repeats with the next sign's theme:
- *   Cycle 1 (0-30): Aries lens
- *   Cycle 2 (30-60): Taurus lens
- *   Cycle 3 (60-90): Gemini lens
- *   Cycle 4 (90-120): Cancer lens
+ * Every 30 years the cycle repeats with the next sign's influence:
+ *   Cycle 1 (0-30): Aries influence
+ *   Cycle 2 (30-60): Taurus influence
+ *   Cycle 3 (60-90): Gemini influence
+ *   Cycle 4 (90-120): Cancer influence
  */
 
 import { useState, useMemo } from 'react';
@@ -210,7 +210,7 @@ export function AgeDegreePanel({ birthDate, natalChart, personName }: AgeDegreeP
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold">{personName} — Age-Degree Activations</h3>
+          <h3 className="text-sm font-semibold">{personName} — Planetary Activations</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             Current age: {currentAge.toFixed(1)} — Each planet's degree = its activation age (repeats every 30y)
           </p>
@@ -316,7 +316,7 @@ function ActivationHighlightCard({
       </div>
       <div className="flex items-center gap-1.5 text-xs">
         <span className={colors.text}>{signSymbol}</span>
-        <span className={`font-medium ${colors.text}`}>{activation.signTheme} lens</span>
+        <span className={`font-medium ${colors.text}`}>{activation.signTheme} influence</span>
         <span className="text-muted-foreground">· Cycle {activation.cycle}</span>
       </div>
       {coreKeywords.length > 0 && (

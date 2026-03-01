@@ -168,8 +168,8 @@ export function calculateNatalAspects(
  * Get aspect line opacity based on orb tightness
  */
 export function getAspectOpacity(strength: number): number {
-  // Strong aspects are more visible
-  return 0.3 + (strength * 0.6);
+  // Strong aspects are more visible — floor raised for dark theme legibility
+  return 0.45 + (strength * 0.5);
 }
 
 /**
@@ -177,7 +177,7 @@ export function getAspectOpacity(strength: number): number {
  */
 export function getAspectStrokeWidth(strength: number): number {
   // Tighter aspects are thicker
-  return 1 + (strength * 1.5);
+  return 1.2 + (strength * 1.5);
 }
 
 /**

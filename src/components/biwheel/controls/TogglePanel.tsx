@@ -104,8 +104,6 @@ interface TogglePanelProps {
   enableBirthTimeShift?: boolean;
   showBirthTimeShift?: boolean;
   onSetShowBirthTimeShift?: (show: boolean) => void;
-  // Save defaults
-  onSaveDefaults?: () => void;
   // Controlled collapsed state (from parent)
   collapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
@@ -457,13 +455,10 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
   enableBirthTimeShift = false,
   showBirthTimeShift = false,
   onSetShowBirthTimeShift,
-  // Save defaults
-  onSaveDefaults,
   // Controlled collapsed state
   collapsed: collapsedProp,
   onCollapsedChange,
 }) => {
-  const [saveFlash, setSaveFlash] = useState(false);
   const [collapsedInternal, setCollapsedInternal] = useState(false);
   const collapsed = collapsedProp ?? collapsedInternal;
   const setCollapsed = (v: boolean) => {
@@ -1414,32 +1409,6 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
         )}
       </Section>
 
-      {/* Save Defaults button */}
-      {onSaveDefaults && (
-        <div style={{ padding: '8px 12px', borderTop: `1px solid ${COLORS.gridLineFaint}` }}>
-          <button
-            onClick={() => {
-              onSaveDefaults();
-              setSaveFlash(true);
-              setTimeout(() => setSaveFlash(false), 1500);
-            }}
-            style={{
-              width: '100%',
-              padding: '6px 0',
-              fontSize: 12,
-              fontWeight: 600,
-              color: saveFlash ? '#fff' : COLORS.textPrimary,
-              background: saveFlash ? '#22c55e' : COLORS.backgroundAlt,
-              border: `1px solid ${COLORS.gridLineFaint}`,
-              borderRadius: 6,
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            {saveFlash ? 'Saved!' : 'Save as Default'}
-          </button>
-        </div>
-      )}
 
     </div>
     </div>

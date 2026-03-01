@@ -20,6 +20,10 @@ export interface GuestCallbacks {
   onHeartbeat: () => void;
 }
 
+export interface HostCallbacks {
+  onStateChange: (type: SessionEventType, payload: Record<string, any>) => void;
+}
+
 export class BroadcastManager {
   private callObject: any = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
@@ -27,11 +31,23 @@ export class BroadcastManager {
 
   /**
    * Host: attach to the Daily.co call object for sending broadcasts.
-   * Starts heartbeat timer.
+   * Starts heartbeat timer. Optionally listens for bidirectional events from guests.
    */
-  createHostChannel(sessionId: string, callObject?: any): void {
+  createHostChannel(sessionId: string, callObject?: any, callbacks?: HostCallbacks): void {
     if (callObject) {
       this.callObject = callObject;
+    }
+
+    // Listen for bidirectional messages from guests (e.g. view_mode)
+    if (callbacks && this.callObject) {
+      this.appMessageHandler = (event: any) => {
+        const msg = event?.data;
+        if (!msg || !msg.event) return;
+        if (msg.event === 'state_change') {
+          callbacks.onStateChange(msg.payload.type, msg.payload.data);
+        }
+      };
+      this.callObject.on('app-message', this.appMessageHandler);
     }
 
     // Host heartbeat

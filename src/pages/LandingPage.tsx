@@ -4,6 +4,8 @@ import { Loader2, MapPin, Plus, X, FolderOpen, ClipboardPaste } from 'lucide-rea
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { DateInput } from '@/components/ui/DateInput';
+import { TimeInput } from '@/components/ui/TimeInput';
 import { swissEphemeris } from '@/api/swissEphemeris';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -101,20 +103,16 @@ function BirthForm({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs text-muted-foreground">Birth Date</label>
-          <input
-            type="date"
+          <DateInput
             value={data.date}
-            onChange={(e) => onChange({ ...data, date: e.target.value })}
-            className="w-full px-3 py-2 border rounded-sm bg-background text-sm"
+            onChange={(date) => onChange({ ...data, date })}
           />
         </div>
         <div>
           <label className="text-xs text-muted-foreground">Birth Time</label>
-          <input
-            type="time"
+          <TimeInput
             value={data.time}
-            onChange={(e) => onChange({ ...data, time: e.target.value })}
-            className="w-full px-3 py-2 border rounded-sm bg-background text-sm"
+            onChange={(time) => onChange({ ...data, time })}
           />
         </div>
       </div>

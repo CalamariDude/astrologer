@@ -95,8 +95,6 @@ interface TogglePanelContentProps {
   enableBirthTimeShift?: boolean;
   showBirthTimeShift?: boolean;
   onSetShowBirthTimeShift?: (show: boolean) => void;
-  // Save defaults
-  onSaveDefaults?: () => void;
   // Presets
   presets?: { id: string; name: string }[];
   activePresetId?: string | null;
@@ -424,7 +422,6 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
   enableBirthTimeShift = false,
   showBirthTimeShift = false,
   onSetShowBirthTimeShift,
-  onSaveDefaults,
   // Presets
   presets,
   activePresetId,
@@ -433,7 +430,6 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
   onSavePreset,
   presetsAtLimit,
 }) => {
-  const [saveFlash, setSaveFlash] = useState(false);
   const [presetSaveName, setPresetSaveName] = useState('');
   const [showPresetSave, setShowPresetSave] = useState(false);
   const majorAspects = Object.entries(ASPECTS).filter(([_, def]) => def.major);
@@ -1335,32 +1331,6 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
         </Section>
       )}
 
-      {/* Save as Default button */}
-      {onSaveDefaults && (
-        <div style={{ marginTop: isMobile ? 16 : 12, paddingTop: 12, borderTop: `1px solid ${COLORS.gridLineFaint}` }}>
-          <button
-            onClick={() => {
-              onSaveDefaults();
-              setSaveFlash(true);
-              setTimeout(() => setSaveFlash(false), 1500);
-            }}
-            style={{
-              width: '100%',
-              padding: isMobile ? '12px 0' : '8px 0',
-              fontSize: isMobile ? 14 : 12,
-              fontWeight: 600,
-              color: saveFlash ? '#fff' : COLORS.textPrimary,
-              background: saveFlash ? '#22c55e' : COLORS.backgroundAlt,
-              border: `1px solid ${COLORS.gridLineFaint}`,
-              borderRadius: 8,
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            {saveFlash ? 'Saved!' : 'Save as Default'}
-          </button>
-        </div>
-      )}
     </div>
   );
 };

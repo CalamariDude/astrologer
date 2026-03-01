@@ -26,7 +26,7 @@ export const SHORTCUTS: ShortcutDef[] = [
   // Navigation
   { id: 'tab-1', key: '1', label: 'Aspects tab', category: 'Navigation' },
   { id: 'tab-2', key: '2', label: 'Profections tab', category: 'Navigation' },
-  { id: 'tab-3', key: '3', label: 'Age Degree tab', category: 'Navigation' },
+  { id: 'tab-3', key: '3', label: 'Activations tab', category: 'Navigation' },
   { id: 'tab-4', key: '4', label: 'Ephemeris tab', category: 'Navigation' },
   { id: 'tab-5', key: '5', label: 'Graphic Eph. tab', category: 'Navigation' },
   { id: 'tab-6', key: '6', label: 'Transits tab', category: 'Navigation' },

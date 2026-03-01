@@ -23,6 +23,7 @@ export type SessionEventType =
   | 'wheel_rotation'
   | 'state_snapshot'
   | 'chart_swap'
+  | 'view_mode'
   | 'custom';
 
 export interface SessionEvent {

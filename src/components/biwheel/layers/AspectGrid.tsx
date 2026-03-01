@@ -192,7 +192,7 @@ function generateAspectLines(
     const hasPlanetActive = hoveredPlanet || selectedPlanet;
 
     const baseOpacity = getAspectOpacity(asp.aspect.strength);
-    const opacity = isHighlighted ? 1 : hasPlanetActive ? baseOpacity * 0.3 : baseOpacity;
+    const opacity = isHighlighted ? 1 : hasPlanetActive ? baseOpacity * 0.4 : baseOpacity;
     const strokeWidth = isHighlighted
       ? getAspectStrokeWidth(asp.aspect.strength) + 1.5
       : getAspectStrokeWidth(asp.aspect.strength);

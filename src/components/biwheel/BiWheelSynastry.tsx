@@ -2082,24 +2082,6 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     });
   }, []);
 
-  // Save current selections as defaults to localStorage
-  const saveDefaults = useCallback(() => {
-    const defaults: SavedChartDefaults = {
-      visiblePlanets: Array.from(state.visiblePlanets),
-      visibleAspects: Array.from(state.visibleAspects),
-      showHouses: state.showHouses,
-      showDegreeMarkers: state.showDegreeMarkers,
-      showRetrogrades: state.showRetrogrades,
-      showDecans: state.showDecans,
-      rotateToAscendant,
-      chartTheme,
-      enabledAsteroidGroups: Array.from(state.enabledAsteroidGroups),
-      straightAspects: state.straightAspects,
-      showEffects: state.showEffects,
-    };
-    localStorage.setItem(CHART_DEFAULTS_KEY, JSON.stringify(defaults));
-  }, [state.visiblePlanets, state.visibleAspects, state.showHouses, state.showDegreeMarkers, state.showRetrogrades, state.showDecans, rotateToAscendant, chartTheme, state.enabledAsteroidGroups, state.straightAspects, state.showEffects]);
-
   // Notify parent of chart state changes (for session broadcast)
   // Note: no "isFirstStateChange" guard — on mobile, chartKey remount re-mounts this component
   // and we NEED the first effect run to broadcast so the guest receives the new state.
@@ -3020,8 +3002,6 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             enableBirthTimeShift={enableBirthTimeShift}
             showBirthTimeShift={state.showBirthTimeShift}
             onSetShowBirthTimeShift={setShowBirthTimeShift}
-            // Save defaults
-            onSaveDefaults={saveDefaults}
             // Controlled collapsed state
             collapsed={togglePanelCollapsed}
             onCollapsedChange={onTogglePanelCollapsedChange}
