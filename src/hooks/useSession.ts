@@ -739,12 +739,8 @@ export function useSession(): UseSessionReturn {
       })
       .eq('id', session.id);
 
-    const { data: { session: procAuthSession } } = await supabase.auth.getSession();
     supabase.functions.invoke('astrologer-session-process', {
       body: { session_id: session.id },
-      headers: procAuthSession?.access_token
-        ? { Authorization: `Bearer ${procAuthSession.access_token}` }
-        : undefined,
     }).catch(console.error);
 
     setSession((s) => s ? { ...s, status: 'ended' } : null);

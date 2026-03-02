@@ -34,18 +34,35 @@ serve(async (req) => {
     }
 
     const token = authHeader.replace("Bearer ", "");
-    const supabaseUser = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const { data: { user }, error: authError } = await supabaseUser.auth.getUser(token);
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Check if token is service role: either exact match or JWT payload has service_role
+    let isServiceRole = token === serviceRoleKey;
+    if (!isServiceRole) {
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        if (payload.role === "service_role") {
+          isServiceRole = true;
+        }
+      } catch {}
+    }
+
+    // Validate auth: service role key is trusted, otherwise verify user token
+    let userId: string | null = null;
+    if (!isServiceRole) {
+      const supabaseUser = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: { user }, error: authError } = await supabaseUser.auth.getUser(token);
+      if (authError || !user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      userId = user.id;
     }
 
     const { session_id } = await req.json();
@@ -59,16 +76,20 @@ serve(async (req) => {
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      serviceRoleKey
     );
 
-    // Verify ownership
-    const { data: session } = await supabase
+    // Verify session exists (and ownership if called by user)
+    let sessionQuery = supabase
       .from("astrologer_sessions")
       .select("*")
-      .eq("id", session_id)
-      .eq("host_id", user.id)
-      .single();
+      .eq("id", session_id);
+
+    if (userId) {
+      sessionQuery = sessionQuery.eq("host_id", userId);
+    }
+
+    const { data: session } = await sessionQuery.single();
 
     if (!session) {
       return new Response(JSON.stringify({ error: "Session not found" }), {
