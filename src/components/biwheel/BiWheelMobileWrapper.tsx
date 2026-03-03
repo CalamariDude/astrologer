@@ -845,6 +845,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
 
   // Fixed star group handlers
   const toggleFixedStarGroup = useCallback((group: FixedStarGroup) => {
+    console.log('[FixedStars][MobileWrapper] toggleFixedStarGroup:', group);
     setEnabledFixedStarGroups(prev => {
       const next = new Set(prev);
       if (next.has(group)) {

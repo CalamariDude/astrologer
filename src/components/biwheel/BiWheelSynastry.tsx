@@ -28,7 +28,7 @@ import { TransitRing } from './layers/TransitRing';
 import { DecanRing } from './layers/DecanRing';
 import { AspectGrid } from './layers/AspectGrid';
 import type { PlanetDisplayPositions, TransitData, CompositeData, ChartMode, ProgressedData, RelocatedData, LocationData, AsteroidGroup, FixedStarGroup } from './types';
-import { ASTEROID_GROUPS, FIXED_STAR_GROUPS } from './types';
+import { ASTEROID_GROUPS, FIXED_STAR_GROUPS, ALL_FIXED_STAR_KEYS } from './types';
 // Lazy-load LocationPicker — Leaflet is ~4MB, only needed when relocate modal opens
 const LocationPicker = React.lazy(() => import('./controls/LocationPicker').then(m => ({ default: m.LocationPicker })));
 import { useAuth } from '@/contexts/AuthContext';
@@ -946,13 +946,21 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     fetchData();
   }, [computedAsteroids, onFetchAsteroidData]);
 
-  // Fetch fixed star data when any fixed star group is enabled
+  // Check if any fixed star key is in visiblePlanets (works for both group toggle and individual checkbox)
+  const hasAnyVisibleFixedStar = useMemo(() => {
+    for (const key of ALL_FIXED_STAR_KEYS) {
+      if (state.visiblePlanets.has(key)) return true;
+    }
+    return false;
+  }, [state.visiblePlanets]);
+
+  // Fetch fixed star data when any fixed star is visible (via group or individual toggle)
   useEffect(() => {
-    if (state.enabledFixedStarGroups.size === 0) {
+    if (!hasAnyVisibleFixedStar) {
       setFixedStarData(null);
       return;
     }
-    // Already fetched - no need to re-fetch (fixed stars don't change per group)
+    // Already fetched - no need to re-fetch (all stars come in one API call)
     if (fixedStarData) return;
     if (!onFetchFixedStarData) return;
 
@@ -976,7 +984,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       }
     };
     fetchStars();
-  }, [state.enabledFixedStarGroups.size, onFetchFixedStarData, fixedStarData]);
+  }, [hasAnyVisibleFixedStar, onFetchFixedStarData, fixedStarData]);
 
   // Fetch transits when showTransits is enabled or transitDate/transitTime changes
   useEffect(() => {
@@ -1414,6 +1422,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
   // Fixed star group handlers - toggle visibility
   const toggleFixedStarGroup = useCallback((group: FixedStarGroup) => {
+    console.log('[FixedStars] toggleFixedStarGroup:', group);
     setState(prev => {
       const nextGroups = new Set(prev.enabledFixedStarGroups);
       const nextPlanets = new Set(prev.visiblePlanets);
