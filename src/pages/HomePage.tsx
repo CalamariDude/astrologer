@@ -29,7 +29,6 @@ export default function HomePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [showAuth, setShowAuth] = useState(false);
-  const [pendingDashboard, setPendingDashboard] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const scrollProgress = useScrollProgress();
   const isMobile = useIsMobile();
@@ -40,25 +39,13 @@ export default function HomePage() {
   const sceneOpacity = Math.max(0, 1 - scrollProgress * 1.6);
   const inDarkZone = scrollProgress < 0.15;
 
-  useEffect(() => {
-    if (user && pendingDashboard) {
-      setPendingDashboard(false);
-      navigate('/dashboard');
-    }
-  }, [user, pendingDashboard, navigate]);
-
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   useEffect(() => {
     setPrefersReducedMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   }, []);
 
   const handleOpenApp = () => {
-    if (user) {
-      navigate('/dashboard');
-    } else {
-      setPendingDashboard(true);
-      setShowAuth(true);
-    }
+    navigate(user ? '/dashboard' : '/chart');
   };
 
   const toolsFade = useFadeIn();
