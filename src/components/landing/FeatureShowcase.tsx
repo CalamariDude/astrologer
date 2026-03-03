@@ -1,4 +1,6 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
 import { useFadeIn } from '@/hooks/useFadeIn';
 
 export function FeatureShowcase({
@@ -10,6 +12,8 @@ export function FeatureShowcase({
   dark = false,
   wideVisual = false,
   extraWideVisual = false,
+  link,
+  linkLabel,
 }: {
   tag: string;
   headline: React.ReactNode;
@@ -19,6 +23,8 @@ export function FeatureShowcase({
   dark?: boolean;
   wideVisual?: boolean;
   extraWideVisual?: boolean;
+  link?: string;
+  linkLabel?: string;
 }) {
   const textFade = useFadeIn(0);
   const visualFade = useFadeIn(200);
@@ -53,6 +59,11 @@ export function FeatureShowcase({
             `}>
               {body}
             </p>
+            {link && linkLabel && (
+              <Link to={link} className="inline-flex items-center gap-1.5 text-sm text-amber-600/70 hover:text-amber-600 transition-colors mt-5">
+                {linkLabel} <ChevronRight className="w-4 h-4" />
+              </Link>
+            )}
           </div>
 
           <div
@@ -94,6 +105,11 @@ export function FeatureShowcase({
             `}>
               {body}
             </p>
+            {link && linkLabel && (
+              <Link to={link} className="inline-flex items-center gap-1.5 text-sm text-amber-600/70 hover:text-amber-600 transition-colors mt-5">
+                {linkLabel} <ChevronRight className="w-4 h-4" />
+              </Link>
+            )}
           </div>
 
           <div

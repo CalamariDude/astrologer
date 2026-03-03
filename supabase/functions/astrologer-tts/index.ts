@@ -25,7 +25,7 @@ serve(async (req) => {
     // Default to aura-2-luna-en — fitting for an astrology app
     const voice = model || "aura-2-luna-en";
     // Speed: 1.0 = normal, 1.2 = slightly faster, etc.
-    const ttsSpeed = speed ?? 1.15;
+    const ttsSpeed = speed ?? 1.3;
 
     const response = await fetch(
       `https://api.deepgram.com/v1/speak?model=${voice}&encoding=mp3&speed=${ttsSpeed}`,

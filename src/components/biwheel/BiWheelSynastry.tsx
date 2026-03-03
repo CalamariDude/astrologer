@@ -399,6 +399,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   onFetchFixedStarData,
   // Initial enabled asteroid groups (from parent wrapper on remount)
   initialEnabledAsteroidGroups,
+  // Initial enabled fixed star groups (from parent wrapper on remount)
+  initialEnabledFixedStarGroups,
   // Initial display toggles (from parent wrapper for session sync)
   initialShowRetrogrades,
   initialShowDecans,
@@ -488,7 +490,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     // Asteroids state
     enabledAsteroidGroups: initialEnabledAsteroidGroups || (savedDefaults?.enabledAsteroidGroups ? new Set(savedDefaults.enabledAsteroidGroups as AsteroidGroup[]) : new Set<AsteroidGroup>()),
     // Fixed stars state
-    enabledFixedStarGroups: savedDefaults?.enabledFixedStarGroups ? new Set(savedDefaults.enabledFixedStarGroups as FixedStarGroup[]) : new Set<FixedStarGroup>(),
+    enabledFixedStarGroups: initialEnabledFixedStarGroups || (savedDefaults?.enabledFixedStarGroups ? new Set(savedDefaults.enabledFixedStarGroups as FixedStarGroup[]) : new Set<FixedStarGroup>()),
     // Solar Arc state (derived from progressed Sun - mutually exclusive with progressed)
     showSolarArc: initialShowSolarArc || false,
     // Aspect line display options
@@ -603,6 +605,16 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       });
     }
   }, [initialEnabledAsteroidGroups]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (initialEnabledFixedStarGroups) {
+      setState(prev => {
+        if (prev.enabledFixedStarGroups.size === initialEnabledFixedStarGroups.size &&
+            [...initialEnabledFixedStarGroups].every(g => prev.enabledFixedStarGroups.has(g))) return prev;
+        return { ...prev, enabledFixedStarGroups: initialEnabledFixedStarGroups };
+      });
+    }
+  }, [initialEnabledFixedStarGroups]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (initialRotateToAscendant !== undefined && initialRotateToAscendant !== rotateToAscendant) {
@@ -947,12 +959,18 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     const fetchStars = async () => {
       setFixedStarLoading(true);
       try {
+        console.log('[FixedStars] Fetching star data...');
         const data = await onFetchFixedStarData();
-        if (Object.keys(data.chartA || {}).length > 0 || Object.keys(data.chartB || {}).length > 0) {
+        const countA = Object.keys(data.chartA || {}).length;
+        const countB = Object.keys(data.chartB || {}).length;
+        console.log(`[FixedStars] Received: chartA=${countA} stars, chartB=${countB} stars`, countA > 0 ? Object.keys(data.chartA).slice(0, 5) : []);
+        if (countA > 0 || countB > 0) {
           setFixedStarData(data);
+        } else {
+          console.warn('[FixedStars] No star data returned from API');
         }
       } catch (error) {
-        console.error('Failed to fetch fixed star data:', error);
+        console.error('[FixedStars] Failed to fetch:', error);
       } finally {
         setFixedStarLoading(false);
       }
@@ -1570,7 +1588,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     // BIRTH TIME SHIFT: highest priority — replaces natal chart in-place
     if (state.timeShiftA !== 0 && state.shiftedChartA) {
       return {
-        planets: { ...state.shiftedChartA.planets, ...(asteroidData ? Object.fromEntries(Object.entries(planetsWithAnglesA).filter(([k]) => !(k in (state.shiftedChartA?.planets || {})))) : {}) },
+        planets: { ...state.shiftedChartA.planets, ...((asteroidData || fixedStarData) ? Object.fromEntries(Object.entries(planetsWithAnglesA).filter(([k]) => !(k in (state.shiftedChartA?.planets || {})))) : {}) },
         houses: state.shiftedChartA.houses,
         angles: state.shiftedChartA.angles,
       };
@@ -1645,13 +1663,13 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     }
 
     return mergedChartA;
-  }, [state.timeShiftA, state.shiftedChartA, asteroidData, state.showRelocated, relocatedPerson, state.relocatedData?.houses, state.relocatedDataOther?.houses, state.showProgressed, state.showSolarArc, progressedPerson, state.progressedData, state.progressedDataOther, progressedPlanetsToRecord, planetsWithAnglesA, chartA.houses, chartA.angles, mergedChartA]);
+  }, [state.timeShiftA, state.shiftedChartA, asteroidData, fixedStarData, state.showRelocated, relocatedPerson, state.relocatedData?.houses, state.relocatedDataOther?.houses, state.showProgressed, state.showSolarArc, progressedPerson, state.progressedData, state.progressedDataOther, progressedPlanetsToRecord, planetsWithAnglesA, chartA.houses, chartA.angles, mergedChartA]);
 
   const effectiveChartB = useMemo((): NatalChart => {
     // BIRTH TIME SHIFT: highest priority — replaces natal chart in-place
     if (state.timeShiftB !== 0 && state.shiftedChartB) {
       return {
-        planets: { ...state.shiftedChartB.planets, ...(asteroidData ? Object.fromEntries(Object.entries(planetsWithAnglesB).filter(([k]) => !(k in (state.shiftedChartB?.planets || {})))) : {}) },
+        planets: { ...state.shiftedChartB.planets, ...((asteroidData || fixedStarData) ? Object.fromEntries(Object.entries(planetsWithAnglesB).filter(([k]) => !(k in (state.shiftedChartB?.planets || {})))) : {}) },
         houses: state.shiftedChartB.houses,
         angles: state.shiftedChartB.angles,
       };
@@ -1725,7 +1743,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     }
 
     return mergedChartB;
-  }, [state.timeShiftB, state.shiftedChartB, asteroidData, state.showRelocated, relocatedPerson, state.relocatedData?.houses, state.relocatedDataOther?.houses, state.showProgressed, state.showSolarArc, progressedPerson, state.progressedData, state.progressedDataOther, progressedPlanetsToRecord, planetsWithAnglesB, chartB.houses, chartB.angles, mergedChartB]);
+  }, [state.timeShiftB, state.shiftedChartB, asteroidData, fixedStarData, state.showRelocated, relocatedPerson, state.relocatedData?.houses, state.relocatedDataOther?.houses, state.showProgressed, state.showSolarArc, progressedPerson, state.progressedData, state.progressedDataOther, progressedPlanetsToRecord, planetsWithAnglesB, chartB.houses, chartB.angles, mergedChartB]);
 
   // Swap-aware chart and name references
   const displayChartA = swapped ? effectiveChartB : effectiveChartA;
@@ -2237,7 +2255,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       timeShiftA: state.timeShiftA,
       timeShiftB: state.timeShiftB,
     });
-  }, [state.chartMode, state.visiblePlanets, state.visibleAspects, state.showHouses, state.showDegreeMarkers, state.showTransits, state.transitDate, state.transitTime, state.showProgressed, progressedPerson, state.progressedDate, state.showSolarArc, state.showRelocated, relocatedPerson, state.relocatedLocationA, state.relocatedLocationB, state.enabledAsteroidGroups, chartTheme, rotateToAscendant, zodiacVantage, state.straightAspects, state.showEffects, state.showRetrogrades, state.showDecans, state.showBirthTimeShift, state.timeShiftA, state.timeShiftB]);
+  }, [state.chartMode, state.visiblePlanets, state.visibleAspects, state.showHouses, state.showDegreeMarkers, state.showTransits, state.transitDate, state.transitTime, state.showProgressed, progressedPerson, state.progressedDate, state.showSolarArc, state.showRelocated, relocatedPerson, state.relocatedLocationA, state.relocatedLocationB, state.enabledAsteroidGroups, state.enabledFixedStarGroups, chartTheme, rotateToAscendant, zodiacVantage, state.straightAspects, state.showEffects, state.showRetrogrades, state.showDecans, state.showBirthTimeShift, state.timeShiftA, state.timeShiftB]);
 
   // Get hovered planet data for tooltip
   const hoveredPlanetData = React.useMemo(() => {

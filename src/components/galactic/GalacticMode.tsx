@@ -641,6 +641,18 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
     setSelectedPlanetB(keyB ?? null);
     if (key) {
       setAutoRotate(false);
+      // Auto-enable planets that the journey needs to focus on
+      setLocalVisiblePlanets(prev => {
+        const next = new Set(prev);
+        let changed = false;
+        if (!next.has(key)) { next.add(key); changed = true; }
+        // For transit planet keys like "transit_saturn", ensure the natal version is also visible
+        if (keyB) {
+          const natalKey = keyB.startsWith('transit_') ? keyB.replace('transit_', '') : keyB;
+          if (!next.has(natalKey)) { next.add(natalKey); changed = true; }
+        }
+        return changed ? next : prev;
+      });
     }
   }, []);
 

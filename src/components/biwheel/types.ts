@@ -212,6 +212,8 @@ export interface BiWheelSynastryProps {
   onAsteroidsChange?: (asteroids: AsteroidsParam) => void;
   // Initial enabled asteroid groups (from parent wrapper, overrides localStorage defaults on remount)
   initialEnabledAsteroidGroups?: Set<AsteroidGroup>;
+  // Initial enabled fixed star groups (from parent wrapper, overrides localStorage defaults on remount)
+  initialEnabledFixedStarGroups?: Set<FixedStarGroup>;
   // Initial display toggles (from parent wrapper for session sync)
   initialShowRetrogrades?: boolean;
   initialShowDecans?: boolean;

@@ -17,6 +17,8 @@ import { PricingToggle } from '@/components/landing/PricingSection';
 import { FAQSection } from '@/components/landing/FAQSection';
 import { TodaysSky } from '@/components/landing/TodaysSky';
 import { FeatureBento } from '@/components/landing/FeatureBento';
+import { FeaturePreview } from '@/components/landing/FeaturePreview';
+import { AboutSection } from '@/components/landing/AboutSection';
 import { LearnSection } from '@/components/landing/LearnSection';
 
 const SpaceScene = lazy(() => import('@/components/landing/SpaceScene'));
@@ -151,6 +153,8 @@ export default function HomePage() {
         tag="Chart Analysis"
         headline={<>Your birth chart.<br className="hidden sm:block" /> Beautiful and precise.</>}
         body="Enter your birth date, time, and place — and watch your chart come to life. Explore aspects, houses, dignities, transits, and more across 13 different ways to understand your sky."
+        link="/features/charts"
+        linkLabel="Explore chart tools"
         visual={
           <div className="relative group">
             <div className="absolute -inset-10 bg-gradient-to-br from-amber-500/[0.07] to-orange-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
@@ -163,11 +167,31 @@ export default function HomePage() {
         tag="Compatibility"
         headline={<>See the connection<br className="hidden sm:block" /> between any two people.</>}
         body="Compare any two birth charts side by side. Discover what draws people together — and where the growth edges are. Radar charts, heatmaps, scoring, and 14 tools for understanding your relationships."
+        link="/features/compatibility"
+        linkLabel="Explore compatibility tools"
         reversed
         visual={
           <div className="relative group">
             <div className="absolute -inset-10 bg-gradient-to-br from-blue-500/[0.07] to-violet-500/[0.04] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
             <img src="/synastry.webp" alt="Synastry biwheel chart" loading="lazy" className="w-full h-auto relative drop-shadow-2xl rounded-2xl" />
+          </div>
+        }
+      />
+
+      {/* ── Advanced Section ──────────────────────────────────── */}
+      <FeaturePreview
+        tag="Advanced Techniques"
+        headline="Every technique working astrologers need."
+        description="Solar returns, progressions, rectification, 50+ asteroids, 10 house systems, sidereal mode, and Arabic parts."
+        pills={['Progressions', 'Solar Returns', 'Rectification', '50+ Asteroids', '10 House Systems', 'Sidereal']}
+        pillColors={{ border: 'border-violet-500/20', text: 'text-violet-500/70', bg: 'bg-violet-500/5' }}
+        link="/features/advanced"
+        linkLabel="Explore advanced tools"
+        gradientClass="bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600"
+        visual={
+          <div className="relative group">
+            <div className="absolute -inset-10 bg-gradient-to-br from-violet-500/[0.06] to-purple-500/[0.03] rounded-[2rem] blur-3xl opacity-70" />
+            <img src="/asteroids.webp" alt="Advanced astrology tools" loading="lazy" className="w-full h-auto relative drop-shadow-2xl rounded-2xl" />
           </div>
         }
       />
@@ -186,8 +210,32 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── Markets Section ──────────────────────────────────── */}
+      <FeaturePreview
+        tag="Financial Astrology"
+        headline="Company charts meet market data."
+        description="Cast natal charts for 76 companies, overlay planetary transits on real stock prices, and explore AI-labeled financial news."
+        pills={['Company Charts', 'Candlestick + Transits', 'AI News Labels', '76 Companies']}
+        pillColors={{ border: 'border-emerald-500/20', text: 'text-emerald-500/70', bg: 'bg-emerald-500/5' }}
+        link="/features/financial"
+        linkLabel="Explore financial astrology"
+        gradientClass="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600"
+      />
+
       {/* ── Live Sessions ───────────────────────────────────── */}
       <LiveSessionsCompact />
+
+      {/* ── Community Section ─────────────────────────────────── */}
+      <FeaturePreview
+        tag="Community"
+        headline="A place for real astrological discussion."
+        description="Topic-based spaces where you can share charts, ask questions, and learn from other astrologers."
+        pills={['Topic Spaces', 'Chart Embedding', 'Follow System', 'Discussions']}
+        pillColors={{ border: 'border-sky-500/20', text: 'text-sky-500/70', bg: 'bg-sky-500/5' }}
+        link="/features/community"
+        linkLabel="Explore the community"
+        gradientClass="bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600"
+      />
 
       {/* ── What's Included ───────────────────────────────────── */}
       <section className="relative z-10 bg-background py-20 sm:py-28 px-4 sm:px-6 border-t border-border/30">
@@ -258,6 +306,9 @@ export default function HomePage() {
           <PricingToggle onSubscribe={() => (user ? setShowUpgrade(true) : setShowAuth(true))} />
         </div>
       </section>
+
+      {/* ── About ──────────────────────────────────────────── */}
+      <AboutSection />
 
       {/* ── FAQ ───────────────────────────────────────────────── */}
       <FAQSection />

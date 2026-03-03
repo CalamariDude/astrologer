@@ -324,9 +324,12 @@ TONE RULES:
 - Sound like a normal person. Not a mystical guru. Not a horoscope column. Just a friend who gets it.
 - Keep it conversational. Contractions, short sentences, natural rhythm.
 - 2-3 sentences per scene. Be specific and insightful, but don't lecture.
+- LEAD WITH THE REAL LIFE SITUATION, not the planet. Instead of "Pluto squares your Moon, stirring deep changes in emotional routines," say "Your daily routines and comfort zone are getting a total reset right now. The stuff you used to do on autopilot isn't working anymore, and that's actually the point."
+- NEVER start a sentence with a planet name or "Transit X." Start with what's happening in their actual life: "Your love life is...", "Work feels...", "You've been noticing...", "Something's shifting in..."
 - Don't explain astrology mechanics. Just say what it means for ${isCompany ? `${entityName}'s business` : 'THEIR life'}. They'll feel it.
 - Stay on topic: ${topicLabel}. Everything relates back to this.
-- NO astrology jargon. No "trines" or "aspects" or "harmonious energy." Just describe what's actually happening.
+- NO astrology jargon. No "trines", "squares", "aspects", "harmonious energy", "stirring", "cosmic", or "planetary influence." Just describe what's actually happening in plain, practical language.
+- Frame everything as practical life advice. What should they actually DO? What should they expect? What should they watch out for?
 - NEVER use hyphens or em dashes (— or -) in narrations. Use periods or commas instead. This is for TTS clarity.
 
 SCENE TYPES — this is important:
@@ -341,11 +344,11 @@ SCENE TYPES — this is important:
      Multiple transiting planets are all affecting one natal planet at once.
      Set transitPlanets as an ARRAY (e.g. ["saturn", "neptune"]), natalTarget (e.g. "venus"), focusPlanet = natalTarget.
      Camera zooms into the natal planet and shows ALL transit lines converging on it. Very cinematic.
-     Narration should weave together what each transit is doing: "Saturn is testing your Venus while Neptune dissolves your old ideals about love. You're being rebuilt from the inside out."
+     Narration should weave together the real life effects: "Relationships feel heavier and more real lately, while your old ideals about love are dissolving. You're being rebuilt from the inside out."
 
 STRONGLY PREFER multi-transit scenes when the data supports it. If 2-3 transits are hitting the same natal planet, or 2-3 transits all relate to the topic, bundle them into one rich scene. This feels more insightful and real.
 
-For transit scenes, just say what's happening: "Saturn's sitting on your Venus right now. Things feel heavier in love. Not bad, just more real."
+For transit scenes, lead with life experience, not planets: "Love's been feeling heavier lately, right? More real. Like the easy stuff got stripped away and now it's just the truth. That's not a bad thing. The relationships that survive this stretch are the ones worth keeping."
 
 SCENE MIX — depends on whether the question is TEMPORAL or GENERAL:
 - TEMPORAL questions (contain words like "when", "this month", "this year", "soon", "will I", "what's coming", "timing", "next", "right now", "lately", "currently"): TRANSIT-HEAVY. 4-5 transit scenes, 1-2 natal scenes max. The user is asking about TIMING — give them transits. Start with 1 natal scene (context), then 4-5 transit scenes walking through what's happening now → next month → next 3 months, then close with a brief natal scene (anchor).
@@ -396,9 +399,9 @@ Create 5-6 scenes${isTemporal ? " (TRANSIT-HEAVY: 4-5 transit scenes, 1-2 natal 
   - If ONE transit hits it: set transitPlanet (string, e.g. "saturn").
   - If MULTIPLE transits hit the same natal planet (or relate to the same theme): set transitPlanets (array, e.g. ["saturn", "neptune"]). Weave them together in the narration.
   - Set transitDayOffset to ${daysToToday} (now), ${daysToToday + 30} (1 month), ${daysToToday + 90} (3 months) based on when the transit is happening.
-- For multi-transit: just mention both naturally. "Saturn and Neptune are both on your Venus. Love's getting a reality check and a spiritual upgrade at the same time."
+- For multi-transit: weave them together practically. "Your love life is getting hit from two directions right now. On one hand, everything feels more serious and real. On the other, your old ideals about relationships are dissolving. You're being rebuilt from the inside out."
 - focusPlanet/transitPlanet/natalTarget keys: sun, moon, venus, mars, mercury, jupiter, saturn, uranus, neptune, pluto, northnode, chiron
-- Sound normal. "You're not great at X" / "This is a big deal for you right now" / "Yeah, that tracks."
+- Sound normal and PRACTICAL. Lead with real life, not planets. "You've probably noticed work feels different lately." / "This is the kind of stretch where relationships either level up or fall apart." / "Your gut's been telling you something. Trust it."
 - Weave in the deeper connections: dispositor chains, house rulerships, co-tenants. This is what makes it feel like a real reading, not a horoscope.`;
 
     const maxRetries = 3;

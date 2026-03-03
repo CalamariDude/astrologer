@@ -65,6 +65,7 @@ export default function SettingsPage() {
   }, [location.hash]);
 
   // Account state
+  const [editingAccount, setEditingAccount] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
   // Community profile fields
@@ -568,105 +569,180 @@ export default function SettingsPage() {
             {activeSection === 'account' && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Account</CardTitle>
-                  <CardDescription>Manage your profile information</CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-base">Account</CardTitle>
+                      <CardDescription>{editingAccount ? 'Edit your profile' : 'This is how others see your profile'}</CardDescription>
+                    </div>
+                    {!editingAccount && (
+                      <Button size="sm" variant="outline" onClick={() => setEditingAccount(true)} className="gap-1.5">
+                        <Pencil className="w-3.5 h-3.5" />
+                        Edit
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Profile Picture */}
-                  <div className="flex items-center gap-4">
-                    <div className="relative group">
-                      {avatarUrl ? (
-                        <img src={avatarUrl} alt="Avatar" className="w-16 h-16 rounded-full object-cover" />
-                      ) : (
-                        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-                          <User className="w-6 h-6 text-muted-foreground" />
+                  {editingAccount ? (
+                    <>
+                      {/* Profile Picture */}
+                      <div className="flex items-center gap-4">
+                        <div className="relative group">
+                          {avatarUrl ? (
+                            <img src={avatarUrl} alt="Avatar" className="w-16 h-16 rounded-full object-cover" />
+                          ) : (
+                            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                              <User className="w-6 h-6 text-muted-foreground" />
+                            </div>
+                          )}
+                          <label className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+                            {uploadingAvatar ? (
+                              <Loader2 className="w-4 h-4 text-white animate-spin" />
+                            ) : (
+                              <Pencil className="w-4 h-4 text-white" />
+                            )}
+                            <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
+                          </label>
                         </div>
-                      )}
-                      <label className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
-                        {uploadingAvatar ? (
-                          <Loader2 className="w-4 h-4 text-white animate-spin" />
+                        <div>
+                          <p className="text-sm font-medium">Profile Picture</p>
+                          <p className="text-xs text-muted-foreground">Click to upload (max 5MB)</p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium">Display Name</label>
+                        <div className="flex gap-2 mt-1">
+                          <input
+                            type="text"
+                            value={displayName}
+                            onChange={e => setDisplayName(e.target.value)}
+                            placeholder="Your name"
+                            className="flex-1 h-9 px-3 rounded-md border bg-background text-sm"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Email</label>
+                        <p className="text-sm text-muted-foreground mt-1">{user.email}</p>
+                      </div>
+                      <Separator />
+
+                      {/* Bio & Socials */}
+                      <div>
+                        <label className="text-sm font-medium">Bio</label>
+                        <textarea
+                          value={bio}
+                          onChange={e => setBio(e.target.value)}
+                          placeholder="A short bio about yourself"
+                          rows={3}
+                          maxLength={300}
+                          className="mt-1 w-full px-3 py-2 rounded-md border bg-background text-sm resize-none"
+                        />
+                        <p className="text-[10px] text-muted-foreground text-right">{bio.length}/300</p>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-sm font-medium">Website</label>
+                          <input type="url" value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} placeholder="https://yoursite.com" className="mt-1 w-full h-9 px-3 rounded-md border bg-background text-sm" />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Linktree</label>
+                          <input type="url" value={linktreeUrl} onChange={e => setLinktreeUrl(e.target.value)} placeholder="https://linktr.ee/you" className="mt-1 w-full h-9 px-3 rounded-md border bg-background text-sm" />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">X / Twitter</label>
+                          <input type="text" value={twitterHandle} onChange={e => setTwitterHandle(e.target.value)} placeholder="@handle" className="mt-1 w-full h-9 px-3 rounded-md border bg-background text-sm" />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Instagram</label>
+                          <input type="text" value={instagramHandle} onChange={e => setInstagramHandle(e.target.value)} placeholder="@handle" className="mt-1 w-full h-9 px-3 rounded-md border bg-background text-sm" />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">TikTok</label>
+                          <input type="text" value={tiktokHandle} onChange={e => setTiktokHandle(e.target.value)} placeholder="@handle" className="mt-1 w-full h-9 px-3 rounded-md border bg-background text-sm" />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">YouTube</label>
+                          <input type="url" value={youtubeUrl} onChange={e => setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/@channel" className="mt-1 w-full h-9 px-3 rounded-md border bg-background text-sm" />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={async () => {
+                          await handleSaveProfile();
+                          await handleSaveSocials();
+                          setEditingAccount(false);
+                        }} disabled={savingProfile || savingSocials}>
+                          {(savingProfile || savingSocials) ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
+                          Save
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setEditingAccount(false)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    /* ── Profile Preview (read-only) ── */
+                    <>
+                      <div className="flex items-start gap-4">
+                        {avatarUrl ? (
+                          <img src={avatarUrl} alt="Avatar" className="w-20 h-20 rounded-full object-cover" />
                         ) : (
-                          <Pencil className="w-4 h-4 text-white" />
+                          <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+                            {displayName ? (
+                              <span className="text-2xl font-medium">{displayName[0].toUpperCase()}</span>
+                            ) : (
+                              <User className="w-8 h-8 text-muted-foreground" />
+                            )}
+                          </div>
                         )}
-                        <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
-                      </label>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Profile Picture</p>
-                      <p className="text-xs text-muted-foreground">Click to upload (max 5MB)</p>
-                    </div>
-                  </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-semibold">{displayName || 'No name set'}</h3>
+                          <p className="text-sm text-muted-foreground">{user.email}</p>
+                          {bio && <p className="text-sm text-foreground/80 mt-2">{bio}</p>}
+                        </div>
+                      </div>
 
-                  <div>
-                    <label className="text-sm font-medium">Display Name</label>
-                    <div className="flex gap-2 mt-1">
-                      <input
-                        type="text"
-                        value={displayName}
-                        onChange={e => setDisplayName(e.target.value)}
-                        placeholder="Your name"
-                        className="flex-1 h-9 px-3 rounded-md border bg-background text-sm"
-                      />
-                      <Button size="sm" onClick={handleSaveProfile} disabled={savingProfile} className="h-9">
-                        {savingProfile ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save'}
+                      {/* Social links */}
+                      {(() => {
+                        const links = [
+                          websiteUrl && { label: 'Website', url: websiteUrl },
+                          linktreeUrl && { label: 'Linktree', url: linktreeUrl },
+                          twitterHandle && { label: 'X', url: twitterHandle.startsWith('http') ? twitterHandle : `https://x.com/${twitterHandle.replace('@', '')}` },
+                          instagramHandle && { label: 'Instagram', url: instagramHandle.startsWith('http') ? instagramHandle : `https://instagram.com/${instagramHandle.replace('@', '')}` },
+                          tiktokHandle && { label: 'TikTok', url: tiktokHandle.startsWith('http') ? tiktokHandle : `https://tiktok.com/@${tiktokHandle.replace('@', '')}` },
+                          youtubeUrl && { label: 'YouTube', url: youtubeUrl },
+                        ].filter(Boolean) as { label: string; url: string }[];
+                        if (links.length === 0) return null;
+                        return (
+                          <div className="flex flex-wrap gap-2 pt-2">
+                            {links.map(link => (
+                              <a
+                                key={link.label}
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted hover:bg-muted/80 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                {link.label}
+                              </a>
+                            ))}
+                          </div>
+                        );
+                      })()}
+
+                      {!displayName && !bio && !websiteUrl && !twitterHandle && !instagramHandle && !tiktokHandle && !youtubeUrl && !linktreeUrl && !avatarUrl && (
+                        <p className="text-sm text-muted-foreground py-2">Your profile is empty. Tap Edit to add your details.</p>
+                      )}
+
+                      <Separator />
+
+                      <Button variant="outline" size="sm" onClick={() => signOut()} className="gap-1.5">
+                        <LogOut className="w-3.5 h-3.5" />
+                        Sign Out
                       </Button>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Email</label>
-                    <p className="text-sm text-muted-foreground mt-1">{user.email}</p>
-                  </div>
-                  <Separator />
-
-                  {/* Bio & Socials */}
-                  <div>
-                    <label className="text-sm font-medium">Bio</label>
-                    <textarea
-                      value={bio}
-                      onChange={e => setBio(e.target.value)}
-                      placeholder="A short bio about yourself"
-                      rows={3}
-                      maxLength={300}
-                      className="mt-1 w-full px-3 py-2 rounded-md border bg-background text-sm resize-none"
-                    />
-                    <p className="text-[10px] text-muted-foreground text-right">{bio.length}/300</p>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-sm font-medium">Website</label>
-                      <input type="url" value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} placeholder="https://yoursite.com" className="mt-1 w-full h-9 px-3 rounded-md border bg-background text-sm" />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Linktree</label>
-                      <input type="url" value={linktreeUrl} onChange={e => setLinktreeUrl(e.target.value)} placeholder="https://linktr.ee/you" className="mt-1 w-full h-9 px-3 rounded-md border bg-background text-sm" />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">X / Twitter</label>
-                      <input type="text" value={twitterHandle} onChange={e => setTwitterHandle(e.target.value)} placeholder="@handle" className="mt-1 w-full h-9 px-3 rounded-md border bg-background text-sm" />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Instagram</label>
-                      <input type="text" value={instagramHandle} onChange={e => setInstagramHandle(e.target.value)} placeholder="@handle" className="mt-1 w-full h-9 px-3 rounded-md border bg-background text-sm" />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">TikTok</label>
-                      <input type="text" value={tiktokHandle} onChange={e => setTiktokHandle(e.target.value)} placeholder="@handle" className="mt-1 w-full h-9 px-3 rounded-md border bg-background text-sm" />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">YouTube</label>
-                      <input type="url" value={youtubeUrl} onChange={e => setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/@channel" className="mt-1 w-full h-9 px-3 rounded-md border bg-background text-sm" />
-                    </div>
-                  </div>
-                  <Button size="sm" onClick={handleSaveSocials} disabled={savingSocials}>
-                    {savingSocials ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
-                    Save Profile
-                  </Button>
-                  <Separator />
-
-                  <Button variant="outline" size="sm" onClick={() => signOut()} className="gap-1.5">
-                    <LogOut className="w-3.5 h-3.5" />
-                    Sign Out
-                  </Button>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             )}

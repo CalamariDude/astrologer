@@ -118,7 +118,7 @@ export function FeatureBento() {
               <Link
                 key={item.title}
                 to={item.href}
-                className={`group relative rounded-2xl overflow-hidden border border-border/30 hover:border-border/60 transition-all duration-300 hover:shadow-xl flex flex-col ${
+                className={`group relative rounded-2xl overflow-hidden border border-border/30 hover:border-amber-500/30 transition-all duration-300 hover:shadow-xl flex flex-col ${
                   item.large ? 'lg:col-span-2' : ''
                 } ${item.bg ?? 'bg-muted/20'}`}
               >
@@ -131,8 +131,14 @@ export function FeatureBento() {
                   />
                 </div>
                 <div className="px-4 sm:px-5 pb-4 sm:pb-5 pt-1">
-                  <h3 className="text-foreground font-semibold text-sm sm:text-base">{item.title}</h3>
-                  <p className="text-muted-foreground/60 text-xs sm:text-sm mt-0.5">{item.subtitle}</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-foreground font-semibold text-sm sm:text-base">{item.title}</h3>
+                      <p className="text-muted-foreground/60 text-xs sm:text-sm mt-0.5">{item.subtitle}</p>
+                      <p className="text-amber-600/0 group-hover:text-amber-600/60 text-[11px] mt-1 transition-colors duration-300">Explore</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-amber-500/60 transition-colors flex-shrink-0" />
+                  </div>
                 </div>
               </Link>
             ),

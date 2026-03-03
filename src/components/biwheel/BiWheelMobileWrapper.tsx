@@ -1253,6 +1253,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
               initialRelocatedPerson: relocatedPerson,
               initialTheme: chartTheme,
               initialEnabledAsteroidGroups: enabledAsteroidGroups,
+              initialEnabledFixedStarGroups: enabledFixedStarGroups,
               initialShowRetrogrades: showRetrogrades,
               initialShowDecans: showDecans,
               initialRotateToAscendant: rotateToAscendant,
