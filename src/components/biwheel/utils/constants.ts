@@ -141,6 +141,64 @@ export const ARABIC_PARTS = {
 /** Set of all Arabic Part keys (for filtering from API calls) */
 export const ARABIC_PART_KEYS = new Set(Object.keys(ARABIC_PARTS));
 
+// Fixed Stars - astrologically important stars with positions on the ecliptic
+// Keys are lowercase (matching biwheel planet key convention); API returns capitalized names
+export const FIXED_STARS = {
+  // Royal Stars (Watchers of the Heavens)
+  aldebaran:      { symbol: '★Ald', name: 'Aldebaran', color: '#FF6D00', group: 'royal' },
+  regulus:        { symbol: '★Reg', name: 'Regulus', color: '#FFD600', group: 'royal' },
+  antares:        { symbol: '★Ant', name: 'Antares', color: '#D50000', group: 'royal' },
+  fomalhaut:      { symbol: '★Fom', name: 'Fomalhaut', color: '#2979FF', group: 'royal' },
+  // Bright Stars (1st magnitude)
+  sirius:         { symbol: '★Sir', name: 'Sirius', color: '#E0E0E0', group: 'bright' },
+  spica:          { symbol: '★Spi', name: 'Spica', color: '#76FF03', group: 'bright' },
+  arcturus:       { symbol: '★Arc', name: 'Arcturus', color: '#FF9100', group: 'bright' },
+  vega:           { symbol: '★Veg', name: 'Vega', color: '#00B0FF', group: 'bright' },
+  rigel:          { symbol: '★Rig', name: 'Rigel', color: '#448AFF', group: 'bright' },
+  betelgeuse:     { symbol: '★Bet', name: 'Betelgeuse', color: '#FF3D00', group: 'bright' },
+  canopus:        { symbol: '★Can', name: 'Canopus', color: '#E0E0E0', group: 'bright' },
+  capella:        { symbol: '★Cap', name: 'Capella', color: '#FFAB00', group: 'bright' },
+  castor:         { symbol: '★Cas', name: 'Castor', color: '#B0BEC5', group: 'bright' },
+  pollux:         { symbol: '★Pol', name: 'Pollux', color: '#FF6E40', group: 'bright' },
+  procyon:        { symbol: '★Pro', name: 'Procyon', color: '#FFD740', group: 'bright' },
+  deneb:          { symbol: '★Den', name: 'Deneb', color: '#E0E0E0', group: 'bright' },
+  altair:         { symbol: '★Alt', name: 'Altair', color: '#E0E0E0', group: 'bright' },
+  achernar:       { symbol: '★Ach', name: 'Achernar', color: '#40C4FF', group: 'bright' },
+  // Notable Stars
+  algol:          { symbol: '★Alg', name: 'Algol', color: '#D50000', group: 'notable' },
+  alcyone:        { symbol: '★Alc', name: 'Alcyone', color: '#7C4DFF', group: 'notable' },
+  bellatrix:      { symbol: '★Bel', name: 'Bellatrix', color: '#448AFF', group: 'notable' },
+  denebola:       { symbol: '★Dnb', name: 'Denebola', color: '#00B0FF', group: 'notable' },
+  el_nath:        { symbol: '★ElN', name: 'El Nath', color: '#B0BEC5', group: 'notable' },
+  hamal:          { symbol: '★Ham', name: 'Hamal', color: '#FF6D00', group: 'notable' },
+  markab:         { symbol: '★Mar', name: 'Markab', color: '#7C4DFF', group: 'notable' },
+  menkar:         { symbol: '★Men', name: 'Menkar', color: '#FF6E40', group: 'notable' },
+  mirach:         { symbol: '★Mir', name: 'Mirach', color: '#F48FB1', group: 'notable' },
+  nunki:          { symbol: '★Nun', name: 'Nunki', color: '#00BFA5', group: 'notable' },
+  ras_alhague:    { symbol: '★RsA', name: 'Ras Alhague', color: '#69F0AE', group: 'notable' },
+  scheat:         { symbol: '★Sch', name: 'Scheat', color: '#B388FF', group: 'notable' },
+  vindemiatrix:   { symbol: '★Vin', name: 'Vindemiatrix', color: '#A5D6A7', group: 'notable' },
+  zosma:          { symbol: '★Zos', name: 'Zosma', color: '#90CAF9', group: 'notable' },
+  zubeneschamali: { symbol: '★ZbS', name: 'Zubeneschamali', color: '#69F0AE', group: 'notable' },
+  zubenelgenubi:  { symbol: '★ZbG', name: 'Zubenelgenubi', color: '#FFAB91', group: 'notable' },
+  // Minor Stars
+  sadalmelik:     { symbol: '★SaM', name: 'Sadalmelik', color: '#80D8FF', group: 'minor' },
+  sadalsuud:      { symbol: '★SaS', name: 'Sadalsuud', color: '#80D8FF', group: 'minor' },
+  toliman:        { symbol: '★Tol', name: 'Toliman', color: '#FFCC80', group: 'minor' },
+  unukalhai:      { symbol: '★Unu', name: 'Unukalhai', color: '#EF5350', group: 'minor' },
+  alnilam:        { symbol: '★Anl', name: 'Alnilam', color: '#90CAF9', group: 'minor' },
+  alnitak:        { symbol: '★Ank', name: 'Alnitak', color: '#90CAF9', group: 'minor' },
+  mintaka:        { symbol: '★Min', name: 'Mintaka', color: '#90CAF9', group: 'minor' },
+} as const;
+
+// Fixed star group definitions for UI
+export const FIXED_STAR_GROUP_INFO = {
+  royal: { name: 'Royal Stars', color: '#FFD600', icon: '★' },
+  bright: { name: 'Bright Stars', color: '#E0E0E0', icon: '✦' },
+  notable: { name: 'Notable Stars', color: '#7C4DFF', icon: '✧' },
+  minor: { name: 'Minor Stars', color: '#90CAF9', icon: '·' },
+} as const;
+
 /** Calculate Arabic Parts from chart planet positions and ascendant */
 export function calculateArabicParts(
   planets: Record<string, { longitude: number }>,
@@ -233,13 +291,24 @@ export const PLANET_ORBS: Record<string, number> = {
 export const DEFAULT_ASTEROID_ORB = 1;
 
 // Get the orb for a planet (falls back to DEFAULT_ASTEROID_ORB for asteroids)
-export function getPlanetOrb(planetKey: string): number {
-  return PLANET_ORBS[planetKey.toLowerCase()] ?? DEFAULT_ASTEROID_ORB;
+// Accepts optional overrides map for custom per-planet orbs
+export function getPlanetOrb(planetKey: string, overrides?: Record<string, number>): number {
+  const key = planetKey.toLowerCase();
+  if (overrides && key in overrides) return overrides[key];
+  return PLANET_ORBS[key] ?? DEFAULT_ASTEROID_ORB;
 }
 
 // Get effective orb for an aspect between two planets (average of both)
-export function getEffectiveOrb(planetA: string, planetB: string): number {
-  return (getPlanetOrb(planetA) + getPlanetOrb(planetB)) / 2;
+// Accepts optional overrides for custom per-planet orbs
+export function getEffectiveOrb(planetA: string, planetB: string, planetOrbOverrides?: Record<string, number>): number {
+  return (getPlanetOrb(planetA, planetOrbOverrides) + getPlanetOrb(planetB, planetOrbOverrides)) / 2;
+}
+
+// Get the orb for a specific aspect type, with optional override
+export function getAspectOrb(aspectType: string, overrides?: Record<string, number>): number {
+  if (overrides && aspectType in overrides) return overrides[aspectType];
+  const def = ASPECTS[aspectType as keyof typeof ASPECTS];
+  return def?.orb ?? 8;
 }
 
 // Aspect definitions (classic astrology colors)
@@ -546,7 +615,11 @@ export function getThemeAwarePlanetColor(key: string): string {
   }
   if (!color) {
     const part = ARABIC_PARTS[key as keyof typeof ARABIC_PARTS];
-    color = part?.color ?? '#a78bfa';
+    color = part?.color ?? '';
+  }
+  if (!color) {
+    const star = FIXED_STARS[key as keyof typeof FIXED_STARS];
+    color = star?.color ?? '#a78bfa';
   }
   if (DARK_THEMES.has(_currentTheme)) {
     const override = DARK_THEME_PLANET_OVERRIDES[key];

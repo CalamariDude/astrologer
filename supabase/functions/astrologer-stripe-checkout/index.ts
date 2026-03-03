@@ -69,11 +69,12 @@ serve(async (req) => {
       });
     }
 
-    const { plan, success_url, cancel_url } = await req.json();
+    const { plan, tier, success_url, cancel_url } = await req.json();
 
     // Detect test vs live mode from request origin
     const useTestMode = isTestModeFromHeaders(req);
-    console.log(`Stripe checkout: user=${user.id}, plan=${plan}, mode=${useTestMode ? 'TEST' : 'LIVE'}`);
+    const selectedTier = tier || "professional"; // default for backward compat
+    console.log(`Stripe checkout: user=${user.id}, plan=${plan}, tier=${selectedTier}, mode=${useTestMode ? 'TEST' : 'LIVE'}`);
 
     const stripeKey = useTestMode
       ? Deno.env.get("COSMOSIS_STRIPE_SECRET_KEY_TEST")
@@ -109,17 +110,37 @@ serve(async (req) => {
         .eq("id", user.id);
     }
 
-    // Select price based on plan and mode
-    const priceId = useTestMode
-      ? (plan === "annual"
-          ? Deno.env.get("COSMOSIS_STRIPE_ANNUAL_PRICE_ID_TEST")
-          : Deno.env.get("COSMOSIS_STRIPE_MONTHLY_PRICE_ID_TEST"))
-      : (plan === "annual"
-          ? Deno.env.get("COSMOSIS_STRIPE_ANNUAL_PRICE_ID")
-          : Deno.env.get("COSMOSIS_STRIPE_MONTHLY_PRICE_ID"));
+    // Select price based on tier × plan × mode
+    let priceId: string | undefined;
+    if (selectedTier === "horoscope") {
+      priceId = useTestMode
+        ? (plan === "annual"
+            ? Deno.env.get("COSMOSIS_STRIPE_HOROSCOPE_ANNUAL_PRICE_ID_TEST")
+            : Deno.env.get("COSMOSIS_STRIPE_HOROSCOPE_MONTHLY_PRICE_ID_TEST"))
+        : (plan === "annual"
+            ? Deno.env.get("COSMOSIS_STRIPE_HOROSCOPE_ANNUAL_PRICE_ID")
+            : Deno.env.get("COSMOSIS_STRIPE_HOROSCOPE_MONTHLY_PRICE_ID"));
+    } else if (selectedTier === "astrologer") {
+      priceId = useTestMode
+        ? (plan === "annual"
+            ? Deno.env.get("COSMOSIS_STRIPE_ASTROLOGER_ANNUAL_PRICE_ID_TEST")
+            : Deno.env.get("COSMOSIS_STRIPE_ASTROLOGER_MONTHLY_PRICE_ID_TEST"))
+        : (plan === "annual"
+            ? Deno.env.get("COSMOSIS_STRIPE_ASTROLOGER_ANNUAL_PRICE_ID")
+            : Deno.env.get("COSMOSIS_STRIPE_ASTROLOGER_MONTHLY_PRICE_ID"));
+    } else {
+      // professional (default)
+      priceId = useTestMode
+        ? (plan === "annual"
+            ? Deno.env.get("COSMOSIS_STRIPE_ANNUAL_PRICE_ID_TEST")
+            : Deno.env.get("COSMOSIS_STRIPE_MONTHLY_PRICE_ID_TEST"))
+        : (plan === "annual"
+            ? Deno.env.get("COSMOSIS_STRIPE_ANNUAL_PRICE_ID")
+            : Deno.env.get("COSMOSIS_STRIPE_MONTHLY_PRICE_ID"));
+    }
 
     if (!priceId) {
-      throw new Error(`Missing price ID for ${plan} plan in ${useTestMode ? 'test' : 'live'} mode`);
+      throw new Error(`Missing price ID for ${selectedTier}/${plan} in ${useTestMode ? 'test' : 'live'} mode`);
     }
 
     // Create checkout session with promo code support
@@ -130,6 +151,7 @@ serve(async (req) => {
       "line_items[0][quantity]": "1",
       allow_promotion_codes: "true",
       "subscription_data[metadata][supabase_user_id]": user.id,
+      "subscription_data[metadata][tier]": selectedTier,
       success_url: success_url || "https://astrologer.app/subscription/success",
       cancel_url: cancel_url || "https://astrologer.app",
       "metadata[supabase_user_id]": user.id,

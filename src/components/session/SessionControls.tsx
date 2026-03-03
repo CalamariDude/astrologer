@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, Video, VideoOff, Pause, Play, UserCheck, UserX, LayoutGrid, Monitor, Link2, ChevronUp, Camera } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, Pause, Play, UserCheck, UserX, LayoutGrid, Monitor, Link2, ChevronUp, Camera, PhoneOff } from 'lucide-react';
 import type { MediaDeviceInfo } from '@/hooks/useSession';
 
 interface SessionControlsProps {
@@ -31,6 +31,7 @@ interface SessionControlsProps {
   onSwitchAudioDevice?: (deviceId: string) => void;
   onSwitchVideoDevice?: (deviceId: string) => void;
   onRefreshDevices?: () => void;
+  onEndSession?: () => void;
 }
 
 function formatDuration(seconds: number): string {
@@ -117,7 +118,24 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   onSwitchAudioDevice,
   onSwitchVideoDevice,
   onRefreshDevices,
+  onEndSession,
 }) => {
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
+  const endConfirmRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showEndConfirm) return;
+    const handleClick = (e: MouseEvent) => {
+      if (endConfirmRef.current && !endConfirmRef.current.contains(e.target as Node)) setShowEndConfirm(false);
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowEndConfirm(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => { document.removeEventListener('mousedown', handleClick); document.removeEventListener('keydown', handleKey); };
+  }, [showEndConfirm]);
+
   return (
     <div
       className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 bg-black/80 backdrop-blur-sm border border-white/10 rounded-full shadow-2xl"
@@ -214,6 +232,38 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
       >
         {isPaused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
       </button>
+
+      {/* End Session */}
+      {onEndSession && (
+        <div ref={endConfirmRef} className="relative">
+          <button
+            onClick={() => setShowEndConfirm(v => !v)}
+            className="p-2 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors"
+            title="End session"
+          >
+            <PhoneOff className="w-5 h-5" />
+          </button>
+          {showEndConfirm && (
+            <div className="absolute bottom-full mb-2 right-0 bg-zinc-900 border border-white/10 rounded-lg shadow-2xl p-3 min-w-[160px]">
+              <p className="text-xs text-white/80 mb-2">End session?</p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowEndConfirm(false)}
+                  className="flex-1 px-3 py-1.5 text-xs text-white/60 hover:text-white rounded-md hover:bg-white/10 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => { setShowEndConfirm(false); onEndSession(); }}
+                  className="flex-1 px-3 py-1.5 text-xs text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors"
+                >
+                  End
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -386,6 +386,66 @@ for (const [sign, ruler] of Object.entries(SIGN_RULERS)) {
   PLANET_RULERSHIPS[ruler].push(sign);
 }
 
+/**
+ * Essential Dignities: domicile, exaltation, detriment, fall
+ * Used to show planetary strength indicators in the chart
+ */
+export type DignityType = 'domicile' | 'exaltation' | 'detriment' | 'fall';
+
+export interface PlanetDignity {
+  domicile: string[];
+  exaltation: string[];
+  detriment: string[];
+  fall: string[];
+}
+
+export const PLANET_DIGNITIES: Record<string, PlanetDignity> = {
+  sun:     { domicile: ['Leo'],                    exaltation: ['Aries'],   detriment: ['Aquarius'],              fall: ['Libra'] },
+  moon:    { domicile: ['Cancer'],                 exaltation: ['Taurus'],  detriment: ['Capricorn'],             fall: ['Scorpio'] },
+  mercury: { domicile: ['Gemini', 'Virgo'],        exaltation: ['Virgo'],   detriment: ['Sagittarius', 'Pisces'], fall: ['Pisces'] },
+  venus:   { domicile: ['Taurus', 'Libra'],        exaltation: ['Pisces'],  detriment: ['Scorpio', 'Aries'],      fall: ['Virgo'] },
+  mars:    { domicile: ['Aries', 'Scorpio'],       exaltation: ['Capricorn'], detriment: ['Libra', 'Taurus'],     fall: ['Cancer'] },
+  jupiter: { domicile: ['Sagittarius', 'Pisces'],  exaltation: ['Cancer'],  detriment: ['Gemini', 'Virgo'],       fall: ['Capricorn'] },
+  saturn:  { domicile: ['Capricorn', 'Aquarius'],  exaltation: ['Libra'],   detriment: ['Cancer', 'Leo'],         fall: ['Aries'] },
+  uranus:  { domicile: ['Aquarius'],               exaltation: ['Scorpio'], detriment: ['Leo'],                   fall: ['Taurus'] },
+  neptune: { domicile: ['Pisces'],                 exaltation: ['Cancer'],  detriment: ['Virgo'],                 fall: ['Capricorn'] },
+  pluto:   { domicile: ['Scorpio'],                exaltation: ['Leo'],     detriment: ['Taurus'],                fall: ['Aquarius'] },
+};
+
+/** Get the dignity status of a planet in a given sign */
+export function getPlanetDignity(planetKey: string, sign: string): DignityType | null {
+  const dignity = PLANET_DIGNITIES[planetKey];
+  if (!dignity) return null;
+  if (dignity.domicile.includes(sign)) return 'domicile';
+  if (dignity.exaltation.includes(sign)) return 'exaltation';
+  if (dignity.detriment.includes(sign)) return 'detriment';
+  if (dignity.fall.includes(sign)) return 'fall';
+  return null;
+}
+
+export const DIGNITY_INFO: Record<DignityType, { label: string; symbol: string; color: string; description: string }> = {
+  domicile:   { label: 'Domicile',   symbol: '🏠', color: '#22c55e', description: 'At home — strongest expression' },
+  exaltation: { label: 'Exalted',    symbol: '⬆',  color: '#f59e0b', description: 'Honored guest — elevated expression' },
+  detriment:  { label: 'Detriment',  symbol: '⬇',  color: '#ef4444', description: 'Uncomfortable — must work harder' },
+  fall:       { label: 'Fall',       symbol: '↓',  color: '#a855f7', description: 'Humbled — deepest lessons' },
+};
+
+/** House meanings for natal interpretation */
+export const HOUSE_MEANINGS: Record<number, { name: string; keywords: string; domain: string }> = {
+  1:  { name: '1st House',  keywords: 'Self, identity, appearance',        domain: 'How you present yourself to the world' },
+  2:  { name: '2nd House',  keywords: 'Money, values, possessions',        domain: 'What you value and how you earn' },
+  3:  { name: '3rd House',  keywords: 'Communication, siblings, learning', domain: 'How you think and communicate' },
+  4:  { name: '4th House',  keywords: 'Home, family, roots',               domain: 'Your private life and emotional foundation' },
+  5:  { name: '5th House',  keywords: 'Creativity, romance, children',     domain: 'What brings you joy and self-expression' },
+  6:  { name: '6th House',  keywords: 'Health, work, daily routine',       domain: 'Your daily habits and service' },
+  7:  { name: '7th House',  keywords: 'Partnerships, marriage',            domain: 'How you relate one-on-one' },
+  8:  { name: '8th House',  keywords: 'Transformation, shared resources',  domain: 'Deep bonds and inner change' },
+  9:  { name: '9th House',  keywords: 'Philosophy, travel, higher ed',     domain: 'Your search for meaning' },
+  10: { name: '10th House', keywords: 'Career, reputation, legacy',        domain: 'Your public role and ambitions' },
+  11: { name: '11th House', keywords: 'Friends, community, hopes',         domain: 'Your tribe and future vision' },
+  12: { name: '12th House', keywords: 'Spirituality, solitude, unconscious', domain: 'Your inner world and hidden depths' },
+};
+
 export const TRANSITION = {
   fadeOutDuration: 200,
   fadeInDuration: 600,

@@ -3,7 +3,7 @@
  * Detect and calculate aspects between planets
  */
 
-import { ASPECTS, getEffectiveOrb } from './constants';
+import { ASPECTS, getEffectiveOrb, getAspectOrb } from './constants';
 import { angularDistance } from './chartMath';
 
 export type AspectType = keyof typeof ASPECTS;
@@ -29,22 +29,30 @@ export interface SynastryAspect {
   aspect: DetectedAspect;
 }
 
+/** Optional orb overrides for custom configuration */
+export interface OrbOverrides {
+  aspectOrbs?: Record<string, number>;
+  planetOrbs?: Record<string, number>;
+}
+
 /**
  * Detect aspect between two longitudes
  * Uses per-planet orbs when planet keys are provided (effective orb = average of both)
+ * Accepts optional orbOverrides for custom orb configuration
  */
 export function detectAspect(
   long1: number,
   long2: number,
   allowedAspects?: Set<AspectType>,
   planetKeyA?: string,
-  planetKeyB?: string
+  planetKeyB?: string,
+  orbOverrides?: OrbOverrides
 ): DetectedAspect | null {
   const distance = angularDistance(long1, long2);
 
   // Calculate effective orb from planet keys (or fall back to per-aspect orbs)
   const effectiveOrb = (planetKeyA && planetKeyB)
-    ? getEffectiveOrb(planetKeyA, planetKeyB)
+    ? getEffectiveOrb(planetKeyA, planetKeyB, orbOverrides?.planetOrbs)
     : null;
 
   // Check each aspect type
@@ -56,8 +64,8 @@ export function detectAspect(
 
     const exactOrb = Math.abs(distance - def.angle);
 
-    // Use per-planet orb if available, otherwise fall back to per-aspect orb
-    const maxOrb = effectiveOrb ?? def.orb;
+    // Use per-planet orb if available, otherwise fall back to per-aspect orb (with overrides)
+    const maxOrb = effectiveOrb ?? getAspectOrb(key, orbOverrides?.aspectOrbs);
 
     if (exactOrb <= maxOrb) {
       // Calculate strength (1 = exact, 0 = at orb limit)
@@ -88,7 +96,8 @@ export function calculateSynastryAspects(
   planetsA: Record<string, { longitude: number }>,
   planetsB: Record<string, { longitude: number }>,
   allowedPlanets?: Set<string>,
-  allowedAspects?: Set<AspectType>
+  allowedAspects?: Set<AspectType>,
+  orbOverrides?: OrbOverrides
 ): SynastryAspect[] {
   const aspects: SynastryAspect[] = [];
 
@@ -103,7 +112,7 @@ export function calculateSynastryAspects(
       const dataB = planetsB[pB];
       if (!dataB || dataB.longitude === undefined) continue;
 
-      const aspect = detectAspect(dataA.longitude, dataB.longitude, allowedAspects, pA, pB);
+      const aspect = detectAspect(dataA.longitude, dataB.longitude, allowedAspects, pA, pB, orbOverrides);
 
       if (aspect) {
         aspects.push({
@@ -129,7 +138,8 @@ export function calculateSynastryAspects(
 export function calculateNatalAspects(
   planets: Record<string, { longitude: number }>,
   allowedPlanets?: Set<string>,
-  allowedAspects?: Set<AspectType>
+  allowedAspects?: Set<AspectType>,
+  orbOverrides?: OrbOverrides
 ): SynastryAspect[] {
   const aspects: SynastryAspect[] = [];
 
@@ -146,7 +156,7 @@ export function calculateNatalAspects(
       const dataB = planets[pB];
       if (!dataB || dataB.longitude === undefined) continue;
 
-      const aspect = detectAspect(dataA.longitude, dataB.longitude, allowedAspects, pA, pB);
+      const aspect = detectAspect(dataA.longitude, dataB.longitude, allowedAspects, pA, pB, orbOverrides);
 
       if (aspect) {
         aspects.push({

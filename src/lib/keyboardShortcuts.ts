@@ -18,6 +18,10 @@ export const TAB_VALUES = [
   'graphic-eph',
   'transits',
   'declination',
+  'dignities',
+  'fixed-stars',
+  'solar-return',
+  'lunar-return',
   'ai-reading',
   'notes',
 ] as const;

@@ -29,6 +29,7 @@ interface GalacticSceneProps {
   visiblePlanets?: Set<string>;
   visibleAspects?: Set<string>;
   selectedPlanet: string | null;
+  selectedPlanetB?: string | null;  // Second planet for dual framing (transit aspect scenes)
   onSelectPlanet: (key: string | null) => void;
   autoRotate: boolean;
   onInteractionStart: () => void;
@@ -85,6 +86,7 @@ export function GalacticScene({
   visiblePlanets,
   visibleAspects,
   selectedPlanet,
+  selectedPlanetB,
   onSelectPlanet,
   autoRotate,
   onInteractionStart,
@@ -148,28 +150,59 @@ export function GalacticScene({
     return allPlanets3D.find((p) => p.key === selectedPlanet) ?? null;
   }, [selectedPlanet, allPlanets3D]);
 
+  const focusPlanetB = useMemo<Planet3D | null>(() => {
+    if (!selectedPlanetB) return null;
+    return allPlanets3D.find((p) => p.key === selectedPlanetB) ?? null;
+  }, [selectedPlanetB, allPlanets3D]);
+
   const handleSelectPlanet = useCallback((key: string) => {
     onSelectPlanet(selectedPlanet === key ? null : key);
   }, [selectedPlanet, onSelectPlanet]);
 
-  // When a planet is selected, only its aspects are fully visible
-  const focusedAspectIds = useMemo<Set<string> | null>(() => {
+  // Separate focused aspect sets for natal vs transit lines.
+  // When transits are active and a planet is selected, only transit aspects light up — not natal-to-natal.
+  const hasTransitSelection = transitEnabled && selectedPlanet &&
+    (selectedPlanet.startsWith('transit_') || transitPlanets3D.some(p => p.key === selectedPlanetB));
+
+  const focusedNatalAspectIds = useMemo<Set<string> | null>(() => {
     if (!selectedPlanet) return null;
+    // If a transit-related selection is active, don't highlight any natal aspects
+    if (hasTransitSelection) return new Set<string>();
     const ids = new Set<string>();
-    // Check natal aspects
+    const bothSelected = selectedPlanet && selectedPlanetB;
     for (const asp of aspects3D) {
-      if (asp.planetA === selectedPlanet || asp.planetB === selectedPlanet) {
-        ids.add(asp.id);
-      }
-    }
-    // Check transit aspects
-    for (const asp of transitAspects3D) {
-      if (asp.planetA === selectedPlanet || asp.planetB === selectedPlanet) {
-        ids.add(asp.id);
+      if (bothSelected) {
+        if ((asp.planetA === selectedPlanet && asp.planetB === selectedPlanetB) ||
+            (asp.planetA === selectedPlanetB && asp.planetB === selectedPlanet)) {
+          ids.add(asp.id);
+        }
+      } else {
+        if (asp.planetA === selectedPlanet || asp.planetB === selectedPlanet) {
+          ids.add(asp.id);
+        }
       }
     }
     return ids;
-  }, [selectedPlanet, aspects3D, transitAspects3D]);
+  }, [selectedPlanet, selectedPlanetB, aspects3D, hasTransitSelection]);
+
+  const focusedTransitAspectIds = useMemo<Set<string> | null>(() => {
+    if (!selectedPlanet) return null;
+    const ids = new Set<string>();
+    const bothSelected = selectedPlanet && selectedPlanetB;
+    for (const asp of transitAspects3D) {
+      if (bothSelected) {
+        if ((asp.planetA === selectedPlanet && asp.planetB === selectedPlanetB) ||
+            (asp.planetA === selectedPlanetB && asp.planetB === selectedPlanet)) {
+          ids.add(asp.id);
+        }
+      } else {
+        if (asp.planetA === selectedPlanet || asp.planetB === selectedPlanet) {
+          ids.add(asp.id);
+        }
+      }
+    }
+    return ids;
+  }, [selectedPlanet, selectedPlanetB, transitAspects3D]);
 
   return (
     <>
@@ -177,6 +210,7 @@ export function GalacticScene({
       <CameraController
         autoRotate={autoRotate}
         focusPlanet={focusPlanet}
+        focusPlanetB={focusPlanetB}
         activePreset={activePreset}
         onInteractionStart={onInteractionStart}
       />
@@ -212,7 +246,7 @@ export function GalacticScene({
       {showOrbits && <AsteroidBelt3D visible={planets3D.some((p) => p.category === 'asteroid')} />}
 
       {/* Zodiac Ring (flat with cusp fusion) */}
-      {showZodiac && <ZodiacRing3D segments={zodiacSegments} />}
+      {showZodiac && <ZodiacRing3D segments={zodiacSegments} houseSectors={houseSectors} />}
 
       {/* House Sectors */}
       {showHouses && houseSectors.length > 0 && (
@@ -234,13 +268,13 @@ export function GalacticScene({
 
       {/* Natal Aspect Lines */}
       {showAspects && showNatalAspects && aspects3D.map((asp) => {
-        const isFocused = focusedAspectIds ? focusedAspectIds.has(asp.id) : true;
+        const isFocused = focusedNatalAspectIds ? focusedNatalAspectIds.has(asp.id) : true;
         return (
           <AspectLine3D
             key={asp.id}
             aspect={asp}
-            visible={focusedAspectIds ? isFocused : true}
-            dimmed={focusedAspectIds ? !isFocused : false}
+            visible={focusedNatalAspectIds ? isFocused : true}
+            dimmed={focusedNatalAspectIds ? !isFocused : false}
             declinationAspect={getDecAspect(asp.planetA, asp.planetB)}
           />
         );
@@ -248,13 +282,13 @@ export function GalacticScene({
 
       {/* Transit-to-Natal Aspect Lines */}
       {showAspects && showTransitAspects && transitAspects3D.map((asp) => {
-        const isFocused = focusedAspectIds ? focusedAspectIds.has(asp.id) : true;
+        const isFocused = focusedTransitAspectIds ? focusedTransitAspectIds.has(asp.id) : true;
         return (
           <AspectLine3D
             key={asp.id}
             aspect={asp}
-            visible={focusedAspectIds ? isFocused : true}
-            dimmed={focusedAspectIds ? !isFocused : false}
+            visible={focusedTransitAspectIds ? isFocused : true}
+            dimmed={focusedTransitAspectIds ? !isFocused : false}
           />
         );
       })}

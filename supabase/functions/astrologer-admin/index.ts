@@ -208,9 +208,10 @@ serve(async (req) => {
 
         // Only allow safe fields to be updated
         const allowed = [
-          "subscription_status", "subscription_plan", "trial_ends_at",
+          "subscription_status", "subscription_plan", "subscription_tier", "trial_ends_at",
           "subscription_expires_at", "ai_credits_used", "ai_credits_reset_at",
           "relocated_used", "relocated_reset_at", "is_admin",
+          "sessions_used", "transcriptions_used",
         ];
         const updates: Record<string, unknown> = {};
         for (const key of allowed) {
@@ -340,6 +341,11 @@ serve(async (req) => {
         if (!body.plan) return json({ error: "Missing plan (monthly or annual)" }, 400);
         if (!body.months) return json({ error: "Missing months" }, 400);
 
+        const grantTier = body.tier || "professional";
+        if (!["horoscope", "astrologer", "professional"].includes(grantTier)) {
+          return json({ error: "Invalid tier (horoscope, astrologer, or professional)" }, 400);
+        }
+
         const expiresAt = new Date();
         expiresAt.setMonth(expiresAt.getMonth() + body.months);
 
@@ -348,12 +354,13 @@ serve(async (req) => {
           .update({
             subscription_status: "active",
             subscription_plan: body.plan,
+            subscription_tier: grantTier,
             subscription_expires_at: expiresAt.toISOString(),
           })
           .eq("id", body.user_id);
 
         if (error) throw new Error(error.message);
-        return json({ success: true, expires_at: expiresAt.toISOString() });
+        return json({ success: true, tier: grantTier, expires_at: expiresAt.toISOString() });
       }
 
       // ── Promo codes ──

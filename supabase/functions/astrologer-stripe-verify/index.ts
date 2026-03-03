@@ -120,16 +120,43 @@ serve(async (req) => {
       });
     }
 
-    // Determine plan from subscription
+    // Horoscope tier price IDs
+    const horoscopePriceIds = new Set([
+      Deno.env.get("COSMOSIS_STRIPE_HOROSCOPE_MONTHLY_PRICE_ID"),
+      Deno.env.get("COSMOSIS_STRIPE_HOROSCOPE_ANNUAL_PRICE_ID"),
+      Deno.env.get("COSMOSIS_STRIPE_HOROSCOPE_MONTHLY_PRICE_ID_TEST"),
+      Deno.env.get("COSMOSIS_STRIPE_HOROSCOPE_ANNUAL_PRICE_ID_TEST"),
+    ].filter(Boolean));
+
+    // Astrologer tier price IDs
+    const astrologerPriceIds = new Set([
+      Deno.env.get("COSMOSIS_STRIPE_ASTROLOGER_MONTHLY_PRICE_ID"),
+      Deno.env.get("COSMOSIS_STRIPE_ASTROLOGER_ANNUAL_PRICE_ID"),
+      Deno.env.get("COSMOSIS_STRIPE_ASTROLOGER_MONTHLY_PRICE_ID_TEST"),
+      Deno.env.get("COSMOSIS_STRIPE_ASTROLOGER_ANNUAL_PRICE_ID_TEST"),
+    ].filter(Boolean));
+
+    // Determine plan + tier from subscription
     let plan = "monthly";
+    let tier = "professional"; // default for backward compat
     let subscriptionId: string | null = null;
     let expiresAt: string | null = null;
 
     const sub = session.subscription;
     if (sub && typeof sub === "object") {
       subscriptionId = sub.id;
+      const priceId = sub.items?.data?.[0]?.price?.id;
       const interval = sub.items?.data?.[0]?.price?.recurring?.interval;
       plan = interval === "year" ? "annual" : "monthly";
+      if (priceId && horoscopePriceIds.has(priceId)) {
+        tier = "horoscope";
+      } else if (priceId && astrologerPriceIds.has(priceId)) {
+        tier = "astrologer";
+      } else if (sub.metadata?.tier === "horoscope") {
+        tier = "horoscope";
+      } else if (sub.metadata?.tier === "astrologer") {
+        tier = "astrologer";
+      }
       if (sub.current_period_end) {
         expiresAt = new Date(sub.current_period_end * 1000).toISOString();
       }
@@ -141,6 +168,7 @@ serve(async (req) => {
     const update: Record<string, any> = {
       subscription_status: "active",
       subscription_plan: plan,
+      subscription_tier: tier,
     };
     if (subscriptionId) update.stripe_subscription_id = subscriptionId;
     if (expiresAt) update.subscription_expires_at = expiresAt;

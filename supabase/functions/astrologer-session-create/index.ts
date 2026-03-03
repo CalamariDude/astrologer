@@ -36,27 +36,59 @@ serve(async (req) => {
       });
     }
 
-    // Verify paid subscription + get display name
+    // Verify subscription tier + get display name and session usage
     const { data: profile } = await supabase
       .from("astrologer_profiles")
-      .select("subscription_status, display_name")
+      .select("subscription_status, subscription_tier, display_name, sessions_used, sessions_reset_at")
       .eq("id", user.id)
       .single();
 
-    if (!profile || !["active", "trialing"].includes(profile.subscription_status || "")) {
-      return new Response(JSON.stringify({ error: "Paid subscription required" }), {
+    const tier = profile?.subscription_tier || "lite";
+    const TIER_SESSION_LIMITS: Record<string, number> = { lite: 0, astrologer: 5, professional: 20 };
+    const sessionLimit = TIER_SESSION_LIMITS[tier] ?? 0;
+
+    if (tier === "lite") {
+      return new Response(JSON.stringify({ error: "Subscription required for live sessions" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { title, chart_snapshot, saved_chart_id } = await req.json();
+    const { title, chart_snapshot, saved_chart_id, overage_confirmed } = await req.json();
 
-    // Auto-end any stale active sessions for this host
+    // Monthly reset check for sessions
     const serviceClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const sessionsResetAt = new Date(profile?.sessions_reset_at || "2000-01-01");
+    let currentSessionsUsed = profile?.sessions_used || 0;
+
+    if (sessionsResetAt < monthStart) {
+      currentSessionsUsed = 0;
+      await serviceClient
+        .from("astrologer_profiles")
+        .update({ sessions_used: 0, sessions_reset_at: monthStart.toISOString() })
+        .eq("id", user.id);
+    }
+
+    // Check session limit (unless overage was already confirmed/paid)
+    if (currentSessionsUsed >= sessionLimit && !overage_confirmed) {
+      return new Response(JSON.stringify({
+        error: "session_overage",
+        sessions_used: currentSessionsUsed,
+        sessions_limit: sessionLimit,
+      }), {
+        status: 402,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Auto-end any stale active sessions for this host
     await serviceClient
       .from("astrologer_sessions")
       .update({ status: "ended", ended_at: new Date().toISOString() })
@@ -138,6 +170,12 @@ serve(async (req) => {
     if (insertError) {
       throw new Error(`Session insert failed: ${insertError.message}`);
     }
+
+    // Increment sessions_used
+    await serviceClient
+      .from("astrologer_profiles")
+      .update({ sessions_used: currentSessionsUsed + 1 })
+      .eq("id", user.id);
 
     return new Response(
       JSON.stringify({

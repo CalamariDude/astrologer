@@ -1,15 +1,17 @@
 /**
  * AspectLine3D
- * Curved energy arcs between planets at different orbital radii.
+ * Energy beam arcs between planets — glowing light tubes with flowing particles.
  *
  * Energy flow direction:
  * - Harmonious/neutral: bidirectional (mutual exchange, particles both ways)
  * - Challenging: one-way A→B (forced/pressured, single direction + arrow cone)
  *
  * Features:
+ * - Glowing tube geometry core beam (actual width, not 1px lines)
+ * - Additive-blend outer glow halo
  * - Aspect symbol billboard sprite at curve apex
  * - Declination parallel/contraparallel indicator
- * - Glow underlay for strong aspects
+ * - Pulsing energy particles with bloom
  * - Jitter particles for challenging aspects
  */
 
@@ -38,8 +40,9 @@ function makeParticleTexture(): THREE.CanvasTexture {
   const half = size / 2;
   const gradient = ctx.createRadialGradient(half, half, 0, half, half, half);
   gradient.addColorStop(0, 'rgba(255,255,255,1)');
-  gradient.addColorStop(0.2, 'rgba(255,255,255,0.7)');
-  gradient.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+  gradient.addColorStop(0.15, 'rgba(255,255,255,0.9)');
+  gradient.addColorStop(0.4, 'rgba(255,255,255,0.4)');
+  gradient.addColorStop(0.7, 'rgba(255,255,255,0.1)');
   gradient.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, size, size);
@@ -57,7 +60,8 @@ function getParticleTexture(): THREE.CanvasTexture {
 export function AspectLine3D({ aspect, visible, dimmed = false, declinationAspect }: AspectLine3DProps) {
   const particlesRef = useRef<THREE.Points>(null);
   const arrowRef = useRef<THREE.Mesh>(null);
-  const glowLineRef = useRef<THREE.Line>(null);
+  const tubeRef = useRef<THREE.Mesh>(null);
+  const glowTubeRef = useRef<THREE.Mesh>(null);
   const symbolRef = useRef<any>(null);
   const orbRef = useRef<any>(null);
   const opacityRef = useRef(0);
@@ -92,8 +96,22 @@ export function AspectLine3D({ aspect, visible, dimmed = false, declinationAspec
     return { position: pos, direction: tangent };
   }, [curve, isBidirectional]);
 
+  // Tube geometry — the core energy beam with real width
+  const coreRadius = isConjunction ? 0.04 + strength * 0.03 : 0.025 + strength * 0.02;
+  const tubeGeo = useMemo(() => {
+    return new THREE.TubeGeometry(curve, 48, coreRadius, 6, false);
+  }, [curve, coreRadius]);
+
+  // Outer glow tube — larger, more transparent
+  const glowRadius = coreRadius * 3;
+  const glowTubeGeo = useMemo(() => {
+    return new THREE.TubeGeometry(curve, 48, glowRadius, 8, false);
+  }, [curve, glowRadius]);
+
   // Particles: bidirectional = split A→B and B→A; one-way = all A→B
-  const particleCount = Math.max(8, Math.round(strength * 16));
+  const particleCount = isConjunction
+    ? Math.max(14, Math.round(strength * 24))
+    : Math.max(10, Math.round(strength * 20));
   const totalParticles = particleCount % 2 === 0 ? particleCount : particleCount + 1;
   const halfCount = totalParticles / 2;
 
@@ -104,13 +122,11 @@ export function AspectLine3D({ aspect, visible, dimmed = false, declinationAspec
 
     for (let i = 0; i < totalParticles; i++) {
       if (isBidirectional) {
-        // Split: first half A→B, second half B→A
         const isForward = i < halfCount;
         const indexInGroup = isForward ? i : i - halfCount;
         offs[i] = indexInGroup / halfCount;
         dirs[i] = isForward ? 1 : -1;
       } else {
-        // All one-way: A→B
         offs[i] = i / totalParticles;
         dirs[i] = 1;
       }
@@ -126,51 +142,33 @@ export function AspectLine3D({ aspect, visible, dimmed = false, declinationAspec
     return { particleGeo: geo, offsets: offs, directions: dirs };
   }, [curve, totalParticles, halfCount, isBidirectional]);
 
-  // Arc line geometry
-  const lineGeo = useMemo(() => {
-    const pts = curve.getPoints(48);
-    return new THREE.BufferGeometry().setFromPoints(pts);
-  }, [curve]);
-
-  // Glow line geometry (same path, wider)
-  const glowGeo = useMemo(() => {
-    const pts = curve.getPoints(48);
-    return new THREE.BufferGeometry().setFromPoints(pts);
-  }, [curve]);
-
-  const lineMat = useMemo(() => {
-    if (isChallenging) {
-      return new THREE.LineDashedMaterial({
-        color: energy.color,
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-        dashSize: 0.3,
-        gapSize: 0.15,
-      });
-    }
-    return new THREE.LineBasicMaterial({
+  // Core tube material — bright inner beam
+  const tubeMat = useMemo(() => {
+    return new THREE.MeshBasicMaterial({
       color: energy.color,
       transparent: true,
       opacity: 0,
       depthWrite: false,
+      blending: THREE.AdditiveBlending,
     });
-  }, [energy.color, isChallenging]);
+  }, [energy.color]);
 
-  const glowMat = useMemo(() => {
-    return new THREE.LineBasicMaterial({
+  // Glow tube material — soft outer halo
+  const glowTubeMat = useMemo(() => {
+    return new THREE.MeshBasicMaterial({
       color: energy.color,
       transparent: true,
       opacity: 0,
       depthWrite: false,
-      linewidth: 1,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
     });
   }, [energy.color]);
 
   const particleMat = useMemo(() => {
     return new THREE.PointsMaterial({
       color: energy.color,
-      size: isConjunction ? 0.25 : isChallenging ? 0.22 : 0.18,
+      size: isConjunction ? 0.35 : isChallenging ? 0.3 : 0.25,
       map: getParticleTexture(),
       transparent: true,
       opacity: 0,
@@ -180,16 +178,6 @@ export function AspectLine3D({ aspect, visible, dimmed = false, declinationAspec
     });
   }, [energy.color, isConjunction, isChallenging]);
 
-  const line = useMemo(() => {
-    const l = new THREE.Line(lineGeo, lineMat);
-    if (isChallenging) l.computeLineDistances();
-    return l;
-  }, [lineGeo, lineMat, isChallenging]);
-
-  const glowLine = useMemo(() => {
-    return new THREE.Line(glowGeo, glowMat);
-  }, [glowGeo, glowMat]);
-
   // Arrow cone material for one-way flow
   const arrowMat = useMemo(() => {
     return new THREE.MeshBasicMaterial({
@@ -197,6 +185,7 @@ export function AspectLine3D({ aspect, visible, dimmed = false, declinationAspec
       transparent: true,
       opacity: 0,
       depthWrite: false,
+      blending: THREE.AdditiveBlending,
     });
   }, [energy.color]);
 
@@ -207,21 +196,29 @@ export function AspectLine3D({ aspect, visible, dimmed = false, declinationAspec
     const target = visible ? 1 : 0;
     opacityRef.current += (target - opacityRef.current) * 0.08;
     const fadeIn = opacityRef.current;
-    const dimFactor = dimmed ? 0.15 : 1;
+    const dimFactor = dimmed ? 0.12 : 1;
 
-    // Line opacity
-    const baseLineOpacity = isConjunction
-      ? 0.35 + strength * 0.45
-      : 0.2 + strength * 0.35;
-    lineMat.opacity = baseLineOpacity * fadeIn * dimFactor;
+    // Pulse effect — energy breathing
+    const pulseBase = 0.6 + Math.sin(t * energy.pulseFrequency) * 0.4;
+    const pulse = isChallenging
+      ? 0.5 + Math.abs(Math.sin(t * energy.pulseFrequency * 1.5)) * 0.5  // sharper pulse
+      : pulseBase;
 
-    // Glow underlay — subtle pulsing
-    const pulse = 0.5 + Math.sin(t * energy.pulseFrequency) * 0.3;
-    glowMat.opacity = baseLineOpacity * 0.25 * pulse * fadeIn * dimFactor;
+    // Core tube beam opacity
+    const coreOpacity = isConjunction
+      ? (0.5 + strength * 0.5) * pulse
+      : (0.3 + strength * 0.4) * pulse;
+    tubeMat.opacity = coreOpacity * fadeIn * dimFactor;
+
+    // Glow halo opacity — softer
+    const glowOpacity = isConjunction
+      ? (0.15 + strength * 0.2) * pulse
+      : (0.08 + strength * 0.15) * pulse;
+    glowTubeMat.opacity = glowOpacity * fadeIn * dimFactor;
 
     // Arrow opacity for one-way
     if (arrowRef.current) {
-      arrowMat.opacity = baseLineOpacity * 0.7 * fadeIn * dimFactor;
+      arrowMat.opacity = coreOpacity * 0.8 * fadeIn * dimFactor;
     }
 
     // Text label opacity — hide when dimmed
@@ -232,7 +229,7 @@ export function AspectLine3D({ aspect, visible, dimmed = false, declinationAspec
     // Animate particles along curve
     if (particlesRef.current) {
       const positions = particleGeo.attributes.position as THREE.BufferAttribute;
-      const speed = isConjunction ? 0.08 : isChallenging ? 0.12 : 0.06;
+      const speed = isConjunction ? 0.1 : isChallenging ? 0.14 : 0.08;
 
       for (let i = 0; i < totalParticles; i++) {
         let phase: number;
@@ -247,10 +244,10 @@ export function AspectLine3D({ aspect, visible, dimmed = false, declinationAspec
         let jX = 0, jY = 0, jZ = 0;
 
         if (isChallenging) {
-          const amt = 0.05;
-          jX = Math.sin(t * 2.5 + i * 2.3) * amt;
-          jY = Math.cos(t * 2 + i * 1.7) * amt;
-          jZ = Math.sin(t * 1.8 + i * 3.1) * amt;
+          const amt = 0.07;
+          jX = Math.sin(t * 3 + i * 2.3) * amt;
+          jY = Math.cos(t * 2.5 + i * 1.7) * amt;
+          jZ = Math.sin(t * 2 + i * 3.1) * amt;
         }
 
         positions.setXYZ(i, pt.x + jX, pt.y + jY, pt.z + jZ);
@@ -258,9 +255,9 @@ export function AspectLine3D({ aspect, visible, dimmed = false, declinationAspec
       positions.needsUpdate = true;
 
       const particleBaseOpacity = isConjunction
-        ? 0.6 + strength * 0.4
-        : 0.4 + strength * 0.5;
-      particleMat.opacity = particleBaseOpacity * fadeIn * dimFactor;
+        ? 0.7 + strength * 0.3
+        : 0.5 + strength * 0.4;
+      particleMat.opacity = particleBaseOpacity * pulse * fadeIn * dimFactor;
     }
   });
 
@@ -271,13 +268,13 @@ export function AspectLine3D({ aspect, visible, dimmed = false, declinationAspec
 
   return (
     <group>
-      {/* Main arc line */}
-      <primitive object={line} />
+      {/* Core energy beam — tube with actual width */}
+      <mesh ref={tubeRef} geometry={tubeGeo} material={tubeMat} />
 
-      {/* Glow underlay */}
-      <primitive object={glowLine} />
+      {/* Outer glow halo — larger tube, softer */}
+      <mesh ref={glowTubeRef} geometry={glowTubeGeo} material={glowTubeMat} />
 
-      {/* Particles */}
+      {/* Energy particles — flowing along the beam */}
       <points ref={particlesRef} geometry={particleGeo} material={particleMat} />
 
       {/* Arrow cone for one-way (challenging) flow */}
@@ -291,7 +288,7 @@ export function AspectLine3D({ aspect, visible, dimmed = false, declinationAspec
           )}
           material={arrowMat}
         >
-          <coneGeometry args={[0.12, 0.35, 6]} />
+          <coneGeometry args={[0.14, 0.4, 6]} />
         </mesh>
       )}
 

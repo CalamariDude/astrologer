@@ -1,32 +1,36 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
-  ArrowLeft, User, CreditCard, FolderOpen, Radio, Settings, AlertTriangle,
-  LogOut, Loader2, Download, ClipboardPaste, Check,
+  ArrowLeft, User, CreditCard, Settings, AlertTriangle,
+  LogOut, Loader2, Check, Trash2, Pencil, RotateCcw, Users, Bell, Star, Search, MapPin,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { DateInput } from '@/components/ui/DateInput';
+import { TimeInput } from '@/components/ui/TimeInput';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { supabase } from '@/lib/supabase';
-import { SavedChartsList } from '@/components/charts/SavedChartsList';
-import { AstroComImport, type ParsedPerson } from '@/components/charts/AstroComImport';
-import { SessionsList } from '@/components/session/SessionsList';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
-import { getSavedCharts, getSavedChartsAsync, invalidateChartsCache } from '@/components/charts/SaveChartButton';
 import { getThemeCSSVariables, isThemeDark } from '@/lib/chartThemeCSS';
 import { swissEphemeris } from '@/api/swissEphemeris';
+import { invalidateChartsCache } from '@/components/charts/SaveChartButton';
+
 import { THEME_LABELS, THEME_SWATCHES, type ThemeName } from '@/components/biwheel/utils/themes';
+import { loadPresets, loadPresetsFromProfile, savePresetsToProfile, deletePreset as deleteLocalPreset, renamePreset as renameLocalPreset, type ChartPreset } from '@/components/biwheel/utils/presets';
+import { ClientsList } from '@/components/clients/ClientsList';
 
 const SECTIONS = [
   { id: 'account', label: 'Account', icon: User },
+  { id: 'birth', label: 'Birth Details', icon: Star },
   { id: 'billing', label: 'Billing & Usage', icon: CreditCard },
-  { id: 'charts', label: 'Charts', icon: FolderOpen },
-  { id: 'sessions', label: 'Sessions', icon: Radio },
+  { id: 'clients', label: 'Clients', icon: Users },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'preferences', label: 'Preferences', icon: Settings },
   { id: 'danger', label: 'Danger Zone', icon: AlertTriangle },
 ] as const;
@@ -38,9 +42,11 @@ export default function SettingsPage() {
   const location = useLocation();
   const { user, signOut } = useAuth();
   const {
-    isPaid, isTrialing, trialDaysRemaining, status,
+    isPaid, isTrialing, trialDaysRemaining, status, tier,
     aiCreditsRemaining, aiCreditsLimit,
     relocatedRemaining, relocatedLimit,
+    sessionsRemaining, sessionsLimit, sessionsUsed,
+    transcriptionsRemaining, transcriptionsLimit, transcriptionsUsed,
     openPortal,
   } = useSubscription();
 
@@ -61,21 +67,150 @@ export default function SettingsPage() {
   // Account state
   const [displayName, setDisplayName] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+  // Community profile fields
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [bio, setBio] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [twitterHandle, setTwitterHandle] = useState('');
+  const [instagramHandle, setInstagramHandle] = useState('');
+  const [tiktokHandle, setTiktokHandle] = useState('');
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [linktreeUrl, setLinktreeUrl] = useState('');
+  const [savingSocials, setSavingSocials] = useState(false);
 
-  // Charts state
-  const [showSaved, setShowSaved] = useState(false);
-  const [showAstroImport, setShowAstroImport] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
 
+  // Birth details state
+  const [birthChart, setBirthChart] = useState<any>(null);
+  const [birthChartLoading, setBirthChartLoading] = useState(true);
+  const [editingBirth, setEditingBirth] = useState(false);
+  const [birthName, setBirthName] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [birthTime, setBirthTime] = useState('12:00');
+  const [birthLocation, setBirthLocation] = useState('');
+  const [birthLat, setBirthLat] = useState<number | null>(null);
+  const [birthLng, setBirthLng] = useState<number | null>(null);
+  const [birthGeoResults, setBirthGeoResults] = useState<{ display_name: string; lat: string; lon: string }[]>([]);
+  const [birthSearching, setBirthSearching] = useState(false);
+  const [birthSaving, setBirthSaving] = useState(false);
+
   // Danger zone state
+  // Notifications state
+  const [emailUnsubscribed, setEmailUnsubscribed] = useState(false);
+  const [loadingEmailPref, setLoadingEmailPref] = useState(false);
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deletingAccount, setDeletingAccount] = useState(false);
 
+  // Community content filters
+  const [hiddenSpaces, setHiddenSpaces] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('community_hidden_spaces') || '[]'); } catch { return []; }
+  });
+  const [allSpaces, setAllSpaces] = useState<{ id: string; name: string; slug: string; icon: string }[]>([]);
+  const [spacesLoaded, setSpacesLoaded] = useState(false);
+
+  // Word filters
+  const [blockedWords, setBlockedWords] = useState<string[]>([]);
+  const [blockedWordsLoaded, setBlockedWordsLoaded] = useState(false);
+  const [newWord, setNewWord] = useState('');
+  const [savingWords, setSavingWords] = useState(false);
+
   // Preferences state
   const [pageTheme, setPageTheme] = useState(() => localStorage.getItem('astrologer_theme') || 'classic');
-  const [themeReady, setThemeReady] = useState(!user);
   const themeVars = useMemo(() => getThemeCSSVariables(pageTheme) as React.CSSProperties, [pageTheme]);
+
+  // Chart defaults
+  const [chartDefaults, setChartDefaults] = useState<{
+    straightAspects: boolean;
+    showEffects: boolean;
+    showDegreeMarkers: boolean;
+    showRetrogrades: boolean;
+    showDecans: boolean;
+    rotateToAscendant: boolean;
+    showHouses: boolean;
+    degreeSymbolMode: 'sign' | 'spark';
+  }>(() => {
+    try {
+      const raw = localStorage.getItem('biwheel-chart-defaults');
+      if (raw) {
+        const d = JSON.parse(raw);
+        return {
+          straightAspects: d.straightAspects ?? false,
+          showEffects: d.showEffects ?? false,
+          showDegreeMarkers: d.showDegreeMarkers ?? true,
+          showRetrogrades: d.showRetrogrades ?? true,
+          showDecans: d.showDecans ?? false,
+          rotateToAscendant: d.rotateToAscendant ?? true,
+          showHouses: d.showHouses ?? true,
+          degreeSymbolMode: d.degreeSymbolMode ?? 'sign',
+        };
+      }
+    } catch {}
+    return { straightAspects: false, showEffects: false, showDegreeMarkers: true, showRetrogrades: true, showDecans: false, rotateToAscendant: true, showHouses: true, degreeSymbolMode: 'sign' as const };
+  });
+
+  const updateChartDefault = useCallback((key: string, value: boolean | string) => {
+    setChartDefaults(prev => {
+      const next = { ...prev, [key]: value };
+      // Merge into the full saved defaults (preserving planets/aspects)
+      try {
+        const raw = localStorage.getItem('biwheel-chart-defaults');
+        const existing = raw ? JSON.parse(raw) : {};
+        localStorage.setItem('biwheel-chart-defaults', JSON.stringify({ ...existing, [key]: value }));
+      } catch {
+        localStorage.setItem('biwheel-chart-defaults', JSON.stringify(next));
+      }
+      return next;
+    });
+  }, []);
+
+  // Presets
+  const [presets, setPresets] = useState<ChartPreset[]>([]);
+  const [presetsLoaded, setPresetsLoaded] = useState(false);
+  const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
+  const [editPresetName, setEditPresetName] = useState('');
+
+  useEffect(() => {
+    if (user) {
+      loadPresetsFromProfile(user.id).then(p => { setPresets(p); setPresetsLoaded(true); });
+    } else {
+      setPresets(loadPresets());
+      setPresetsLoaded(true);
+    }
+  }, [user]);
+
+  const handleDeletePreset = useCallback(async (id: string) => {
+    if (!confirm('Delete this preset?')) return;
+    const updated = presets.filter(p => p.id !== id);
+    setPresets(updated);
+    deleteLocalPreset(id);
+    if (user) await savePresetsToProfile(user.id, updated);
+    toast.success('Preset deleted');
+  }, [presets, user]);
+
+  const handleRenamePreset = useCallback(async (id: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) { setEditingPresetId(null); return; }
+    const updated = presets.map(p => p.id === id ? { ...p, name: trimmed } : p);
+    setPresets(updated);
+    renameLocalPreset(id, trimmed);
+    if (user) await savePresetsToProfile(user.id, updated);
+    setEditingPresetId(null);
+    toast.success('Preset renamed');
+  }, [presets, user]);
+
+  const handleResetDefaults = useCallback(() => {
+    if (!confirm('Reset all chart display defaults to factory settings?')) return;
+    localStorage.removeItem('biwheel-chart-defaults');
+    setChartDefaults({
+      straightAspects: false, showEffects: false, showDegreeMarkers: true,
+      showRetrogrades: true, showDecans: false, rotateToAscendant: true, showHouses: true,
+      degreeSymbolMode: 'sign' as const,
+    });
+    toast.success('Chart defaults reset');
+  }, []);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -85,26 +220,184 @@ export default function SettingsPage() {
   // Load profile data
   useEffect(() => {
     if (!user) return;
-    supabase.from('astrologer_profiles').select('display_name').eq('id', user.id).single()
+    supabase.from('astrologer_profiles').select('display_name, email_unsubscribed').eq('id', user.id).single()
       .then(({ data }) => {
         setDisplayName(data?.display_name || '');
+        setEmailUnsubscribed(data?.email_unsubscribed ?? false);
+      });
+    // Load community profile (socials)
+    supabase.from('profiles').select('avatar_url, bio, website_url, linktree_url, twitter_handle, instagram_handle, tiktok_handle, youtube_url').eq('id', user.id).maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        setAvatarUrl(data.avatar_url || '');
+        setBio(data.bio || '');
+        setWebsiteUrl(data.website_url || '');
+        setLinktreeUrl(data.linktree_url || '');
+        setTwitterHandle(data.twitter_handle || '');
+        setInstagramHandle(data.instagram_handle || '');
+        setTiktokHandle(data.tiktok_handle || '');
+        setYoutubeUrl(data.youtube_url || '');
       });
   }, [user]);
 
+  // Load birth chart (first natal chart)
+  useEffect(() => {
+    if (!user) { setBirthChartLoading(false); return; }
+    setBirthChartLoading(true);
+    supabase
+      .from('saved_charts')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('chart_type', 'natal')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          const chart = data[0];
+          setBirthChart(chart);
+          setBirthName(chart.person_a_name || '');
+          setBirthDate(chart.person_a_date || '');
+          setBirthTime(chart.person_a_time || '12:00');
+          setBirthLocation(chart.person_a_location || '');
+          setBirthLat(chart.person_a_lat);
+          setBirthLng(chart.person_a_lng);
+        }
+        setBirthChartLoading(false);
+      })
+      .catch(() => setBirthChartLoading(false));
+  }, [user]);
+
+  // Sync dark class to <html>
+  useEffect(() => {
+    const dark = isThemeDark(pageTheme);
+    document.documentElement.classList.toggle('dark', dark);
+    document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+  }, [pageTheme]);
+
   // Load theme from profile — DB is source of truth when logged in
   useEffect(() => {
-    if (!user) { setThemeReady(true); return; }
-    setThemeReady(false);
-    supabase.from('astrologer_profiles').select('theme').eq('id', user.id).single()
+    if (!user) return;
+    supabase.from('astrologer_profiles').select('theme').eq('id', user.id).maybeSingle()
       .then(({ data }) => {
-        if (data?.theme) {
+        if (data?.theme && data.theme !== pageTheme) {
           setPageTheme(data.theme);
           localStorage.setItem('astrologer_theme', data.theme);
         }
-        setThemeReady(true);
-      })
-      .catch(() => setThemeReady(true));
+      });
   }, [user]);
+
+  // Load community spaces for content filter
+  useEffect(() => {
+    if (activeSection !== 'preferences' || spacesLoaded) return;
+    supabase.from('community_spaces').select('id, name, slug, icon').order('sort_order').then(({ data }) => {
+      if (data) setAllSpaces(data);
+      setSpacesLoaded(true);
+    });
+  }, [activeSection, spacesLoaded]);
+
+  // Load blocked words
+  useEffect(() => {
+    if (activeSection !== 'preferences' || blockedWordsLoaded || !user) return;
+    supabase.from('astrologer_profiles').select('blocked_words').eq('id', user.id).single().then(({ data }) => {
+      setBlockedWords(data?.blocked_words || []);
+      setBlockedWordsLoaded(true);
+    });
+  }, [activeSection, blockedWordsLoaded, user]);
+
+  const toggleHiddenSpace = useCallback((slug: string) => {
+    setHiddenSpaces(prev => {
+      const next = prev.includes(slug) ? prev.filter(s => s !== slug) : [...prev, slug];
+      localStorage.setItem('community_hidden_spaces', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const addBlockedWord = useCallback(async () => {
+    const word = newWord.trim().toLowerCase();
+    if (!word || !user || blockedWords.includes(word)) { setNewWord(''); return; }
+    const next = [...blockedWords, word];
+    setSavingWords(true);
+    const { error } = await supabase.from('astrologer_profiles').update({ blocked_words: next }).eq('id', user.id);
+    if (error) { toast.error('Failed to save'); } else { setBlockedWords(next); }
+    setNewWord('');
+    setSavingWords(false);
+  }, [newWord, user, blockedWords]);
+
+  const removeBlockedWord = useCallback(async (word: string) => {
+    if (!user) return;
+    const next = blockedWords.filter(w => w !== word);
+    const { error } = await supabase.from('astrologer_profiles').update({ blocked_words: next }).eq('id', user.id);
+    if (error) { toast.error('Failed to save'); } else { setBlockedWords(next); }
+  }, [user, blockedWords]);
+
+  const searchBirthLocation = useCallback(async () => {
+    if (!birthLocation || birthLocation.length < 2) return;
+    setBirthSearching(true);
+    try {
+      const base = import.meta.env.DEV ? '/nominatim' : 'https://nominatim.openstreetmap.org';
+      const res = await fetch(`${base}/search?format=json&q=${encodeURIComponent(birthLocation)}&limit=5`);
+      const json = await res.json();
+      if (json.length > 0) {
+        setBirthLocation(json[0].display_name);
+        setBirthLat(parseFloat(json[0].lat));
+        setBirthLng(parseFloat(json[0].lon));
+        setBirthGeoResults(json.length > 1 ? json.slice(1) : []);
+      } else {
+        setBirthGeoResults([]);
+        toast.error('No locations found');
+      }
+    } catch {
+      toast.error('Location search failed');
+    } finally {
+      setBirthSearching(false);
+    }
+  }, [birthLocation]);
+
+  const handleSaveBirthDetails = useCallback(async () => {
+    if (!user || !birthName.trim() || !birthDate || !birthLat || !birthLng) return;
+    setBirthSaving(true);
+    try {
+      const chartData = await swissEphemeris.natal({
+        birth_date: birthDate,
+        birth_time: birthTime,
+        lat: birthLat,
+        lng: birthLng,
+      });
+
+      const updatePayload = {
+        person_a_name: birthName.trim(),
+        person_a_date: birthDate,
+        person_a_time: birthTime,
+        person_a_location: birthLocation,
+        person_a_lat: birthLat,
+        person_a_lng: birthLng,
+        person_a_chart: chartData,
+        name: `${birthName.trim()}'s Chart`,
+      };
+
+      if (birthChart?.id) {
+        const { error } = await supabase.from('saved_charts').update(updatePayload).eq('id', birthChart.id);
+        if (error) throw error;
+        setBirthChart({ ...birthChart, ...updatePayload });
+      } else {
+        const { data, error } = await supabase.from('saved_charts').insert({
+          user_id: user.id,
+          chart_type: 'natal',
+          ...updatePayload,
+        }).select().single();
+        if (error) throw error;
+        setBirthChart(data);
+      }
+
+      invalidateChartsCache();
+      setEditingBirth(false);
+      toast.success('Birth details updated');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update birth details');
+    } finally {
+      setBirthSaving(false);
+    }
+  }, [user, birthChart, birthName, birthDate, birthTime, birthLocation, birthLat, birthLng]);
 
   const handleSaveProfile = async () => {
     if (!user) return;
@@ -115,6 +408,49 @@ export default function SettingsPage() {
     toast.success('Profile updated');
   };
 
+  const handleSaveSocials = async () => {
+    if (!user) return;
+    setSavingSocials(true);
+    const payload = {
+      id: user.id,
+      bio: bio.trim() || null,
+      website_url: websiteUrl.trim() || null,
+      linktree_url: linktreeUrl.trim() || null,
+      twitter_handle: twitterHandle.trim() || null,
+      instagram_handle: instagramHandle.trim() || null,
+      tiktok_handle: tiktokHandle.trim() || null,
+      youtube_url: youtubeUrl.trim() || null,
+    };
+    const { error } = await supabase.from('profiles').upsert(payload, { onConflict: 'id' });
+    setSavingSocials(false);
+    if (error) { toast.error('Failed to save socials'); return; }
+    toast.success('Profile updated');
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
+    setUploadingAvatar(true);
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `${user.id}/avatar.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from('community-media').upload(path, file, { upsert: true });
+      if (uploadErr) throw uploadErr;
+      const { data: { publicUrl } } = supabase.storage.from('community-media').getPublicUrl(path);
+      const url = publicUrl + '?t=' + Date.now();
+      const { error: dbErr } = await supabase.from('profiles').upsert({ id: user.id, avatar_url: url }, { onConflict: 'id' });
+      if (dbErr) throw dbErr;
+      setAvatarUrl(url);
+      toast.success('Profile picture updated');
+    } catch (err: any) {
+      toast.error(err.message || 'Upload failed');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   const handleThemeChange = useCallback((t: string) => {
     setPageTheme(t);
     localStorage.setItem('astrologer_theme', t);
@@ -122,66 +458,6 @@ export default function SettingsPage() {
       supabase.from('astrologer_profiles').update({ theme: t }).eq('id', user.id).then(() => {});
     }
   }, [user]);
-
-  const handleExportCharts = useCallback(async () => {
-    const charts = await getSavedChartsAsync(user?.id || null);
-    if (charts.length === 0) { toast.error('No saved charts to export'); return; }
-    const blob = new Blob([JSON.stringify(charts, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'astrologer-charts.json';
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a); URL.revokeObjectURL(url);
-    toast.success(`Exported ${charts.length} chart${charts.length === 1 ? '' : 's'}`);
-  }, [user?.id]);
-
-  const handleAstroImport = useCallback(async (persons: ParsedPerson[]) => {
-    if (persons.length === 0) return;
-    setShowAstroImport(false);
-
-    let savedCount = 0;
-    for (const person of persons) {
-      if (!person.lat || !person.lng) continue;
-      try {
-        const data = await swissEphemeris.natal({
-          birth_date: person.date,
-          birth_time: person.time || '12:00',
-          lat: person.lat,
-          lng: person.lng,
-        });
-        const planets: Record<string, any> = {};
-        if (data.planets && Array.isArray(data.planets)) {
-          for (const p of data.planets) {
-            let key = (p.name || p.planet || '').toLowerCase();
-            if (key === 'north node' || key === 'true_node' || key === 'mean_node') key = 'northnode';
-            if (key === 'south node') key = 'southnode';
-            if (!key) continue;
-            planets[key] = {
-              longitude: p.longitude ?? p.abs_pos ?? 0,
-              sign: p.sign || '',
-              retrograde: p.retrograde ?? false,
-            };
-          }
-        }
-        if (user) {
-          await supabase.from('saved_charts').insert({
-            user_id: user.id, name: person.name, chart_type: 'natal',
-            person_a_name: person.name, person_a_date: person.date, person_a_time: person.time,
-            person_a_location: person.location, person_a_lat: person.lat, person_a_lng: person.lng,
-            person_a_chart: { planets },
-          });
-        }
-        savedCount++;
-      } catch {
-        // Skip charts that fail
-      }
-    }
-    if (savedCount > 0) {
-      invalidateChartsCache();
-    }
-    toast.success(`Saved ${savedCount} chart${savedCount !== 1 ? 's' : ''}`);
-    navigate('/chart');
-  }, [user, navigate]);
 
   const handleDeleteAccount = async () => {
     setDeletingAccount(true);
@@ -205,13 +481,16 @@ export default function SettingsPage() {
   if (!user) return null;
 
   // Billing helpers
-  const planLabel = isPaid ? 'Pro' : isTrialing ? 'Trial' : 'Free';
-  const planVariant = isPaid ? 'default' as const : isTrialing ? 'secondary' as const : 'outline' as const;
+  const tierLabels: Record<string, string> = { lite: 'Lite', horoscope: 'Horoscope', astrologer: 'Astrologer', professional: 'Professional' };
+  const planLabel = tierLabels[tier] || (isTrialing ? 'Trial' : 'Free');
+  const planVariant = tier !== 'lite' ? 'default' as const : isTrialing ? 'secondary' as const : 'outline' as const;
   const aiUsed = aiCreditsLimit - aiCreditsRemaining;
   const aiPercent = aiCreditsLimit > 0 ? (aiUsed / aiCreditsLimit) * 100 : 0;
   const relocatedUsed = relocatedLimit > 0 ? relocatedLimit - relocatedRemaining : 0;
   const relocatedPercent = relocatedLimit > 0 ? (relocatedUsed / relocatedLimit) * 100 : 0;
   const isRelocatedUnlimited = relocatedRemaining === -1 || relocatedLimit === -1;
+  const sessionsPercent = sessionsLimit > 0 ? (sessionsUsed / sessionsLimit) * 100 : 0;
+  const transcriptionsPercent = transcriptionsLimit > 0 ? (transcriptionsUsed / transcriptionsLimit) * 100 : 0;
 
   // Next reset date (1st of next month)
   const now = new Date();
@@ -220,15 +499,15 @@ export default function SettingsPage() {
 
   return (
     <div
-      className={`min-h-screen transition-colors duration-300 ${themeReady && isThemeDark(pageTheme) ? 'dark' : ''}`}
-      style={themeReady ? themeVars : undefined}
+      className={`min-h-screen ${isThemeDark(pageTheme) ? 'dark' : ''}`}
+      style={themeVars}
     >
       {/* Header */}
       <div className="border-b bg-background">
         <div className="container flex items-center gap-3 py-3 px-4 md:px-6">
-          <Link to="/chart" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <Link to="/dashboard" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Back to Chart</span>
+            <span className="hidden sm:inline">Back to Dashboard</span>
           </Link>
           <Separator orientation="vertical" className="h-4" />
           <h1 className="text-sm font-medium">Settings</h1>
@@ -293,6 +572,31 @@ export default function SettingsPage() {
                   <CardDescription>Manage your profile information</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Profile Picture */}
+                  <div className="flex items-center gap-4">
+                    <div className="relative group">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt="Avatar" className="w-16 h-16 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                          <User className="w-6 h-6 text-muted-foreground" />
+                        </div>
+                      )}
+                      <label className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+                        {uploadingAvatar ? (
+                          <Loader2 className="w-4 h-4 text-white animate-spin" />
+                        ) : (
+                          <Pencil className="w-4 h-4 text-white" />
+                        )}
+                        <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
+                      </label>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Profile Picture</p>
+                      <p className="text-xs text-muted-foreground">Click to upload (max 5MB)</p>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="text-sm font-medium">Display Name</label>
                     <div className="flex gap-2 mt-1">
@@ -313,10 +617,190 @@ export default function SettingsPage() {
                     <p className="text-sm text-muted-foreground mt-1">{user.email}</p>
                   </div>
                   <Separator />
+
+                  {/* Bio & Socials */}
+                  <div>
+                    <label className="text-sm font-medium">Bio</label>
+                    <textarea
+                      value={bio}
+                      onChange={e => setBio(e.target.value)}
+                      placeholder="A short bio about yourself"
+                      rows={3}
+                      maxLength={300}
+                      className="mt-1 w-full px-3 py-2 rounded-md border bg-background text-sm resize-none"
+                    />
+                    <p className="text-[10px] text-muted-foreground text-right">{bio.length}/300</p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm font-medium">Website</label>
+                      <input type="url" value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} placeholder="https://yoursite.com" className="mt-1 w-full h-9 px-3 rounded-md border bg-background text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Linktree</label>
+                      <input type="url" value={linktreeUrl} onChange={e => setLinktreeUrl(e.target.value)} placeholder="https://linktr.ee/you" className="mt-1 w-full h-9 px-3 rounded-md border bg-background text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">X / Twitter</label>
+                      <input type="text" value={twitterHandle} onChange={e => setTwitterHandle(e.target.value)} placeholder="@handle" className="mt-1 w-full h-9 px-3 rounded-md border bg-background text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Instagram</label>
+                      <input type="text" value={instagramHandle} onChange={e => setInstagramHandle(e.target.value)} placeholder="@handle" className="mt-1 w-full h-9 px-3 rounded-md border bg-background text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">TikTok</label>
+                      <input type="text" value={tiktokHandle} onChange={e => setTiktokHandle(e.target.value)} placeholder="@handle" className="mt-1 w-full h-9 px-3 rounded-md border bg-background text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">YouTube</label>
+                      <input type="url" value={youtubeUrl} onChange={e => setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/@channel" className="mt-1 w-full h-9 px-3 rounded-md border bg-background text-sm" />
+                    </div>
+                  </div>
+                  <Button size="sm" onClick={handleSaveSocials} disabled={savingSocials}>
+                    {savingSocials ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
+                    Save Profile
+                  </Button>
+                  <Separator />
+
                   <Button variant="outline" size="sm" onClick={() => signOut()} className="gap-1.5">
                     <LogOut className="w-3.5 h-3.5" />
                     Sign Out
                   </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Birth Details */}
+            {activeSection === 'birth' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Birth Details</CardTitle>
+                  <CardDescription>Your birth data used for horoscopes and chart readings</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {birthChartLoading ? (
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : !birthChart && !editingBirth ? (
+                    <div className="text-center py-6">
+                      <p className="text-sm text-muted-foreground mb-3">No birth chart saved yet</p>
+                      <Button size="sm" onClick={() => setEditingBirth(true)}>Add Birth Details</Button>
+                    </div>
+                  ) : editingBirth ? (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium">Name</label>
+                        <input
+                          type="text"
+                          value={birthName}
+                          onChange={e => setBirthName(e.target.value)}
+                          placeholder="Your name"
+                          className="mt-1 w-full h-9 px-3 rounded-md border bg-background text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Birth Date</label>
+                        <div className="mt-1">
+                          <DateInput value={birthDate} onChange={setBirthDate} />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Birth Time</label>
+                        <p className="text-xs text-muted-foreground mb-1">If unknown, leave as 12:00 (noon)</p>
+                        <TimeInput value={birthTime} onChange={setBirthTime} />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Birth Location</label>
+                        <div className="flex gap-2 mt-1">
+                          <div className="relative flex-1">
+                            <input
+                              type="text"
+                              value={birthLocation}
+                              onChange={e => { setBirthLocation(e.target.value); setBirthLat(null); setBirthLng(null); setBirthGeoResults([]); }}
+                              placeholder="City, Country"
+                              className="w-full h-9 px-3 pr-8 rounded-md border bg-background text-sm"
+                              onKeyDown={e => e.key === 'Enter' && searchBirthLocation()}
+                            />
+                            {birthLat !== null && (
+                              <MapPin className="absolute right-2.5 top-2.5 w-4 h-4 text-emerald-500" />
+                            )}
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={searchBirthLocation}
+                            disabled={birthSearching || !birthLocation || birthLocation.length < 2}
+                            className="h-9 px-3"
+                          >
+                            {birthSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                          </Button>
+                        </div>
+                        {birthGeoResults.length > 0 && (
+                          <div className="mt-1 border rounded-md bg-popover shadow-sm max-h-32 overflow-y-auto">
+                            {birthGeoResults.map((r, i) => (
+                              <button
+                                key={i}
+                                onClick={() => { setBirthLocation(r.display_name); setBirthLat(parseFloat(r.lat)); setBirthLng(parseFloat(r.lon)); setBirthGeoResults([]); }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors border-b last:border-b-0"
+                              >
+                                {r.display_name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          size="sm"
+                          onClick={handleSaveBirthDetails}
+                          disabled={birthSaving || !birthName.trim() || !birthDate || !birthLat}
+                        >
+                          {birthSaving ? <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> Saving...</> : 'Save'}
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => {
+                          setEditingBirth(false);
+                          if (birthChart) {
+                            setBirthName(birthChart.person_a_name || '');
+                            setBirthDate(birthChart.person_a_date || '');
+                            setBirthTime(birthChart.person_a_time || '12:00');
+                            setBirthLocation(birthChart.person_a_location || '');
+                            setBirthLat(birthChart.person_a_lat);
+                            setBirthLng(birthChart.person_a_lng);
+                          }
+                        }}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs text-muted-foreground">Name</label>
+                          <p className="text-sm font-medium">{birthChart.person_a_name}</p>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Date</label>
+                          <p className="text-sm font-medium">{birthChart.person_a_date}</p>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Time</label>
+                          <p className="text-sm font-medium">{birthChart.person_a_time || '12:00'}</p>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Location</label>
+                          <p className="text-sm font-medium truncate" title={birthChart.person_a_location}>{birthChart.person_a_location}</p>
+                        </div>
+                      </div>
+                      <Separator />
+                      <Button size="sm" variant="outline" onClick={() => setEditingBirth(true)} className="gap-1.5">
+                        <Pencil className="w-3.5 h-3.5" />
+                        Edit Birth Details
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -346,6 +830,26 @@ export default function SettingsPage() {
                     <p className="text-xs text-muted-foreground">Resets {resetLabel}</p>
                   </div>
 
+                  {sessionsLimit > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Sessions</span>
+                        <span className="text-muted-foreground">{sessionsUsed} / {sessionsLimit} used</span>
+                      </div>
+                      <Progress value={sessionsPercent} className="h-2" />
+                    </div>
+                  )}
+
+                  {transcriptionsLimit > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Transcriptions</span>
+                        <span className="text-muted-foreground">{transcriptionsUsed} / {transcriptionsLimit} used</span>
+                      </div>
+                      <Progress value={transcriptionsPercent} className="h-2" />
+                    </div>
+                  )}
+
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
                       <span>Relocated Charts</span>
@@ -365,79 +869,75 @@ export default function SettingsPage() {
                     </Button>
                   ) : (
                     <Button size="sm" onClick={() => setShowUpgrade(true)} className="gap-1.5">
-                      Upgrade to Pro
+                      Upgrade
                     </Button>
                   )}
                 </CardContent>
               </Card>
             )}
 
-            {/* Charts */}
-            {activeSection === 'charts' && (
+            {/* Clients */}
+            {activeSection === 'clients' && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Charts</CardTitle>
-                  <CardDescription>Manage your saved charts</CardDescription>
+                  <CardTitle className="text-base">Clients</CardTitle>
+                  <CardDescription>Manage your client directory — save birth data for quick access</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <button
-                    onClick={() => setShowSaved(true)}
-                    className="w-full flex items-center gap-3 px-3 py-3 rounded-md text-sm text-left hover:bg-muted/50 transition-colors"
-                  >
-                    <FolderOpen className="w-4 h-4 text-muted-foreground shrink-0" />
-                    <div>
-                      <div className="font-medium">Manage Charts</div>
-                      <div className="text-xs text-muted-foreground">View, load, or delete your saved charts</div>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => setShowAstroImport(true)}
-                    className="w-full flex items-center gap-3 px-3 py-3 rounded-md text-sm text-left hover:bg-muted/50 transition-colors"
-                  >
-                    <ClipboardPaste className="w-4 h-4 text-muted-foreground shrink-0" />
-                    <div>
-                      <div className="font-medium">Import from Astro.com</div>
-                      <div className="text-xs text-muted-foreground">Paste your Astro.com chart data to import</div>
-                    </div>
-                  </button>
-                  <button
-                    onClick={handleExportCharts}
-                    className="w-full flex items-center gap-3 px-3 py-3 rounded-md text-sm text-left hover:bg-muted/50 transition-colors"
-                  >
-                    <Download className="w-4 h-4 text-muted-foreground shrink-0" />
-                    <div>
-                      <div className="font-medium">Export All Charts</div>
-                      <div className="text-xs text-muted-foreground">Download all your charts as JSON</div>
-                    </div>
-                  </button>
+                <CardContent>
+                  <ClientsList />
                 </CardContent>
               </Card>
             )}
 
-            {/* Sessions */}
-            {activeSection === 'sessions' && (
+            {/* Notifications */}
+            {activeSection === 'notifications' && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Sessions</CardTitle>
-                  <CardDescription>Your recorded chart sessions</CardDescription>
+                  <CardTitle className="text-base">Email Notifications</CardTitle>
+                  <CardDescription>Control which emails you receive</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <SessionsList />
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-medium">Daily Horoscope</div>
+                      <div className="text-xs text-muted-foreground">Receive a personalized energy reading every morning at 7 AM</div>
+                    </div>
+                    <Switch
+                      checked={!emailUnsubscribed}
+                      disabled={loadingEmailPref}
+                      onCheckedChange={async (checked) => {
+                        if (!user) return;
+                        setLoadingEmailPref(true);
+                        const unsubscribed = !checked;
+                        const { error } = await supabase
+                          .from('astrologer_profiles')
+                          .update({ email_unsubscribed: unsubscribed })
+                          .eq('id', user.id);
+                        setLoadingEmailPref(false);
+                        if (error) {
+                          toast.error('Failed to update preference');
+                          return;
+                        }
+                        setEmailUnsubscribed(unsubscribed);
+                        toast.success(checked ? 'Daily horoscope emails enabled' : 'Daily horoscope emails disabled');
+                      }}
+                    />
+                  </div>
                 </CardContent>
               </Card>
             )}
 
             {/* Preferences */}
             {activeSection === 'preferences' && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Preferences</CardTitle>
-                  <CardDescription>Customize your experience</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium">Chart Theme</label>
-                    <div className="grid grid-cols-5 gap-2 mt-2">
+              <div className="space-y-4">
+                {/* Theme */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Chart Theme</CardTitle>
+                    <CardDescription>Color scheme for all charts</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-5 gap-2">
                       {(Object.keys(THEME_LABELS) as ThemeName[]).map(id => {
                         const swatch = THEME_SWATCHES[id];
                         const isActive = pageTheme === id;
@@ -469,11 +969,213 @@ export default function SettingsPage() {
                         );
                       })}
                     </div>
-                  </div>
-                  <Separator />
-                  <p className="text-xs text-muted-foreground">More preferences coming soon</p>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+
+                {/* Chart Display Defaults */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Chart Display Defaults</CardTitle>
+                    <CardDescription>Default options for new charts. You can still override these per chart.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-1">
+                    {([
+                      { key: 'showHouses', label: 'Houses', desc: 'Show house division rings' },
+                      { key: 'showDegreeMarkers', label: 'Degree markers', desc: 'Show degree ticks around the zodiac wheel' },
+                      { key: 'showRetrogrades', label: 'Retrograde symbols', desc: 'Show ℞ indicator on retrograde planets' },
+                      { key: 'showDecans', label: 'Decans', desc: 'Show decan subdivisions in the zodiac ring' },
+                      { key: 'straightAspects', label: 'Straight aspect lines', desc: 'Use straight lines instead of curved arcs for aspects' },
+                      { key: 'showEffects', label: 'Flow effects', desc: 'Animated glow effects on transit planets (desktop only)' },
+                      { key: 'rotateToAscendant', label: 'ASC at west', desc: 'Rotate chart so the Ascendant is at the 9 o\'clock position' },
+                    ] as { key: keyof typeof chartDefaults; label: string; desc: string }[]).map(opt => (
+                      <label key={opt.key} className="flex items-start gap-3 py-2.5 cursor-pointer select-none hover:bg-muted/30 rounded-md px-2 -mx-2 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={chartDefaults[opt.key]}
+                          onChange={(e) => updateChartDefault(opt.key, e.target.checked)}
+                          className="w-4 h-4 mt-0.5 rounded border-border accent-primary cursor-pointer shrink-0"
+                        />
+                        <div>
+                          <div className="text-sm font-medium">{opt.label}</div>
+                          <div className="text-xs text-muted-foreground">{opt.desc}</div>
+                        </div>
+                      </label>
+                    ))}
+                    {/* Degree symbol mode */}
+                    <div className="flex items-start gap-3 py-2.5 px-2 -mx-2">
+                      <div className="flex-1">
+                        <div className="text-sm font-medium">Sign glyphs</div>
+                        <div className="text-xs text-muted-foreground">Symbol shown next to planet degrees on the chart</div>
+                      </div>
+                      <select
+                        value={chartDefaults.degreeSymbolMode}
+                        onChange={(e) => updateChartDefault('degreeSymbolMode', e.target.value)}
+                        className="h-8 px-2 rounded-md border border-border bg-background text-sm cursor-pointer"
+                      >
+                        <option value="sign">Zodiac sign</option>
+                        <option value="spark">Degree interpretation</option>
+                      </select>
+                    </div>
+
+                    <div className="pt-2">
+                      <button
+                        onClick={handleResetDefaults}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        Reset to factory defaults
+                      </button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Saved Presets */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Saved Presets</CardTitle>
+                    <CardDescription>
+                      Presets save your full chart configuration — visible planets, aspects, theme, display options — for quick switching. Create them from the chart's settings panel.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {!presetsLoaded ? (
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : presets.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-6">
+                        No presets yet. Save one from the chart's settings panel.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {presets.map(preset => (
+                          <div
+                            key={preset.id}
+                            className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors"
+                          >
+                            <div className="flex-1 min-w-0">
+                              {editingPresetId === preset.id ? (
+                                <input
+                                  value={editPresetName}
+                                  onChange={(e) => setEditPresetName(e.target.value)}
+                                  onBlur={() => handleRenamePreset(preset.id, editPresetName)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleRenamePreset(preset.id, editPresetName);
+                                    if (e.key === 'Escape') setEditingPresetId(null);
+                                  }}
+                                  className="text-sm font-medium bg-transparent border-b border-primary outline-none w-full"
+                                  autoFocus
+                                />
+                              ) : (
+                                <div className="text-sm font-medium truncate">{preset.name}</div>
+                              )}
+                              <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-muted-foreground flex-wrap">
+                                <span>{preset.visiblePlanets.length} planets</span>
+                                <span className="opacity-40">&middot;</span>
+                                <span>{preset.visibleAspects.length} aspects</span>
+                                <span className="opacity-40">&middot;</span>
+                                <span>{THEME_LABELS[preset.chartTheme as ThemeName] || preset.chartTheme}</span>
+                                {preset.straightAspects && <><span className="opacity-40">&middot;</span><span>straight lines</span></>}
+                                {preset.showEffects && <><span className="opacity-40">&middot;</span><span>effects</span></>}
+                                {preset.showDecans && <><span className="opacity-40">&middot;</span><span>decans</span></>}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => { setEditingPresetId(preset.id); setEditPresetName(preset.name); }}
+                                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors"
+                                title="Rename"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeletePreset(preset.id)}
+                                className="p-1.5 rounded-md text-muted-foreground hover:text-red-500 transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        <p className="text-[10px] text-muted-foreground pt-1">
+                          {presets.length}/10 presets used
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Community Content Filter */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Community Content Filter</CardTitle>
+                    <CardDescription>Hide topics you don't want to see in the community feed</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {!spacesLoaded ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : allSpaces.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-4">No community spaces available</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {allSpaces.map(space => (
+                          <label key={space.slug} className="flex items-center justify-between py-2 px-2 -mx-2 rounded-md hover:bg-muted/30 cursor-pointer transition-colors">
+                            <div className="flex items-center gap-2">
+                              <span>{space.icon || '💬'}</span>
+                              <span className="text-sm">{space.name}</span>
+                            </div>
+                            <Switch
+                              checked={!hiddenSpaces.includes(space.slug)}
+                              onCheckedChange={() => toggleHiddenSpace(space.slug)}
+                            />
+                          </label>
+                        ))}
+                        <p className="text-[10px] text-muted-foreground pt-2">
+                          {hiddenSpaces.length > 0 ? `Hiding ${hiddenSpaces.length} topic${hiddenSpaces.length > 1 ? 's' : ''}` : 'Showing all topics'}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Word Filters */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Word Filters</CardTitle>
+                    <CardDescription>Posts containing these words will be hidden from your feed</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex gap-2 mb-3">
+                      <input
+                        value={newWord}
+                        onChange={e => setNewWord(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') addBlockedWord(); }}
+                        placeholder="Add a word or phrase..."
+                        className="flex-1 text-sm bg-muted rounded-lg px-3 py-2 border-none outline-none placeholder:text-muted-foreground"
+                        disabled={savingWords}
+                      />
+                      <Button size="sm" onClick={addBlockedWord} disabled={!newWord.trim() || savingWords}>Add</Button>
+                    </div>
+                    {blockedWords.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {blockedWords.map(word => (
+                          <span key={word} className="inline-flex items-center gap-1 text-xs bg-muted rounded-full px-3 py-1.5">
+                            {word}
+                            <button onClick={() => removeBlockedWord(word)} className="ml-0.5 hover:text-destructive transition-colors">
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground">No words filtered</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             {/* Danger Zone */}
@@ -534,16 +1236,6 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Modals */}
-      <SavedChartsList
-        isOpen={showSaved}
-        onClose={() => setShowSaved(false)}
-        onLoad={(chart) => {
-          setShowSaved(false);
-          navigate('/chart', { state: { loadChart: chart } });
-        }}
-      />
-      <AstroComImport isOpen={showAstroImport} onClose={() => setShowAstroImport(false)} onImport={handleAstroImport} />
       <UpgradeModal isOpen={showUpgrade} onClose={() => setShowUpgrade(false)} />
     </div>
   );

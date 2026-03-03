@@ -648,7 +648,7 @@ export function AIReading({ chartA, chartB, nameA, nameB, birthInfoA, birthInfoB
         {/* Credit warning for free users */}
         {user && !isPaid && aiCreditsRemaining > 0 && aiCreditsRemaining <= 3 && (
           <p className="text-[10px] text-amber-600 dark:text-amber-400">
-            {aiCreditsRemaining} free reading{aiCreditsRemaining !== 1 ? 's' : ''} remaining this month. Upgrade to Pro for 1,000/month.
+            {aiCreditsRemaining} reading{aiCreditsRemaining !== 1 ? 's' : ''} remaining this month. Upgrade for more.
           </p>
         )}
 

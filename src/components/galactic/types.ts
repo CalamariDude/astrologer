@@ -97,3 +97,40 @@ export interface PlanetSelection {
   key: string;
   planet: Planet3D;
 }
+
+// ─── Galactic Journey Types ──────────────────────────────────────
+
+export type JourneyTopic = 'love' | 'career' | 'growth' | 'health' | 'spiritual' | 'custom';
+
+export type JourneyMood = 'calm' | 'intense' | 'joyful' | 'reflective' | 'transformative';
+
+export type JourneySceneType = 'natal' | 'transit';
+
+export interface JourneyScene {
+  title: string;
+  narration: string;
+  focusPlanet?: string;         // planet key to zoom camera to (natal planet)
+  transitPlanet?: string;       // for single-transit scenes: the transiting planet key (e.g. "saturn")
+  transitPlanets?: string[];    // for multi-transit scenes: multiple transiting planet keys (e.g. ["saturn", "neptune"])
+  natalTarget?: string;         // for transit scenes: the natal planet being aspected (e.g. "venus")
+  sceneType?: JourneySceneType; // 'natal' = focus on natal chart, 'transit' = show transits
+  transitDayOffset: number;     // days from birth to animate to
+  durationSeconds: number;      // how long to linger on this scene
+  mood: JourneyMood;
+}
+
+export interface JourneyData {
+  topic: JourneyTopic | string;
+  title: string;
+  intro: string;
+  scenes: JourneyScene[];
+  outro: string;
+}
+
+export const JOURNEY_TOPICS: Record<JourneyTopic, { label: string; icon: string; description: string }> = {
+  love:      { label: 'Love & Relationships', icon: '💕', description: 'Romance, connections, and heart matters' },
+  career:    { label: 'Career & Purpose',     icon: '🚀', description: 'Work, ambition, and life direction' },
+  growth:    { label: 'Personal Growth',      icon: '🌱', description: 'Self-discovery and transformation' },
+  health:    { label: 'Health & Vitality',    icon: '✨', description: 'Body, energy, and wellness' },
+  spiritual: { label: 'Spiritual Path',       icon: '🔮', description: 'Intuition, meaning, and inner wisdom' },
+};

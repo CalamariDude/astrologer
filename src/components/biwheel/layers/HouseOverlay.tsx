@@ -7,6 +7,7 @@
 import React from 'react';
 import { COLORS, getThemeAwarePersonColor } from '../utils/constants';
 import { longitudeToXY } from '../utils/chartMath';
+import { calculateHouseCusps } from '@/lib/houseCalculations';
 import type { ChartDimensions, NatalChart, HouseCusp } from '../types';
 
 // House hover data for tooltips
@@ -35,12 +36,53 @@ interface HouseOverlayProps {
   hideOuterHouseRing?: boolean; // Hide entire outer house ring (single-wheel mode)
   visiblePlanets?: Set<string>; // Controls which angle labels (AC/DC/MC/IC) are shown
   smoothTransitions?: boolean; // Animate house cusps smoothly during birth-time shift
+  houseSystem?: string; // House system key (e.g. 'whole_sign', 'placidus', 'koch')
+  birthLatA?: number; // Geographic latitude for Person A (needed for Placidus/Koch/etc.)
+  birthLatB?: number; // Geographic latitude for Person B
 }
 
 /**
- * Generate house cusp data from chart using Whole Sign houses
- * In Whole Sign, each house is exactly 30° starting from 0° of the Ascendant's sign
- * When zodiacVantage is set, uses that sign for the 1st house instead
+ * Extract API house cusps array from chart data
+ * Returns array of 12 cusp longitudes if available, null otherwise
+ */
+function extractApiCusps(chart: NatalChart): number[] | null {
+  if (!chart.houses) return null;
+  const houses = chart.houses;
+
+  // Array of cusps (API returns this format)
+  if (Array.isArray(houses)) {
+    if (houses.length >= 12) {
+      // Check if it's array of numbers
+      if (typeof houses[0] === 'number') return houses.slice(0, 12) as number[];
+      // Array of objects with cusp/longitude property
+      const cusps = houses.slice(0, 12).map((h: any) => h?.cusp ?? h?.longitude ?? h?.degree);
+      if (cusps.every((c: any) => typeof c === 'number')) return cusps;
+    }
+    return null;
+  }
+
+  // Object format with cusps array (API returns { cusps: [...] })
+  if (typeof houses === 'object' && 'cusps' in houses) {
+    const cuspsArr = (houses as any).cusps;
+    if (Array.isArray(cuspsArr) && cuspsArr.length >= 12) {
+      const nums = cuspsArr.slice(0, 12).map((c: any) => typeof c === 'number' ? c : c?.cusp ?? c?.longitude);
+      if (nums.every((n: any) => typeof n === 'number')) return nums;
+    }
+  }
+
+  // Object format with house_1, house_2, ... keys (parseNatalResponse format)
+  if (typeof houses === 'object' && 'house_1' in houses) {
+    const nums = Array.from({ length: 12 }, (_, i) => (houses as any)[`house_${i + 1}`]);
+    if (nums.every((n: any) => typeof n === 'number')) return nums;
+  }
+
+  return null;
+}
+
+/**
+ * Generate house cusp data from chart.
+ * Computes cusps client-side using ASC, MC, and geographic latitude.
+ * When zodiacVantage is set, uses that sign for the 1st house instead (always 30° divisions).
  */
 function generateHouseCusps(
   chart: NatalChart,
@@ -49,93 +91,46 @@ function generateHouseCusps(
   innerRadius: number,
   outerRadius: number,
   rotationOffset: number = 0,
-  zodiacVantage: number | null = null
+  zodiacVantage: number | null = null,
+  houseSystem: string = 'whole_sign',
+  birthLat: number = 0
 ): HouseCusp[] {
   const cusps: HouseCusp[] = [];
 
-  // If zodiacVantage is set, use that sign for the 1st house
+  // If zodiacVantage is set, use that sign for the 1st house (always 30° divisions)
   if (zodiacVantage !== null) {
-    const house1Cusp = zodiacVantage * 30; // 0° of the selected sign
-
+    const house1Cusp = zodiacVantage * 30;
     for (let i = 1; i <= 12; i++) {
       const cusp = (house1Cusp + (i - 1) * 30) % 360;
-
       const innerPoint = longitudeToXY(cusp, cx, cy, innerRadius, rotationOffset);
       const outerPoint = longitudeToXY(cusp, cx, cy, outerRadius, rotationOffset);
-
       const labelRadius = (outerRadius + innerRadius) / 2;
       const midAngle = (cusp + 15) % 360;
       const houseNumberPos = longitudeToXY(midAngle, cx, cy, labelRadius, rotationOffset);
-
-      cusps.push({
-        house: i,
-        cusp,
-        innerPoint,
-        outerPoint,
-        labelPos: houseNumberPos,
-        houseNumberPos,
-        midAngle,
-      });
+      cusps.push({ house: i, cusp, innerPoint, outerPoint, labelPos: houseNumberPos, houseNumberPos, midAngle });
     }
-
     return cusps;
   }
 
-  // Get Ascendant longitude to determine the first house sign
-  let ascendant: number | undefined;
+  // Get ASC and MC from chart
+  const asc = chart.angles?.ascendant;
+  const mc = chart.angles?.midheaven;
+  if (asc === undefined) return cusps;
 
-  if (chart.angles?.ascendant !== undefined) {
-    ascendant = chart.angles.ascendant;
-  } else if (chart.houses) {
-    // Try to get from houses data
-    const houses = chart.houses;
-    if (Array.isArray(houses) && houses.length > 0) {
-      const val = houses[0];
-      if (typeof val === 'number') ascendant = val;
-      else if (val && typeof val === 'object') {
-        ascendant = val.cusp ?? val.longitude ?? val.degree;
-      }
-    } else if (typeof houses === 'object') {
-      const h = houses as Record<string, any>;
-      const val = h['1'] ?? h['house_1'] ?? h['House 1'] ?? h['cusp_1'] ?? h['h1'];
-      if (typeof val === 'number') ascendant = val;
-      else if (val && typeof val === 'object') {
-        ascendant = val.cusp ?? val.longitude ?? val.degree;
-      }
-    }
-  }
+  // Calculate house cusps client-side
+  const cuspLongs = calculateHouseCusps(asc, mc ?? 0, birthLat, houseSystem);
 
-  if (ascendant === undefined) return cusps;
-
-  // Whole Sign: House 1 starts at 0° of the Ascendant's sign
-  // Calculate which sign the Ascendant is in (0-11) and get 0° of that sign
-  const ascSign = Math.floor(ascendant / 30);
-  const house1Cusp = ascSign * 30; // 0° of the Ascendant's sign
-
-  for (let i = 1; i <= 12; i++) {
-    // Each house is exactly 30° in Whole Sign
-    const cusp = (house1Cusp + (i - 1) * 30) % 360;
-    const nextCusp = (cusp + 30) % 360;
-
+  for (let i = 0; i < 12; i++) {
+    const cusp = cuspLongs[i];
+    const nextCusp = cuspLongs[(i + 1) % 12];
     const innerPoint = longitudeToXY(cusp, cx, cy, innerRadius, rotationOffset);
     const outerPoint = longitudeToXY(cusp, cx, cy, outerRadius, rotationOffset);
-
-    // Label position in middle of house ring
     const labelRadius = (outerRadius + innerRadius) / 2;
-
-    // House number position - in the middle of the house section (15° from cusp)
-    const midAngle = (cusp + 15) % 360;
+    let span = nextCusp - cusp;
+    if (span <= 0) span += 360;
+    const midAngle = (cusp + span / 2) % 360;
     const houseNumberPos = longitudeToXY(midAngle, cx, cy, labelRadius, rotationOffset);
-
-    cusps.push({
-      house: i,
-      cusp,
-      innerPoint,
-      outerPoint,
-      labelPos: houseNumberPos,
-      houseNumberPos,
-      midAngle,
-    });
+    cusps.push({ house: i + 1, cusp, innerPoint, outerPoint, labelPos: houseNumberPos, houseNumberPos, midAngle });
   }
 
   return cusps;
@@ -211,6 +206,9 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
   hideOuterHouseRing = false,
   visiblePlanets,
   smoothTransitions = false,
+  houseSystem = 'whole_sign',
+  birthLatA = 0,
+  birthLatB = 0,
 }) => {
   const houseTransitionStyle: React.CSSProperties = smoothTransitions
     ? { transition: `x1 ${HOUSE_SMOOTH_DURATION} ${HOUSE_SMOOTH_EASE}, y1 ${HOUSE_SMOOTH_DURATION} ${HOUSE_SMOOTH_EASE}, x2 ${HOUSE_SMOOTH_DURATION} ${HOUSE_SMOOTH_EASE}, y2 ${HOUSE_SMOOTH_DURATION} ${HOUSE_SMOOTH_EASE}` }
@@ -232,34 +230,34 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
   // B's house cusps (inner ring - around aspect area)
   const innerHouseCusps = React.useMemo(
     () => chartB && houseRingOuter && houseRingInner
-      ? generateHouseCusps(chartB, cx, cy, houseRingInner, houseRingOuter, rotationOffset, zodiacVantage)
+      ? generateHouseCusps(chartB, cx, cy, houseRingInner, houseRingOuter, rotationOffset, zodiacVantage, houseSystem, birthLatB)
       : [],
-    [chartB, cx, cy, houseRingOuter, houseRingInner, rotationOffset, zodiacVantage]
+    [chartB, cx, cy, houseRingOuter, houseRingInner, rotationOffset, zodiacVantage, houseSystem, birthLatB]
   );
 
   // A's house cusps (outer ring - outside zodiac)
   const outerHouseCusps = React.useMemo(
     () => chart && outerHouseRingOuter && outerHouseRingInner
-      ? generateHouseCusps(chart, cx, cy, outerHouseRingInner, outerHouseRingOuter, rotationOffset, zodiacVantage)
+      ? generateHouseCusps(chart, cx, cy, outerHouseRingInner, outerHouseRingOuter, rotationOffset, zodiacVantage, houseSystem, birthLatA)
       : [],
-    [chart, cx, cy, outerHouseRingOuter, outerHouseRingInner, rotationOffset, zodiacVantage]
+    [chart, cx, cy, outerHouseRingOuter, outerHouseRingInner, rotationOffset, zodiacVantage, houseSystem, birthLatA]
   );
 
   // Extended house cusp lines (faint lines through chart)
   // A's cusps extend from zodiac inward to the midpoint (tickBToA)
   const extendedCuspsA = React.useMemo(
     () => (chart?.houses || chart?.angles?.ascendant !== undefined) && tickBToA
-      ? generateHouseCusps(chart, cx, cy, tickBToA, zodiacInner, rotationOffset, zodiacVantage)
+      ? generateHouseCusps(chart, cx, cy, tickBToA, zodiacInner, rotationOffset, zodiacVantage, houseSystem, birthLatA)
       : [],
-    [chart, cx, cy, tickBToA, zodiacInner, rotationOffset, zodiacVantage]
+    [chart, cx, cy, tickBToA, zodiacInner, rotationOffset, zodiacVantage, houseSystem, birthLatA]
   );
 
   // B's cusps extend from inner house ring outward to the midpoint (tickBToA)
   const extendedCuspsB = React.useMemo(
     () => (chartB?.houses || chartB?.angles?.ascendant !== undefined) && tickBToA && houseRingOuter
-      ? generateHouseCusps(chartB, cx, cy, houseRingOuter, tickBToA, rotationOffset, zodiacVantage)
+      ? generateHouseCusps(chartB, cx, cy, houseRingOuter, tickBToA, rotationOffset, zodiacVantage, houseSystem, birthLatB)
       : [],
-    [chartB, cx, cy, houseRingOuter, tickBToA, rotationOffset, zodiacVantage]
+    [chartB, cx, cy, houseRingOuter, tickBToA, rotationOffset, zodiacVantage, houseSystem, birthLatB]
   );
 
   return (
@@ -516,12 +514,12 @@ export const HouseOverlay: React.FC<HouseOverlayProps> = ({
           ] as const).map(({ label, key, angle }) => {
             // Skip if visiblePlanets is provided and this angle isn't enabled
             if (visiblePlanets && !visiblePlanets.has(key)) return null;
-            // Single-wheel: place in the margin outside the zodiac ring
+            // Single-wheel: place just inside the zodiac ring edge
             // Synastry: place inside the outer house ring
             const radius = hideOuterHouseRing
-              ? (outerHouseRingOuter! + 25)   // single-wheel: just outside the zodiac edge
+              ? (outerHouseRingOuter! - 15)    // single-wheel: just inside the zodiac edge
               : outerHouseRingInner! - 15;     // synastry: inside the outer house ring
-            const fontSize = hideOuterHouseRing ? 18 : 10;
+            const fontSize = hideOuterHouseRing ? 14 : 10;
             const pos = longitudeToXY(angle, cx, cy, radius, rotationOffset);
             return (
               <text

@@ -48,6 +48,7 @@ interface UseSessionReturn {
   isSessionInOtherWindow: boolean; // active session exists but is owned by another tab
   isRecording: boolean;
   sessionDuration: number; // seconds
+  awaitingTranscriptionChoice: boolean; // true after session ends, before processing
   guestConnected: boolean; // true if any guest is connected
   guestCount: number;
   shareUrl: string;
@@ -71,6 +72,7 @@ interface UseSessionReturn {
   // Actions
   startSession: (title: string, chartSnapshot: SessionChartSnapshot, getSnapshot: () => ChartStateSnapshot) => Promise<string>;
   endSession: () => Promise<void>;
+  processSession: (skipTranscription: boolean) => Promise<void>;
   dismissSession: () => void;
   takeOverSession: () => Promise<void>; // take over from another window
   pauseSession: () => Promise<void>;
@@ -95,6 +97,7 @@ export function useSession(): UseSessionReturn {
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [callActive, setCallActive] = useState(false);
+  const [awaitingTranscriptionChoice, setAwaitingTranscriptionChoice] = useState(false);
   const [localVideoStream, setLocalVideoStream] = useState<MediaStream | null>(null);
   const [remoteParticipants, setRemoteParticipants] = useState<RemoteParticipant[]>([]);
   const [reconnecting, setReconnecting] = useState(false);
@@ -623,12 +626,11 @@ export function useSession(): UseSessionReturn {
     };
 
     const tryReconnect = async () => {
-      setReconnecting(true);
-
-      const hadSessionStorage = !!getPersistedSession();
       const persisted = getPersistedSession();
 
       if (persisted) {
+        // Only show reconnecting overlay when we know there's a session to reconnect to
+        setReconnecting(true);
 
         // Verify session is still active in DB
         const { data: sessionData } = await supabase
@@ -678,13 +680,13 @@ export function useSession(): UseSessionReturn {
         return;
       }
 
-      // No sessionStorage — check DB for active session and auto-reconnect
+      // No sessionStorage — silently check DB for active session
+      // Don't show reconnecting overlay since user may just be viewing a chart
       try {
-        await getFreshTokenAndReconnect();
+        const found = await getFreshTokenAndReconnect();
+        if (!found) return; // No active session — nothing to do
       } catch (err) {
-        toast.error('Could not reconnect to session');
-      } finally {
-        if (!cancelled) setReconnecting(false);
+        // Only show error if we actually expected a session
       }
     };
 
@@ -739,12 +741,19 @@ export function useSession(): UseSessionReturn {
       })
       .eq('id', session.id);
 
-    supabase.functions.invoke('astrologer-session-process', {
-      body: { session_id: session.id },
-    }).catch(console.error);
-
+    // Don't auto-invoke processing — wait for user's transcription choice
+    setAwaitingTranscriptionChoice(true);
     setSession((s) => s ? { ...s, status: 'ended' } : null);
     endingRef.current = false;
+  }, [session]);
+
+  const processSession = useCallback(async (skipTranscription: boolean) => {
+    if (!session) return;
+    setAwaitingTranscriptionChoice(false);
+    supabase.functions.invoke('astrologer-session-process', {
+      body: { session_id: session.id, skip_transcription: skipTranscription },
+    }).catch(console.error);
+    setSession((s) => s ? { ...s, status: 'processing' } : null);
   }, [session]);
 
   const dismissSession = useCallback(() => {
@@ -752,6 +761,7 @@ export function useSession(): UseSessionReturn {
     setOtherWindowSession(null);
     pendingReconnectRef.current = null;
     endingRef.current = false;
+    setAwaitingTranscriptionChoice(false);
   }, []);
 
   // Take over the session from another window
@@ -891,6 +901,27 @@ export function useSession(): UseSessionReturn {
     broadcastRef.current?.broadcastCursor(x, y);
   }, []);
 
+  // ── Poll session status after ending ─────────────────────
+  useEffect(() => {
+    if (!session || !['ended', 'processing'].includes(session.status)) return;
+
+    const poll = async () => {
+      const { data } = await supabase
+        .from('astrologer_sessions')
+        .select('status, audio_status')
+        .eq('id', session.id)
+        .single();
+
+      if (data && data.status !== session.status) {
+        setSession((s) => s ? { ...s, status: data.status, audio_status: data.audio_status } : null);
+      }
+    };
+
+    const interval = setInterval(poll, 5000);
+    poll(); // immediate first check
+    return () => clearInterval(interval);
+  }, [session?.id, session?.status]);
+
   // ── Beforeunload warning ──────────────────────────────────
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -930,6 +961,7 @@ export function useSession(): UseSessionReturn {
     isSessionInOtherWindow,
     isRecording,
     sessionDuration,
+    awaitingTranscriptionChoice,
     guestConnected,
     guestCount,
     shareUrl,
@@ -949,6 +981,7 @@ export function useSession(): UseSessionReturn {
     refreshDevices,
     startSession,
     endSession,
+    processSession,
     dismissSession,
     takeOverSession,
     pauseSession,

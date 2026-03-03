@@ -7,7 +7,7 @@
 import { useMemo } from 'react';
 import { Text, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
-import type { ZodiacSegment3D } from './types';
+import type { ZodiacSegment3D, HouseSector3D } from './types';
 import {
   LAYOUT,
   CUSP_BLEND_DEGREES,
@@ -19,6 +19,7 @@ import {
 
 interface ZodiacRing3DProps {
   segments: ZodiacSegment3D[];
+  houseSectors?: HouseSector3D[];
 }
 
 // --- Decan inner ring radii ---
@@ -133,14 +134,38 @@ function createDecanRingGeometry(
   return geo;
 }
 
-/** Sign symbol billboards — centered on outer ring */
-function SignLabels({ segments }: { segments: ZodiacSegment3D[] }) {
+/** Compute which house number a given angle falls in */
+function getHouseAtAngle(angleDeg: number, houseSectors: HouseSector3D[]): number | null {
+  if (houseSectors.length === 0) return null;
+  for (const sector of houseSectors) {
+    let start = (sector.startAngle * 180) / Math.PI;
+    let end = (sector.endAngle * 180) / Math.PI;
+    // Normalize to [0, 360)
+    start = ((start % 360) + 360) % 360;
+    end = ((end % 360) + 360) % 360;
+    const check = ((angleDeg % 360) + 360) % 360;
+    if (start < end) {
+      if (check >= start && check < end) return sector.number;
+    } else {
+      // Wraps around 0
+      if (check >= start || check < end) return sector.number;
+    }
+  }
+  return null;
+}
+
+/** Sign symbol billboards — centered on outer ring, with house number */
+function SignLabels({ segments, houseSectors }: { segments: ZodiacSegment3D[]; houseSectors?: HouseSector3D[] }) {
   return (
     <>
       {segments.map((seg) => {
         const midAngle = (seg.startAngle + seg.endAngle) / 2;
         const r = (LAYOUT.zodiacRingInner + LAYOUT.zodiacRingOuter) / 2;
         const pos = new THREE.Vector3(Math.cos(midAngle) * r, 0.3, -Math.sin(midAngle) * r);
+
+        // Compute house number for this sign's midpoint
+        const midDeg = (midAngle * 180) / Math.PI;
+        const houseNum = houseSectors ? getHouseAtAngle(midDeg, houseSectors) : null;
 
         return (
           <Billboard key={seg.name} position={pos}>
@@ -152,9 +177,24 @@ function SignLabels({ segments }: { segments: ZodiacSegment3D[] }) {
               outlineWidth={0.04}
               outlineColor="#000000"
               fillOpacity={0.95}
+              position={[0, 0.12, 0]}
             >
               {seg.symbol}
             </Text>
+            {houseNum != null && (
+              <Text
+                fontSize={0.2}
+                color="#a5b4fc"
+                anchorX="center"
+                anchorY="middle"
+                outlineWidth={0.02}
+                outlineColor="#000000"
+                fillOpacity={0.7}
+                position={[0, -0.18, 0]}
+              >
+                {`H${houseNum}`}
+              </Text>
+            )}
           </Billboard>
         );
       })}
@@ -288,7 +328,7 @@ function RingEdge({ radius, opacity }: { radius: number; opacity: number }) {
   return <primitive object={line} />;
 }
 
-export function ZodiacRing3D({ segments }: ZodiacRing3DProps) {
+export function ZodiacRing3D({ segments, houseSectors }: ZodiacRing3DProps) {
   const signRingGeo = useMemo(
     () => createSignRingGeometry(LAYOUT.zodiacRingInner, LAYOUT.zodiacRingOuter, segments),
     [segments],
@@ -323,8 +363,8 @@ export function ZodiacRing3D({ segments }: ZodiacRing3DProps) {
         />
       </mesh>
 
-      {/* Sign symbols on outer ring */}
-      <SignLabels segments={segments} />
+      {/* Sign symbols on outer ring (with house numbers) */}
+      <SignLabels segments={segments} houseSectors={houseSectors} />
 
       {/* Decan ruler sign symbols on inner wheel */}
       <DecanLabels />

@@ -9,7 +9,7 @@ export default function AuthCallbackPage() {
     // Supabase handles the token exchange automatically via detectSessionInUrl.
     // Redirect to the chart page (the actual app), not the landing page.
     const timer = setTimeout(() => {
-      navigate('/chart', { replace: true });
+      navigate('/dashboard', { replace: true });
     }, 1500);
 
     return () => clearTimeout(timer);

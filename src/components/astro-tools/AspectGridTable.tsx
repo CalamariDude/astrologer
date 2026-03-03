@@ -526,6 +526,14 @@ export function AspectGridTable({ chartA, chartB, nameA, nameB, visiblePlanets, 
     return () => window.removeEventListener('resize', handler);
   }, []);
 
+  if (!chartA?.planets || Object.keys(chartA.planets).length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+        <p className="text-sm text-muted-foreground/60">Calculate a chart first to see aspects</p>
+      </div>
+    );
+  }
+
   const isSynastry = !!chartB;
   const planetsA = chartA.planets;
   const planetsB = chartB?.planets || chartA.planets;

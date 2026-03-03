@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Play, Copy, Trash2, Loader2, Clock, Check, Pencil } from 'lucide-react';
+import { Play, Copy, Trash2, Loader2, Clock, Check, Pencil, CheckSquare, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -43,6 +43,9 @@ export const SessionsList: React.FC<SessionsListProps> = ({ onClose }) => {
   const [editTitle, setEditTitle] = useState('');
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
   const editInputRef = useRef<HTMLInputElement>(null);
 
   const PAGE_SIZE = 20;
@@ -124,6 +127,43 @@ export const SessionsList: React.FC<SessionsListProps> = ({ onClose }) => {
     toast.success('Title updated');
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const count = selectedIds.size;
+    if (!confirm(`Delete ${count} session${count > 1 ? 's' : ''}? This cannot be undone.`)) return;
+    setDeleting(true);
+    const toDelete = sessions.filter(s => selectedIds.has(s.id));
+    // Clean up storage in parallel
+    await Promise.all(toDelete.map(async (session) => {
+      try {
+        const { data: files } = await supabase.storage.from('session-recordings').list(session.id);
+        if (files && files.length > 0) {
+          await supabase.storage.from('session-recordings').remove(files.map((f) => `${session.id}/${f.name}`));
+        }
+        const { data: chunkFiles } = await supabase.storage.from('session-recordings').list(`${session.id}/chunks`);
+        if (chunkFiles && chunkFiles.length > 0) {
+          await supabase.storage.from('session-recordings').remove(chunkFiles.map((f) => `${session.id}/chunks/${f.name}`));
+        }
+      } catch {}
+    }));
+    // Batch delete all sessions in one query
+    await supabase.from('astrologer_sessions').delete().in('id', toDelete.map(s => s.id));
+    setSessions(prev => prev.filter(s => !selectedIds.has(s.id)));
+    toast.success(`${count} session${count > 1 ? 's' : ''} deleted`);
+    setSelectedIds(new Set());
+    setSelectMode(false);
+    setDeleting(false);
+  };
+
   const filtered = sessions.filter((s) => {
     if (filter === 'all') return true;
     if (filter === 'ready') return s.status === 'ready';
@@ -143,20 +183,58 @@ export const SessionsList: React.FC<SessionsListProps> = ({ onClose }) => {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold">My Sessions</h2>
-        <div className="flex gap-1">
-          {(['all', 'ready', 'live'] as const).map((f) => (
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1">
+            {(['all', 'ready', 'live'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
+                  filter === f ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {f === 'all' ? 'All' : f === 'ready' ? 'Completed' : 'Active'}
+              </button>
+            ))}
+          </div>
+          {sessions.length > 0 && (
             <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
-                filter === f ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
-              }`}
+              onClick={() => { setSelectMode(v => !v); setSelectedIds(new Set()); }}
+              className={`px-2.5 py-1 text-xs rounded-full transition-colors ${selectMode ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
             >
-              {f === 'all' ? 'All' : f === 'ready' ? 'Completed' : 'Active'}
+              {selectMode ? 'Done' : 'Select'}
             </button>
-          ))}
+          )}
         </div>
       </div>
+
+      {/* Select all at top */}
+      {selectMode && filtered.length > 0 && (
+        <div className="flex items-center justify-between">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={selectedIds.size === filtered.length && filtered.length > 0}
+              onChange={(e) => {
+                if (e.target.checked) setSelectedIds(new Set(filtered.map(s => s.id)));
+                else setSelectedIds(new Set());
+              }}
+              className="w-3.5 h-3.5 rounded border-border accent-primary cursor-pointer"
+            />
+            Select all
+          </label>
+          <Button
+            size="sm"
+            variant="destructive"
+            disabled={selectedIds.size === 0 || deleting}
+            onClick={handleBulkDelete}
+            className="gap-1.5"
+          >
+            {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+            Delete {selectedIds.size > 0 ? `${selectedIds.size} selected` : ''}
+          </Button>
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <p className="text-xs text-muted-foreground text-center py-6">No sessions yet</p>
@@ -168,7 +246,17 @@ export const SessionsList: React.FC<SessionsListProps> = ({ onClose }) => {
               <div
                 key={s.id}
                 className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors"
+                onClick={selectMode ? () => toggleSelect(s.id) : undefined}
               >
+                {/* Select checkbox */}
+                {selectMode && (
+                  <button onClick={() => toggleSelect(s.id)} className="shrink-0">
+                    {selectedIds.has(s.id)
+                      ? <CheckSquare className="w-4 h-4 text-primary" />
+                      : <Square className="w-4 h-4 text-muted-foreground/50" />
+                    }
+                  </button>
+                )}
                 {/* Status dot + info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -212,6 +300,7 @@ export const SessionsList: React.FC<SessionsListProps> = ({ onClose }) => {
                 </div>
 
                 {/* Actions */}
+                {!selectMode && (
                 <div className="flex items-center gap-1 shrink-0">
                   {s.status === 'ready' && (
                     <Link
@@ -244,6 +333,7 @@ export const SessionsList: React.FC<SessionsListProps> = ({ onClose }) => {
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
+                )}
               </div>
             );
           })}
@@ -259,6 +349,7 @@ export const SessionsList: React.FC<SessionsListProps> = ({ onClose }) => {
           )}
         </div>
       )}
+
     </div>
   );
 };

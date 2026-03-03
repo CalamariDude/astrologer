@@ -230,6 +230,7 @@ export default function AdminPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showGrantSub, setShowGrantSub] = useState(false);
   const [showAddCredits, setShowAddCredits] = useState(false);
+  const [grantTier, setGrantTier] = useState<'horoscope' | 'astrologer' | 'professional'>('professional');
   const [grantPlan, setGrantPlan] = useState<'monthly' | 'annual'>('monthly');
   const [grantMonths, setGrantMonths] = useState('1');
   const [creditType, setCreditType] = useState<'ai' | 'relocated'>('ai');
@@ -275,6 +276,16 @@ export default function AdminPage() {
   const [chartsLoaded, setChartsLoaded] = useState(false);
   const [chartsSearch, setChartsSearch] = useState('');
   const [chartsTypeFilter, setChartsTypeFilter] = useState('all');
+
+  // Community applications
+  const [communityApps, setCommunityApps] = useState<any[]>([]);
+  const [communityAppsLoading, setCommunityAppsLoading] = useState(false);
+  const [communityAppsLoaded, setCommunityAppsLoaded] = useState(false);
+
+  // Community moderation (flagged content)
+  const [communityFlags, setCommunityFlags] = useState<any[]>([]);
+  const [communityFlagsLoading, setCommunityFlagsLoading] = useState(false);
+  const [moderatingPostId, setModeratingPostId] = useState<string | null>(null);
 
   // Per-user analytics (shown in user detail)
   const [userEvents, setUserEvents] = useState<FeatureRow[]>([]);
@@ -339,6 +350,97 @@ export default function AdminPage() {
       setAnalyticsLoading(false);
     }
   }, [invoke]);
+
+  const loadCommunityApps = useCallback(async () => {
+    setCommunityAppsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('community-admin', {
+        body: { action: 'list_applications' },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setCommunityApps(data?.applications || []);
+      setCommunityAppsLoaded(true);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to load applications');
+    } finally {
+      setCommunityAppsLoading(false);
+    }
+  }, []);
+
+  const handleAppAction = useCallback(async (appId: string, action: 'approve_application' | 'reject_application') => {
+    try {
+      const { data, error } = await supabase.functions.invoke('community-admin', {
+        body: { action, application_id: appId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(action === 'approve_application' ? 'Application approved' : 'Application rejected');
+      loadCommunityApps();
+    } catch (err: any) {
+      toast.error(err.message || 'Action failed');
+    }
+  }, [loadCommunityApps]);
+
+  const loadCommunityFlags = useCallback(async () => {
+    setCommunityFlagsLoading(true);
+    try {
+      const { data } = await supabase.functions.invoke('community-admin', {
+        body: { action: 'list_flags' },
+      });
+      setCommunityFlags(data?.flags || []);
+    } catch (err: any) {
+      toast.error('Failed to load flagged content');
+    } finally {
+      setCommunityFlagsLoading(false);
+    }
+  }, []);
+
+  const handleFlagAction = useCallback(async (flagId: string, flagStatus: 'reviewed' | 'dismissed', postId?: string, commentId?: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('community-admin', {
+        body: { action: 'review_flag', flag_id: flagId, flag_status: flagStatus },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      // If dismissed (keeping hidden), no extra action needed. If reviewed (approved), unhide the content.
+      if (flagStatus === 'reviewed' && postId) {
+        await supabase.functions.invoke('community-admin', {
+          body: { action: 'unhide_post', post_id: postId },
+        });
+      }
+
+      toast.success(flagStatus === 'reviewed' ? 'Content approved & unhidden' : 'Flag dismissed (content stays hidden)');
+      loadCommunityFlags();
+    } catch (err: any) {
+      toast.error(err.message || 'Action failed');
+    }
+  }, [loadCommunityFlags]);
+
+  const runGrokModeration = useCallback(async (postId?: string, commentId?: string) => {
+    const id = postId || commentId;
+    if (!id) return;
+    setModeratingPostId(id);
+    try {
+      const { data, error } = await supabase.functions.invoke('community-moderate', {
+        body: postId ? { post_id: postId } : { comment_id: commentId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const result = data?.result;
+      if (result?.flagged) {
+        toast.error(`Flagged: ${result.categories.join(', ')} — ${result.explanation}`);
+      } else {
+        toast.success(`Clean: ${result?.explanation || 'No issues detected'}`);
+      }
+      loadCommunityFlags();
+    } catch (err: any) {
+      toast.error(err.message || 'Moderation failed');
+    } finally {
+      setModeratingPostId(null);
+    }
+  }, [loadCommunityFlags]);
 
   const loadSessions = useCallback(async () => {
     setSessionsLoading(true);
@@ -427,8 +529,8 @@ export default function AdminPage() {
     if (!selectedUser) return;
     setActionLoading(true);
     try {
-      await invoke({ action: 'grant_subscription', user_id: selectedUser.id, plan: grantPlan, months: parseInt(grantMonths) });
-      toast.success(`Granted ${grantMonths}mo ${grantPlan} to ${selectedUser.email}`);
+      await invoke({ action: 'grant_subscription', user_id: selectedUser.id, tier: grantTier, plan: grantPlan, months: parseInt(grantMonths) });
+      toast.success(`Granted ${grantMonths}mo ${grantTier} (${grantPlan}) to ${selectedUser.email}`);
       setShowGrantSub(false);
       loadUsers();
     } catch (e: any) { toast.error(e.message); }
@@ -534,23 +636,24 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="max-w-7xl mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h1 className="text-2xl font-bold">Astrologer Admin</h1>
-            <p className="text-sm text-muted-foreground">{user?.email}</p>
+            <h1 className="text-xl sm:text-2xl font-bold">Astrologer Admin</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">{user?.email}</p>
           </div>
           <Button variant="outline" size="sm" onClick={() => navigate('/chart')}>Back to App</Button>
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList>
+          <TabsList className="w-full overflow-x-auto flex justify-start">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="sessions" onClick={() => { if (!sessionsLoaded) loadSessions(); }}>Sessions</TabsTrigger>
             <TabsTrigger value="charts" onClick={() => { if (!chartsLoaded) loadCharts(); }}>Charts</TabsTrigger>
             <TabsTrigger value="analytics" onClick={() => { if (featureUsage.length === 0) loadAnalytics(analyticsDays); }}>Analytics</TabsTrigger>
             <TabsTrigger value="promotions">Promotions</TabsTrigger>
+            <TabsTrigger value="community" onClick={() => { if (!communityAppsLoaded) { loadCommunityApps(); loadCommunityFlags(); } }}>Community</TabsTrigger>
           </TabsList>
 
           {/* ── OVERVIEW ── */}
@@ -618,12 +721,12 @@ export default function AdminPage() {
 
           {/* ── USERS ── */}
           <TabsContent value="users" className="space-y-4">
-            <div className="flex gap-3 flex-wrap">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:flex-wrap">
               <Input
                 placeholder="Search by email, name, or ID..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="max-w-sm"
+                className="sm:max-w-sm"
               />
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[150px]">
@@ -877,7 +980,7 @@ export default function AdminPage() {
 
           {/* ── ANALYTICS ── */}
           <TabsContent value="analytics" className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <h3 className="text-lg font-semibold">Feature Usage Analytics</h3>
               <div className="flex gap-2">
                 {[7, 30, 90].map(d => (
@@ -988,7 +1091,7 @@ export default function AdminPage() {
 
           {/* ── PROMOTIONS ── */}
           <TabsContent value="promotions" className="space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
               <p className="text-sm text-muted-foreground">{promoCodes.length} promo codes</p>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={loadPromos} disabled={promosLoading}>
@@ -1042,6 +1145,160 @@ export default function AdminPage() {
                   )}
                 </TableBody>
               </Table>
+            </div>
+          </TabsContent>
+
+          {/* ── COMMUNITY ── */}
+          <TabsContent value="community" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Poster Applications</h3>
+              <Button variant="outline" size="sm" onClick={loadCommunityApps} disabled={communityAppsLoading}>
+                {communityAppsLoading ? 'Loading...' : 'Refresh'}
+              </Button>
+            </div>
+
+            {communityAppsLoading && communityApps.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">Loading applications...</p>
+            ) : communityApps.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">No pending applications</p>
+            ) : (
+              <div className="space-y-4">
+                {communityApps.map((app: any) => {
+                  const profile = app.user;
+                  const photo = profile?.avatar_url || profile?.photos?.[0];
+                  const name = profile?.display_name || profile?.first_name || 'Unknown';
+                  return (
+                    <div key={app.id} className="border rounded-xl p-4 bg-card">
+                      <div className="flex items-start gap-4">
+                        {photo ? (
+                          <img src={photo} alt={name} className="w-14 h-14 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center text-xl font-medium shrink-0">{name[0]}</div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold">{name}</span>
+                            {profile?.email && <span className="text-xs text-muted-foreground">{profile.email}</span>}
+                            <span className="text-xs text-muted-foreground font-mono">{app.user_id?.slice(0, 8)}</span>
+                            <span className="text-xs text-muted-foreground">{new Date(app.created_at).toLocaleDateString()}</span>
+                          </div>
+                          {profile?.bio && <p className="text-sm text-muted-foreground mt-1">{profile.bio}</p>}
+                          <div className="mt-2 bg-muted/50 rounded-lg px-3 py-2">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Why they want to post:</p>
+                            <p className="text-sm">{app.reason}</p>
+                          </div>
+                          {/* Social links */}
+                          {(profile?.website_url || profile?.twitter_handle || profile?.instagram_handle || profile?.linktree_url || profile?.tiktok_handle || profile?.youtube_url) && (
+                            <div className="flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
+                              {profile.website_url && <a href={profile.website_url} target="_blank" rel="noopener noreferrer" className="hover:text-foreground underline">Website</a>}
+                              {profile.linktree_url && <a href={profile.linktree_url} target="_blank" rel="noopener noreferrer" className="hover:text-foreground underline">Linktree</a>}
+                              {profile.twitter_handle && <span>X: {profile.twitter_handle}</span>}
+                              {profile.instagram_handle && <span>IG: {profile.instagram_handle}</span>}
+                              {profile.tiktok_handle && <span>TikTok: {profile.tiktok_handle}</span>}
+                              {profile.youtube_url && <a href={profile.youtube_url} target="_blank" rel="noopener noreferrer" className="hover:text-foreground underline">YouTube</a>}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 mt-3">
+                            <Button size="sm" onClick={() => handleAppAction(app.id, 'approve_application')}>Approve</Button>
+                            <Button size="sm" variant="outline" onClick={() => handleAppAction(app.id, 'reject_application')}>Reject</Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ── Flagged Content (Grok Moderation) ── */}
+            <div className="mt-8">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Flagged Content (AI Moderation)</h3>
+                <Button variant="outline" size="sm" onClick={loadCommunityFlags} disabled={communityFlagsLoading}>
+                  {communityFlagsLoading ? 'Loading...' : 'Refresh'}
+                </Button>
+              </div>
+
+              {communityFlagsLoading && communityFlags.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-8 text-center">Loading flagged content...</p>
+              ) : communityFlags.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-8 text-center">No pending flags</p>
+              ) : (
+                <div className="space-y-4 mt-4">
+                  {communityFlags.map((flag: any) => {
+                    const isAutoMod = flag.reporter_id === '00000000-0000-0000-0000-000000000000';
+                    const content = flag.post_content || flag.comment_content;
+                    const contentAuthor = content?.author;
+                    const authorPhoto = contentAuthor?.avatar_url || contentAuthor?.photos?.[0];
+                    const authorName = contentAuthor?.display_name || contentAuthor?.first_name || 'Unknown';
+                    const isPost = !!flag.post_id;
+                    const contentBody = isPost ? (content?.title ? `${content.title}\n${content.body}` : content?.body) : content?.body;
+
+                    return (
+                      <div key={flag.id} className="border rounded-xl p-4 bg-card">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge className={isAutoMod ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 'bg-orange-500/20 text-orange-400 border-orange-500/30'}>
+                            {isAutoMod ? 'Grok Auto-Flag' : 'User Report'}
+                          </Badge>
+                          <Badge className="bg-muted text-muted-foreground">{isPost ? 'Post' : 'Comment'}</Badge>
+                          {content?.is_hidden && <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Hidden</Badge>}
+                          <span className="text-xs text-muted-foreground ml-auto">{new Date(flag.created_at).toLocaleDateString()}</span>
+                        </div>
+
+                        {/* Reason */}
+                        <div className="bg-muted/50 rounded-lg px-3 py-2 mb-3">
+                          <p className="text-xs font-medium text-muted-foreground mb-1">Reason:</p>
+                          <p className="text-sm">{flag.reason}</p>
+                        </div>
+
+                        {/* Content preview */}
+                        {content && (
+                          <div className="border border-border/50 rounded-lg p-3 mb-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              {authorPhoto ? (
+                                <img src={authorPhoto} alt={authorName} className="w-8 h-8 rounded-full object-cover" />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium">{authorName[0]}</div>
+                              )}
+                              <div>
+                                <span className="text-sm font-medium">{authorName}</span>
+                                <span className="text-xs text-muted-foreground ml-2">{content.user_id?.slice(0, 8)}</span>
+                              </div>
+                            </div>
+                            <p className="text-sm whitespace-pre-wrap line-clamp-4">{contentBody || '(empty)'}</p>
+                          </div>
+                        )}
+
+                        {/* Reporter info (if user report) */}
+                        {!isAutoMod && flag.reporter && (
+                          <p className="text-xs text-muted-foreground mb-3">
+                            Reported by: {flag.reporter.display_name || flag.reporter.first_name || flag.reporter.id?.slice(0, 8)}
+                          </p>
+                        )}
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2">
+                          <Button size="sm" variant="outline" onClick={() => handleFlagAction(flag.id, 'reviewed', flag.post_id, flag.comment_id)}>
+                            Approve (Unhide)
+                          </Button>
+                          <Button size="sm" variant="outline" className="text-red-500" onClick={() => handleFlagAction(flag.id, 'dismissed')}>
+                            Dismiss (Keep Hidden)
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="ml-auto text-purple-400"
+                            disabled={moderatingPostId === (flag.post_id || flag.comment_id)}
+                            onClick={() => runGrokModeration(flag.post_id || undefined, flag.comment_id || undefined)}
+                          >
+                            {moderatingPostId === (flag.post_id || flag.comment_id) ? 'Running...' : 'Re-run Grok'}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>
@@ -1258,6 +1515,17 @@ export default function AdminPage() {
             <DialogDescription>Give {selectedUser?.email} a free subscription.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            <div>
+              <Label>Tier</Label>
+              <Select value={grantTier} onValueChange={(v: 'horoscope' | 'astrologer' | 'professional') => setGrantTier(v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="horoscope">Horoscope ($4.99/mo)</SelectItem>
+                  <SelectItem value="astrologer">Astrologer ($7.99/mo)</SelectItem>
+                  <SelectItem value="professional">Professional ($14.99/mo)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Plan</Label>

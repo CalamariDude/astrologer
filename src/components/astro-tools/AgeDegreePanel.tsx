@@ -92,6 +92,7 @@ export function AgeDegreePanel({ birthDate, natalChart, personName }: AgeDegreeP
   }, [birthDate]);
 
   const planetActivations = useMemo(() => {
+    if (!natalChart?.planets) return [];
     const results: PlanetActivation[] = [];
 
     // Helper to add a point given its longitude and display info
@@ -204,6 +205,14 @@ export function AgeDegreePanel({ birthDate, natalChart, personName }: AgeDegreeP
   const getSignSymbol = (signName: string): string => {
     return ZODIAC_SIGNS.find(s => s.name === signName)?.symbol ?? '';
   };
+
+  if (!natalChart?.planets || Object.keys(natalChart.planets).length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+        <p className="text-sm text-muted-foreground/60">Calculate a chart first to see activations</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

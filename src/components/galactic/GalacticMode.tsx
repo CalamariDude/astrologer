@@ -12,9 +12,12 @@ import {
   Loader2, RotateCw, Home, Maximize2, Minimize2,
   Play, Pause, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   RotateCcw, Settings, ChevronDown, ChevronUp, X, Clock, CalendarDays,
+  BarChart3,
 } from 'lucide-react';
 import { GalacticScene } from './GalacticScene';
 import { PlanetInfoPanel } from './PlanetInfoPanel';
+import { ChartOverviewPanel } from './ChartOverviewPanel';
+import { GalacticJourney } from './GalacticJourney';
 import { useAspectEnergy } from './hooks/useAspectEnergy';
 import { useGalacticChart } from './hooks/useGalacticChart';
 import { CAMERA, CAMERA_PRESETS } from './constants';
@@ -329,6 +332,7 @@ const MINOR_ASPECTS = Object.entries(ASPECTS).filter(([, v]) => !v.major);
 
 export default function GalacticMode({ chart: initialChart, name, birthDate, visiblePlanets, visibleAspects, onFetchAsteroidData }: GalacticModeProps) {
   const [selectedPlanet, setSelectedPlanet] = useState<string | null>(null);
+  const [selectedPlanetB, setSelectedPlanetB] = useState<string | null>(null);
   const [autoRotate, setAutoRotate] = useState(true);
   const [showAspects, setShowAspects] = useState(true);
   const [showNatalAspects, setShowNatalAspects] = useState(true);
@@ -346,6 +350,7 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
   const [extraPlanets, setExtraPlanets] = useState<Record<string, any>>({});
   const containerRef = useRef<HTMLDivElement>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showOverview, setShowOverview] = useState(false);
 
   // Transit state
   const [transitEnabled, setTransitEnabled] = useState(false);
@@ -630,6 +635,35 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
     });
   }, []);
 
+  // ── Journey callbacks (passed to GalacticJourney) ──
+  const handleJourneyFocusPlanet = useCallback((key: string | null, keyB?: string | null) => {
+    setSelectedPlanet(key);
+    setSelectedPlanetB(keyB ?? null);
+    if (key) {
+      setAutoRotate(false);
+    }
+  }, []);
+
+  const handleJourneySetTransit = useCallback((enabled: boolean, dayOffset: number) => {
+    setTransitEnabled(enabled);
+    setTransitDayOffset(dayOffset);
+    setTransitPlaying(false);
+    // Force aspects visible during journey transit scenes
+    if (enabled) {
+      setShowAspects(true);
+      setShowTransitAspects(true);
+    }
+  }, []);
+
+  const handleJourneySetPreset = useCallback((preset: CameraPreset) => {
+    setActivePreset({ ...preset });
+    setActivePresetName(preset.name);
+  }, []);
+
+  const handleJourneySetAutoRotate = useCallback((v: boolean) => {
+    setAutoRotate(v);
+  }, []);
+
   const visibleAspectCount = localVisibleAspects.size;
   const visiblePlanetCount = localVisiblePlanets.size;
 
@@ -666,6 +700,7 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
             visiblePlanets={localVisiblePlanets}
             visibleAspects={localVisibleAspects}
             selectedPlanet={selectedPlanet}
+            selectedPlanetB={selectedPlanetB}
             onSelectPlanet={handleSelectPlanet}
             autoRotate={autoRotate}
             onInteractionStart={handleInteractionStart}
@@ -708,6 +743,16 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
 
       {/* Top-right: settings toggle + quick buttons */}
       <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
+        <button
+          onClick={() => setShowOverview(v => !v)}
+          className={`p-2 rounded-lg backdrop-blur-sm transition-colors ${
+            showOverview ? 'bg-indigo-500/30 text-indigo-300' : 'bg-black/50 text-white/50 hover:text-white/80'
+          }`}
+          title="Chart Overview"
+        >
+          <BarChart3 className="w-4 h-4" />
+        </button>
+
         <button
           onClick={() => setAutoRotate(v => !v)}
           className={`p-2 rounded-lg backdrop-blur-sm transition-colors ${
@@ -982,6 +1027,73 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
           aspects={[...aspects3D, ...transitAspects3D]}
           onClose={() => setSelectedPlanet(null)}
         />
+      )}
+
+      {/* Chart Overview Panel */}
+      {showOverview && (
+        <ChartOverviewPanel
+          chart={chart}
+          planets3D={planets3D}
+          aspects3D={aspects3D}
+          name={name}
+          onClose={() => setShowOverview(false)}
+        />
+      )}
+
+      {/* Galactic Journey */}
+      <GalacticJourney
+        chart={chart}
+        name={name}
+        birthDate={birthDate}
+        onFocusPlanet={handleJourneyFocusPlanet}
+        onSetTransit={handleJourneySetTransit}
+        onSetPreset={handleJourneySetPreset}
+        onSetAutoRotate={handleJourneySetAutoRotate}
+        onRequestFullscreen={() => {
+          if (containerRef.current && !document.fullscreenElement) {
+            containerRef.current.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+          }
+        }}
+        onExitFullscreen={() => {
+          if (document.fullscreenElement) {
+            document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+          }
+        }}
+      />
+
+      {/* Active Transit Aspects — shown when transits enabled and not in journey */}
+      {transitEnabled && transitAspects3D.length > 0 && (
+        <div className="absolute bottom-16 left-3 z-10 w-52 max-h-48 overflow-y-auto bg-black/80 backdrop-blur-md rounded-lg border border-amber-500/20 scrollbar-thin">
+          <div className="p-2">
+            <p className="text-[10px] text-amber-300/80 font-semibold uppercase tracking-wider mb-1.5">
+              Active Transits ({transitAspects3D.length})
+            </p>
+            <div className="space-y-0.5">
+              {transitAspects3D.slice(0, 8).map((asp) => {
+                const transitKey = asp.planetA.replace('transit_', '');
+                const natalKey = asp.planetB;
+                const aspDef = ASPECTS[asp.aspect.type as keyof typeof ASPECTS];
+                return (
+                  <div
+                    key={asp.id}
+                    className="flex items-center gap-1.5 text-[10px] py-0.5"
+                  >
+                    <span style={{ color: asp.energy.color }} className="w-3 text-center">
+                      {aspDef?.symbol || '?'}
+                    </span>
+                    <span className="text-amber-300/70 capitalize">{transitKey}</span>
+                    <span className="text-white/30">{aspDef?.name}</span>
+                    <span className="text-white/50 capitalize">{natalKey}</span>
+                    <span className="text-white/20 ml-auto">{asp.aspect.exactOrb}°</span>
+                  </div>
+                );
+              })}
+              {transitAspects3D.length > 8 && (
+                <p className="text-[9px] text-white/20 pt-0.5">+{transitAspects3D.length - 8} more</p>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Bottom-right: instructions */}

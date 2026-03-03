@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useSearchParams, Link } from 'react-router-dom';
-import { Loader2, MapPin, Plus, X, Pencil, LogIn, User, Calendar, Clock, Search, Sparkles, Grid3X3, RotateCcw, Gauge, Table2, TrendingUp, CalendarClock, ArrowUpDown, StickyNote, LogOut, ChevronDown, Shield, Keyboard, Settings, CreditCard, FolderOpen, Radio, AlertTriangle, Link2 } from 'lucide-react';
+import { Loader2, MapPin, Plus, X, Pencil, LogIn, User, Users, Calendar, Clock, Search, Sparkles, Grid3X3, RotateCcw, Gauge, Table2, TrendingUp, CalendarClock, ArrowUpDown, StickyNote, Keyboard, Settings, FolderOpen, Radio, AlertTriangle, Link2, Crown, ArrowLeft, Sun, Moon, Star } from 'lucide-react';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { addClient } from '@/lib/clients';
 import { SaveChartButton } from '@/components/charts/SaveChartButton';
 import { getSavedCharts, getSavedChartsAsync, invalidateChartsCache, type SavedChart } from '@/components/charts/SaveChartButton';
 import { toast } from 'sonner';
@@ -12,15 +14,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BiWheelMobileWrapper } from '@/components/biwheel';
 import { swissEphemeris } from '@/api/swissEphemeris';
 import { getThemeCSSVariables, isThemeDark } from '@/lib/chartThemeCSS';
+import { applyTheme } from '@/components/biwheel/utils/constants';
+import type { ThemeName } from '@/components/biwheel/utils/themes';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { ChartSpotlight } from '@/components/charts/ChartSpotlight';
-import {
-  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
-  DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel,
-} from '@/components/ui/dropdown-menu';
+import { ProfileDropdown } from '@/components/ProfileDropdown';
 import { supabase } from '@/lib/supabase';
 import type { TransitData, CompositeData, ProgressedData, RelocatedData, AsteroidsParam, AsteroidGroup, ChartMode } from '@/components/biwheel/types';
 import { ASTEROID_GROUPS } from '@/components/biwheel/types';
@@ -53,6 +54,10 @@ const AgeDegreePanel = React.lazy(() => import('@/components/astro-tools/AgeDegr
 const DeclinationPanel = React.lazy(() => import('@/components/astro-tools/DeclinationPanel').then(m => ({ default: m.DeclinationPanel })));
 const ChartNotes = React.lazy(() => import('@/components/astro-tools/ChartNotes').then(m => ({ default: m.ChartNotes })));
 const AIReading = React.lazy(() => import('@/components/astro-tools/AIReading').then(m => ({ default: m.AIReading })));
+const DignityTable = React.lazy(() => import('@/components/astro-tools/DignityTable').then(m => ({ default: m.DignityTable })));
+const FixedStarsPanel = React.lazy(() => import('@/components/astro-tools/FixedStarsPanel').then(m => ({ default: m.FixedStarsPanel })));
+const SolarReturnPanel = React.lazy(() => import('@/components/astro-tools/SolarReturnPanel').then(m => ({ default: m.SolarReturnPanel })));
+const LunarReturnPanel = React.lazy(() => import('@/components/astro-tools/LunarReturnPanel').then(m => ({ default: m.LunarReturnPanel })));
 
 const ZODIAC_SIGNS = [
   'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
@@ -145,6 +150,7 @@ function InlineBirthForm({
 }) {
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<GeoResult[]>([]);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [nameSuggestions, setNameSuggestions] = useState<SavedPerson[]>([]);
   const [showNameDropdown, setShowNameDropdown] = useState(false);
   const [nameSelectedIdx, setNameSelectedIdx] = useState(-1);
@@ -154,6 +160,7 @@ function InlineBirthForm({
   const searchLocation = useCallback(async () => {
     if (!data.location || data.location.length < 2) return;
     setSearching(true);
+    setLocationError(null);
     try {
       const base = import.meta.env.DEV
         ? '/nominatim'
@@ -167,10 +174,10 @@ function InlineBirthForm({
         setResults(json.length > 1 ? json.slice(1) : []);
       } else {
         setResults([]);
-        toast.error('No locations found');
+        setLocationError('No locations found');
       }
     } catch {
-      toast.error('Location search failed');
+      setLocationError('Location search failed');
     } finally {
       setSearching(false);
     }
@@ -322,6 +329,7 @@ function InlineBirthForm({
             onChange={(e) => {
               onChange({ ...data, location: e.target.value, lat: null, lng: null });
               setResults([]);
+              setLocationError(null);
             }}
             onKeyDown={(e) => e.key === 'Enter' && searchLocation()}
             onBlur={() => { if (data.lat === null && data.location && data.location.length >= 2) searchLocation(); }}
@@ -335,6 +343,11 @@ function InlineBirthForm({
             {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
           </button>
         </div>
+        {locationError && (
+          <div className="px-4 pb-1 -mt-0.5">
+            <span className="text-[11px] text-destructive">{locationError}</span>
+          </div>
+        )}
       </div>
 
       {/* Location results */}
@@ -444,7 +457,7 @@ function parseNatalResponse(data: any): NatalChart {
 export default function ChartPage() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const routeState = location.state as { personA: PersonData; personB: PersonData | null } | null;
+  const routeState = location.state as { personA: PersonData; personB: PersonData | null; loadClient?: { name: string; date: string; time: string; location: string; lat: number | null; lng: number | null; autoCalculate?: boolean; withTransits?: boolean }; currentTransits?: boolean; loadChart?: any } | null;
   const { user, signOut } = useAuth();
   const { isPaid, relocatedRemaining, useRelocatedCredit } = useSubscription();
   const liveSession = useSession();
@@ -458,6 +471,9 @@ export default function ChartPage() {
   useEffect(() => {
     liveSession.setSnapshotGetter(() => (biWheelStateRef.current as ChartStateSnapshot) ?? liveChartStateRef.current ?? {} as ChartStateSnapshot);
   }, [liveSession.setSnapshotGetter]);
+
+  // Scroll to top on mount
+  useEffect(() => { window.scrollTo(0, 0); }, []);
 
   // Restore session state on mount
   const sessionRestore = useMemo(() => {
@@ -495,6 +511,9 @@ export default function ChartPage() {
   const [activeTabIndex, setActiveTabIndex] = useState(() => {
     return sessionRestore?.activeTabIndex ?? 0;
   });
+
+  // Tab context menu state
+  const [tabContextMenu, setTabContextMenu] = useState<{ x: number; y: number; tabIndex: number } | null>(null);
 
   // Tab drag-to-reorder state
   const [dragTabIndex, setDragTabIndex] = useState<number | null>(null);
@@ -598,17 +617,81 @@ export default function ChartPage() {
     });
   }, [tabs.length]);
 
-  const handleDuplicateTab = useCallback(() => {
+  const handleDuplicateTab = useCallback((sourceIndex?: number) => {
     if (tabs.length >= 10) return;
-    const source = tabs[activeTabIndex];
+    const idx = sourceIndex ?? activeTabIndex;
+    const source = tabs[idx];
     const dup: ChartTab = { ...source, id: generateTabId() };
-    setTabs(prev => [...prev.slice(0, activeTabIndex + 1), dup, ...prev.slice(activeTabIndex + 1)]);
-    setActiveTabIndex(activeTabIndex + 1);
+    setTabs(prev => [...prev.slice(0, idx + 1), dup, ...prev.slice(idx + 1)]);
+    setActiveTabIndex(idx + 1);
   }, [tabs, activeTabIndex]);
 
   const handleSwitchTab = useCallback((index: number) => {
     setActiveTabIndex(index);
   }, []);
+
+  // Close context menu on click outside or Escape
+  useEffect(() => {
+    if (!tabContextMenu) return;
+    const handleClick = () => setTabContextMenu(null);
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setTabContextMenu(null); };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => { document.removeEventListener('mousedown', handleClick); document.removeEventListener('keydown', handleKey); };
+  }, [tabContextMenu]);
+
+  // Current Transits — create a tab with today's date/time and geolocation
+  const handleCurrentTransits = useCallback(async () => {
+    if (tabs.length >= 10) return;
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const newTab: ChartTab = {
+      id: generateTabId(),
+      personAData: { name: 'Current Transits', date: dateStr, time: timeStr, location: '', lat: null, lng: null },
+      personBData: null,
+      chartA: null,
+      chartB: null,
+      editing: true,
+    };
+    const newIdx = tabs.length;
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabIndex(newIdx);
+
+    // Try geolocation
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          let locationName = '';
+          try {
+            const base = import.meta.env.DEV ? '/nominatim' : 'https://nominatim.openstreetmap.org';
+            const res = await fetch(`${base}/reverse?format=json&lat=${lat}&lon=${lng}`);
+            const json = await res.json();
+            locationName = json.display_name || '';
+          } catch {}
+          // Update the tab with geo data
+          const birthData: BirthData = { name: 'Current Transits', date: dateStr, time: timeStr, location: locationName, lat, lng };
+          setTabs(prev => prev.map((t, i) => i === newIdx ? { ...t, personAData: birthData, editing: false } : t));
+          // Auto-calculate
+          try {
+            const data = await swissEphemeris.natal({ birth_date: dateStr, birth_time: timeStr, lat, lng });
+            const parsed = parseNatalResponse(data);
+            setTabs(prev => prev.map((t, i) => i === newIdx ? { ...t, chartA: parsed, editing: false } : t));
+          } catch (err: any) {
+            toast.error(err.message || 'Failed to calculate chart');
+            setTabs(prev => prev.map((t, i) => i === newIdx ? { ...t, editing: true } : t));
+          }
+        },
+        () => {
+          // Geolocation denied — leave in editing mode
+          toast('Enter a location to calculate the chart', { description: 'Geolocation unavailable' });
+        },
+        { timeout: 10000 }
+      );
+    }
+  }, [tabs.length]);
 
   // Full person data for chart (combines birth data + chart)
   const personA: PersonData | null = chartA ? { ...personAData, natalChart: chartA } : null;
@@ -618,8 +701,18 @@ export default function ChartPage() {
   const [loading, setLoading] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
-  const [pageTheme, setPageTheme] = useState(() => localStorage.getItem('astrologer_theme') || 'classic');
-  const [themeReady, setThemeReady] = useState(!user); // ready immediately if not logged in
+  const [pageTheme, setPageTheme] = useState(() => {
+    const t = localStorage.getItem('astrologer_theme') || 'classic';
+    applyTheme(t as ThemeName); // Set global COLORS immediately so children don't flash
+    return t;
+  });
+  // Keep global COLORS in sync when pageTheme changes (e.g. after DB load)
+  useEffect(() => {
+    applyTheme(pageTheme as ThemeName);
+    const dark = isThemeDark(pageTheme);
+    document.documentElement.classList.toggle('dark', dark);
+    document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+  }, [pageTheme]);
 
   // Shared chart options (parsed from URL params, applied as initial props)
   const sharedChartOptionsRef = useRef<{
@@ -639,12 +732,19 @@ export default function ChartPage() {
     analytics.trackToolTabViewed({ tab });
   }, []);
 
-  // Scroll active tab into view + update fade indicators
+  // Scroll active tab into view horizontally + update fade indicators
+  const tabInitRef = useRef(true);
   useEffect(() => {
     const el = tabsListRef.current;
     if (!el) return;
     const active = el.querySelector('[data-state="active"]') as HTMLElement | null;
-    if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    if (active) {
+      // Only scroll the tab strip horizontally — never scroll the page vertically
+      const left = active.offsetLeft - el.offsetLeft;
+      const center = left - el.clientWidth / 2 + active.clientWidth / 2;
+      el.scrollTo({ left: center, behavior: tabInitRef.current ? 'instant' : 'smooth' });
+      tabInitRef.current = false;
+    }
     const updateFades = () => {
       const left = el.previousElementSibling as HTMLElement | null;
       const right = el.nextElementSibling as HTMLElement | null;
@@ -704,15 +804,6 @@ export default function ChartPage() {
   }, [savedChartsLoaded, personAData.date, personAData.time, personAData.lat, personAData.lng,
       personBData?.date, personBData?.time, personBData?.lat, personBData?.lng]);
   const webglSupported = useWebGLSupport();
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    if (!user) { setIsAdmin(false); return; }
-    supabase.from('astrologer_profiles').select('is_admin').eq('id', user.id).single()
-      .then(({ data }) => {
-        setIsAdmin(data?.is_admin ?? false);
-      });
-  }, [user]);
 
   // Shared visibility state — synced from 2D chart, passed one-way to galactic mode
   const [sharedVisiblePlanets, setSharedVisiblePlanets] = useState<Set<string>>(
@@ -727,28 +818,21 @@ export default function ChartPage() {
   // Load theme + tabs from user profile on login — DB is source of truth when logged in
   const profileTabsLoaded = useRef(false);
   useEffect(() => {
-    if (!user) {
-      setThemeReady(true);
-      return;
-    }
-    setThemeReady(false);
-    supabase.from('astrologer_profiles').select('theme, chart_tabs').eq('id', user.id).single()
+    if (!user) return;
+    supabase.from('astrologer_profiles').select('theme, chart_tabs').eq('id', user.id).maybeSingle()
       .then(({ data }) => {
-        if (data?.theme) {
+        if (data?.theme && data.theme !== pageTheme) {
           setPageTheme(data.theme);
           localStorage.setItem('astrologer_theme', data.theme);
         }
         // Restore tabs from profile if available and no route/session override
         if (!profileTabsLoaded.current && data?.chart_tabs && Array.isArray(data.chart_tabs) && data.chart_tabs.length > 0 && !routeState?.personA) {
           setTabs(data.chart_tabs as ChartTab[]);
-          // Find first tab with a chart, or stay at 0
           const chartIdx = (data.chart_tabs as ChartTab[]).findIndex(t => t.chartA);
           if (chartIdx >= 0) setActiveTabIndex(chartIdx);
           profileTabsLoaded.current = true;
         }
-        setThemeReady(true);
-      })
-      .catch(() => setThemeReady(true));
+      });
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Save theme to both localStorage and profile (keeps them in sync)
@@ -784,8 +868,59 @@ export default function ChartPage() {
     return persons;
   }, [user, savedChartsLoaded]);
 
-  // Load from route state (saved charts, etc.)
+  // Load from route state (saved charts, clients, transits, etc.)
+  // Re-runs on each navigation to /chart (location.key changes per navigate() call)
   useEffect(() => {
+    if ((location.state as any)?.activeTab) {
+      setActiveTab((location.state as any).activeTab);
+    }
+    if (routeState?.currentTransits) {
+      setTimeout(() => handleCurrentTransits(), 0);
+      window.history.replaceState({}, '');
+      return;
+    }
+    if (routeState?.loadChart) {
+      handleLoadChart(routeState.loadChart);
+      window.history.replaceState({}, '');
+      return;
+    }
+    if (routeState?.loadClient) {
+      const c = routeState.loadClient;
+      const birthData = { name: c.name, date: c.date, time: c.time, location: c.location, lat: c.lat, lng: c.lng };
+      setPersonAData(birthData);
+      if (c.autoCalculate && c.lat != null && c.lng != null) {
+        // Auto-calculate the natal chart
+        setEditing(false);
+        setLoading(true);
+        (async () => {
+          try {
+            const dataA = await swissEphemeris.natal({ birth_date: c.date, birth_time: c.time || '12:00', lat: c.lat, lng: c.lng });
+            const parsedA = parseNatalResponse(dataA);
+            setChartA(parsedA);
+
+            // If withTransits, also calculate current transits as Person B
+            if (c.withTransits) {
+              const now = new Date();
+              const tDate = now.toISOString().slice(0, 10);
+              const tTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+              const dataB = await swissEphemeris.natal({ birth_date: tDate, birth_time: tTime, lat: c.lat, lng: c.lng });
+              const parsedB = parseNatalResponse(dataB);
+              setPersonBData({ name: 'Current Transits', date: tDate, time: tTime, location: c.location, lat: c.lat, lng: c.lng });
+              setChartB(parsedB);
+            }
+          } catch (err: any) {
+            toast.error(err.message || 'Failed to calculate chart');
+            setEditing(true);
+          } finally {
+            setLoading(false);
+          }
+        })();
+      } else {
+        setEditing(true);
+      }
+      window.history.replaceState({}, '');
+      return;
+    }
     if (routeState?.personA) {
       const { natalChart: chartAData, ...birthA } = routeState.personA;
       setPersonAData(birthA);
@@ -799,7 +934,7 @@ export default function ChartPage() {
       // Clear route state so refresh doesn't re-trigger
       window.history.replaceState({}, '');
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [location.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load from URL query params (shared chart links)
   useEffect(() => {
@@ -1178,6 +1313,32 @@ export default function ChartPage() {
     return parseNatalResponse(data);
   }, [personAData, personBData]);
 
+  const handleRefetchWithHouseSystem = useCallback(async (system: string) => {
+    if (!personAData.date || personAData.lat === null) return;
+    try {
+      const dataA = await swissEphemeris.natal({
+        birth_date: personAData.date,
+        birth_time: personAData.time || '12:00',
+        lat: personAData.lat,
+        lng: personAData.lng,
+        house_system: system,
+      });
+      setChartA(parseNatalResponse(dataA));
+      if (personBData && personBData.date && personBData.lat !== null) {
+        const dataB = await swissEphemeris.natal({
+          birth_date: personBData.date,
+          birth_time: personBData.time || '12:00',
+          lat: personBData.lat,
+          lng: personBData.lng,
+          house_system: system,
+        });
+        setChartB(parseNatalResponse(dataB));
+      }
+    } catch (e) {
+      console.error('Failed to refetch with house system:', e);
+    }
+  }, [personAData, personBData]);
+
   const handleFetchAsteroidData = useCallback(async (asteroids: string[]): Promise<{ chartA: Record<string, any>; chartB: Record<string, any> }> => {
     const resA: Record<string, any> = {}; const resB: Record<string, any> = {};
     const parse = (data: any): Record<string, any> => {
@@ -1193,6 +1354,25 @@ export default function ChartPage() {
       if (personBData?.lat) { const d = await swissEphemeris.natal({ birth_date: personBData.date, birth_time: personBData.time || '12:00', lat: personBData.lat, lng: personBData.lng, asteroids }); Object.assign(resB, parse(d)); }
       else { Object.assign(resB, resA); }
     } catch (err) { console.error('Asteroid fetch failed:', err); }
+    return { chartA: resA, chartB: resB };
+  }, [personAData, personBData]);
+
+  const handleFetchFixedStarData = useCallback(async (): Promise<{ chartA: Record<string, any>; chartB: Record<string, any> }> => {
+    const resA: Record<string, any> = {}; const resB: Record<string, any> = {};
+    const parseStars = (data: any): Record<string, any> => {
+      const r: Record<string, any> = {};
+      for (const s of (data.fixed_stars || [])) {
+        // Normalize star name to lowercase key, replace spaces with underscores
+        const k = (s.name || s.planet || '').toLowerCase().replace(/\s+/g, '_');
+        if (k) r[k] = { longitude: s.longitude ?? 0, sign: s.sign || ZODIAC_SIGNS[Math.floor((s.longitude ?? 0) / 30)] || '', degree: s.degree, minute: s.minute, retrograde: false };
+      }
+      return r;
+    };
+    try {
+      if (personAData.lat) { const d = await swissEphemeris.natal({ birth_date: personAData.date, birth_time: personAData.time || '12:00', lat: personAData.lat, lng: personAData.lng, fixed_stars: true }); Object.assign(resA, parseStars(d)); }
+      if (personBData?.lat) { const d = await swissEphemeris.natal({ birth_date: personBData.date, birth_time: personBData.time || '12:00', lat: personBData.lat, lng: personBData.lng, fixed_stars: true }); Object.assign(resB, parseStars(d)); }
+      else { Object.assign(resB, resA); }
+    } catch (err) { console.error('Fixed star fetch failed:', err); }
     return { chartA: resA, chartB: resB };
   }, [personAData, personBData]);
 
@@ -1253,12 +1433,15 @@ export default function ChartPage() {
   // ─── Render ─────────────────────────────────────────────────
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${themeReady && isThemeDark(pageTheme) ? 'dark' : ''}`} style={themeReady ? themeVars : undefined}>
+    <div className={`min-h-screen ${isThemeDark(pageTheme) ? 'dark' : ''}`} style={themeVars}>
 
       {/* ── Header Bar ──────────────────────────────────────── */}
       <div className="border-b bg-background">
         <div className="container flex items-center gap-2 md:gap-3 py-2 px-2 md:px-6">
-          <Link to="/" className="text-sm md:text-base font-extralight tracking-[0.12em] uppercase shrink-0" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>Astrologer</Link>
+          <Link to="/dashboard" className="p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors" title="Back to Dashboard">
+            <ArrowLeft className="w-4 h-4" />
+          </Link>
+          <Link to="/dashboard" className="text-sm md:text-base font-extralight tracking-[0.12em] uppercase shrink-0" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>Astrologer</Link>
           <button
             onClick={() => setShowSpotlight(true)}
             className="hidden md:flex items-center gap-2 h-7 px-2.5 rounded-md border border-border/50 bg-muted/30 text-muted-foreground/60 hover:text-foreground hover:bg-muted hover:border-border transition-colors text-xs"
@@ -1296,78 +1479,7 @@ export default function ChartPage() {
                 </button>
               )}
 
-              <Link
-                to="/settings"
-                className="flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                title="Settings"
-              >
-                <Settings className="w-3.5 h-3.5" />
-              </Link>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-                    <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
-                      <User className="w-3.5 h-3.5 text-foreground" />
-                    </div>
-                    <span className="hidden sm:inline max-w-[120px] truncate">{user.email?.split('@')[0]}</span>
-                    <ChevronDown className="w-3 h-3 opacity-50" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52">
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="text-xs text-muted-foreground truncate">{user.email}</div>
-                    {isPaid && <div className="text-[10px] text-emerald-500 font-medium mt-0.5">Pro</div>}
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/settings#account">
-                      <User className="w-4 h-4 mr-2" />
-                      Account
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/settings#billing">
-                      <CreditCard className="w-4 h-4 mr-2" />
-                      Billing & Usage
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/settings#charts">
-                      <FolderOpen className="w-4 h-4 mr-2" />
-                      Charts
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/settings#sessions">
-                      <Radio className="w-4 h-4 mr-2" />
-                      Sessions
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/settings#preferences">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Preferences
-                    </Link>
-                  </DropdownMenuItem>
-                  {isAdmin && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link to="/admin">
-                          <Shield className="w-4 h-4 mr-2" />
-                          Admin
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => signOut()}>
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <ProfileDropdown />
             </div>
           ) : (
             <Button size="sm" variant="outline" onClick={() => setShowAuth(true)} className="gap-1.5 text-xs">
@@ -1404,6 +1516,7 @@ export default function ChartPage() {
                       boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
                       marginBottom: isActive ? 0 : undefined,
                     }}
+                    onContextMenu={(e) => { e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabIndex: origIndex }); }}
                     draggable
                     onDragStart={() => setDragTabIndex(origIndex)}
                     onDragOver={(e) => { e.preventDefault(); setDragOverTabIndex(origIndex); }}
@@ -1452,17 +1565,50 @@ export default function ChartPage() {
                 );
               })}
               {tabs.length < 10 && (
-                <button
-                  onClick={handleNewTab}
-                  className="flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground/40 hover:text-foreground hover:bg-muted transition-colors"
-                  title="New chart tab (Alt+T)"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
+                <>
+                  <button
+                    onClick={handleNewTab}
+                    className="flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground/40 hover:text-foreground hover:bg-muted transition-colors"
+                    title="New chart tab (Alt+T)"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={handleCurrentTransits}
+                    className="flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground/40 hover:text-foreground hover:bg-muted transition-colors"
+                    title="Current transits (now)"
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                  </button>
+                </>
               )}
             </div>
           </div>
           <div className="border-b border-border/50" />
+
+          {/* Tab context menu */}
+          {tabContextMenu && (
+            <div
+              className="fixed z-[100] bg-popover border border-border rounded-lg shadow-xl py-1 min-w-[140px]"
+              style={{ left: tabContextMenu.x, top: tabContextMenu.y }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => { handleDuplicateTab(tabContextMenu.tabIndex); setTabContextMenu(null); }}
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors"
+                disabled={tabs.length >= 10}
+              >
+                Duplicate Tab
+              </button>
+              <button
+                onClick={() => { handleCloseTab(tabContextMenu.tabIndex); setTabContextMenu(null); }}
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled={tabs.length <= 1}
+              >
+                Close Tab
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -1508,6 +1654,28 @@ export default function ChartPage() {
                   />
                   <span className="text-xs text-muted-foreground">{isChartAlreadySaved ? 'Already Saved' : 'Save to My Charts'}</span>
                 </label>
+                {personAData.name && personAData.date && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                    onClick={() => {
+                      addClient({
+                        name: personAData.name,
+                        birthDate: personAData.date,
+                        birthTime: personAData.time || '12:00',
+                        birthLocation: personAData.location,
+                        lat: personAData.lat,
+                        lng: personAData.lng,
+                        notes: '',
+                      });
+                      toast.success(`${personAData.name} saved to clients`);
+                    }}
+                  >
+                    <Users className="w-3 h-3" />
+                    Save as Client
+                  </Button>
+                )}
                 {hasChart && (
                   <Button variant="ghost" size="sm" onClick={() => setEditing(false)} className="text-muted-foreground">
                     Cancel
@@ -1576,7 +1744,9 @@ export default function ChartPage() {
                     onFetchRelocated={handleFetchRelocated}
                     onFetchShiftedNatal={handleFetchShiftedNatal}
                     onFetchAsteroidData={handleFetchAsteroidData}
-                    initialTheme={themeReady ? pageTheme : undefined}
+                    onFetchFixedStarData={handleFetchFixedStarData}
+                    onRefetchWithHouseSystem={handleRefetchWithHouseSystem}
+                    initialTheme={pageTheme}
                     onThemeChange={handleThemeChange}
                     originalLocation={originalLocationA}
                     locationB={originalLocationB}
@@ -1648,7 +1818,9 @@ export default function ChartPage() {
                   onFetchRelocated={handleFetchRelocated}
                   onFetchShiftedNatal={handleFetchShiftedNatal}
                   onFetchAsteroidData={handleFetchAsteroidData}
-                  initialTheme={themeReady ? pageTheme : undefined}
+                    onFetchFixedStarData={handleFetchFixedStarData}
+                    onRefetchWithHouseSystem={handleRefetchWithHouseSystem}
+                  initialTheme={pageTheme}
                   originalLocation={originalLocationA}
                   locationB={originalLocationB}
                   birthDateA={personA.date}
@@ -1734,6 +1906,8 @@ export default function ChartPage() {
                     <SaveChartButton personA={personA} personB={personB} hasSynastry={!!personBData && hasSynastry} />
                     <StartSessionButton
                       isActive={liveSession.isSessionActive}
+                      awaitingTranscriptionChoice={liveSession.awaitingTranscriptionChoice}
+                      onProcessSession={liveSession.processSession}
                       onEnd={() => { liveSession.endSession(); analytics.trackSessionEnded({ duration: liveSession.sessionDuration }); }}
                       onStart={async (title) => {
                         if (!personA) return;
@@ -1795,6 +1969,7 @@ export default function ChartPage() {
             )}
 
             {showGalactic && webglSupported ? (
+              <ErrorBoundary fallbackMessage="3D chart encountered an error">
               <React.Suspense fallback={
                 <div className="h-[650px] flex items-center justify-center bg-[#050510] rounded-lg">
                   <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
@@ -1807,9 +1982,13 @@ export default function ChartPage() {
                   visiblePlanets={sharedVisiblePlanets}
                   visibleAspects={sharedVisibleAspects}
                   onFetchAsteroidData={handleFetchAsteroidData}
+                    onFetchFixedStarData={handleFetchFixedStarData}
+                    onRefetchWithHouseSystem={handleRefetchWithHouseSystem}
                 />
               </React.Suspense>
+              </ErrorBoundary>
             ) : (
+              <ErrorBoundary fallbackMessage="Chart encountered an error">
               <div className="relative">
                 <BiWheelMobileWrapper
                   key={currentTab.id}
@@ -1829,7 +2008,9 @@ export default function ChartPage() {
                   onFetchRelocated={handleFetchRelocated}
                   onFetchShiftedNatal={handleFetchShiftedNatal}
                   onFetchAsteroidData={handleFetchAsteroidData}
-                  initialTheme={themeReady ? pageTheme : undefined}
+                    onFetchFixedStarData={handleFetchFixedStarData}
+                    onRefetchWithHouseSystem={handleRefetchWithHouseSystem}
+                  initialTheme={pageTheme}
                   onThemeChange={handleThemeChange}
                   originalLocation={originalLocationA}
                   locationB={originalLocationB}
@@ -1863,26 +2044,31 @@ export default function ChartPage() {
                   stateRef={biWheelStateRef}
                 />
               </div>
+              </ErrorBoundary>
             )}
           </div>
 
           {/* Astro Tools Tabs */}
           <Tabs value={activeTab} onValueChange={handleTabChange}>
             <div className="relative">
-              {/* Left fade indicator */}
-              <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-background to-transparent z-10 opacity-0 transition-opacity" />
+              {/* Left fade */}
+              <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background to-transparent z-10" />
               <TabsList
                 ref={tabsListRef as any}
-                className="flex justify-start overflow-x-auto gap-0 w-full scrollbar-hide bg-transparent border-b border-border/50 rounded-none p-0 h-auto"
+                className="flex flex-wrap gap-1 w-full bg-transparent rounded-none p-1 h-auto"
               >
               {[
                 { value: 'aspect-grid', icon: Grid3X3, label: 'Aspects' },
                 { value: 'profections', icon: RotateCcw, label: 'Profections' },
                 { value: 'age-degree', icon: Gauge, label: 'Activations' },
                 { value: 'ephemeris', icon: Table2, label: 'Ephemeris' },
-                { value: 'graphic-eph', icon: TrendingUp, label: 'Graphic Eph.' },
+                { value: 'graphic-eph', icon: TrendingUp, label: 'Graph. Eph.' },
                 { value: 'transits', icon: CalendarClock, label: 'Transits' },
                 { value: 'declination', icon: ArrowUpDown, label: 'Declination' },
+                { value: 'dignities', icon: Crown, label: 'Dignities' },
+                { value: 'fixed-stars', icon: Star, label: 'Fixed Stars' },
+                { value: 'solar-return', icon: Sun, label: 'Solar Return' },
+                { value: 'lunar-return', icon: Moon, label: 'Lunar Return' },
                 { value: 'ai-reading', icon: Sparkles, label: 'AI Reading' },
                 { value: 'notes', icon: StickyNote, label: 'Notes' },
               ].map(tab => {
@@ -1892,23 +2078,23 @@ export default function ChartPage() {
                   <TabsTrigger
                     key={tab.value}
                     value={tab.value}
-                    className={`relative text-xs md:text-sm whitespace-nowrap flex-shrink-0 gap-1.5 rounded-none px-4 py-3 bg-transparent shadow-none transition-colors ${
-                      isActive ? 'text-foreground' : 'text-muted-foreground/60 hover:text-muted-foreground'
+                    className={`text-[11px] whitespace-nowrap gap-1 rounded-md px-2.5 py-1.5 bg-transparent shadow-none transition-all duration-150 border ${
+                      isActive
+                        ? 'text-foreground bg-foreground/10 border-foreground/20'
+                        : 'text-muted-foreground/50 border-transparent hover:text-muted-foreground hover:bg-muted/30'
                     }`}
                   >
-                    <Icon className="w-3.5 h-3.5" />
+                    <Icon className="w-3 h-3" />
                     {tab.label}
-                    {isActive && (
-                      <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-foreground rounded-full" />
-                    )}
                   </TabsTrigger>
                 );
               })}
               </TabsList>
-              {/* Right fade indicator */}
-              <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent z-10 opacity-0 transition-opacity" />
+              {/* Right fade */}
+              <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent z-10 hidden" />
             </div>
 
+            <ErrorBoundary fallbackMessage="This tool tab encountered an error">
             <React.Suspense fallback={
               <div className="mt-4 min-h-[400px] flex items-center justify-center">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -1935,6 +2121,18 @@ export default function ChartPage() {
             <TabsContent value="declination" className="mt-4 min-h-[400px]">
               <DeclinationPanel chartA={personA.natalChart} chartB={hasSynastry ? personB!.natalChart : undefined} nameA={personA.name || 'Person A'} nameB={hasSynastry ? (personB!.name || 'Person B') : undefined} />
             </TabsContent>
+            <TabsContent value="dignities" className="mt-4 min-h-[400px]">
+              <DignityTable natalChart={personA.natalChart} />
+            </TabsContent>
+            <TabsContent value="fixed-stars" className="mt-4 min-h-[400px]">
+              <FixedStarsPanel natalChart={personA.natalChart} birthInfo={{ date: personA.date, time: personA.time, lat: personA.lat ?? 33.89, lng: personA.lng ?? 35.50 }} />
+            </TabsContent>
+            <TabsContent value="solar-return" className="mt-4 min-h-[400px]">
+              <SolarReturnPanel natalChart={personA.natalChart} birthInfo={{ date: personA.date, time: personA.time, lat: personA.lat ?? 33.89, lng: personA.lng ?? 35.50 }} personName={personA.name || 'Person A'} />
+            </TabsContent>
+            <TabsContent value="lunar-return" className="mt-4 min-h-[400px]">
+              <LunarReturnPanel natalChart={personA.natalChart} birthInfo={{ date: personA.date, time: personA.time, lat: personA.lat ?? 33.89, lng: personA.lng ?? 35.50 }} personName={personA.name || 'Person A'} />
+            </TabsContent>
             <TabsContent value="ai-reading" className="mt-4 min-h-[400px]">
               <AIReading
                 chartA={personA.natalChart}
@@ -1960,6 +2158,7 @@ export default function ChartPage() {
               />
             </TabsContent>
             </React.Suspense>
+            </ErrorBoundary>
           </Tabs>
         </div>
         )
@@ -2045,6 +2244,7 @@ export default function ChartPage() {
             liveSession.recordStateChange('view_mode', { mode: next });
             return next;
           })}
+          onEndSession={() => { liveSession.endSession(); analytics.trackSessionEnded({ duration: liveSession.sessionDuration }); }}
         />
       )}
 

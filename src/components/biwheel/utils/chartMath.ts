@@ -342,6 +342,20 @@ export function calculateDegreeSign(longitude: number): { degreeSign: string; de
 export const calculateSpark = calculateDegreeSign;
 
 /**
+ * Get the zodiac sign symbol for a given ecliptic longitude.
+ * Returns the sign the planet is actually in (e.g., planet at 315° → Aquarius ♒).
+ */
+export function getZodiacSignSymbol(longitude: number): { signSymbol: string; signIndex: number } {
+  const SYMBOLS = [
+    '\u2648\uFE0E', '\u2649\uFE0E', '\u264A\uFE0E', '\u264B\uFE0E',
+    '\u264C\uFE0E', '\u264D\uFE0E', '\u264E\uFE0E', '\u264F\uFE0E',
+    '\u2650\uFE0E', '\u2651\uFE0E', '\u2652\uFE0E', '\u2653\uFE0E',
+  ];
+  const signIndex = Math.floor(longitude / 30) % 12;
+  return { signSymbol: SYMBOLS[signIndex], signIndex };
+}
+
+/**
  * Decan calculation using the triplicity (Chaldean) system
  * Each sign is divided into 3 decans (10° each)
  * Each decan is ruled by a sign of the same element

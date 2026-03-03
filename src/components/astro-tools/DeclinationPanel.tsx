@@ -99,7 +99,7 @@ export function DeclinationPanel({ chartA, chartB, nameA, nameB }: DeclinationPa
   const [orbSize, setOrbSize] = useState(1.0);
   const isSynastry = !!chartB && !!nameB;
 
-  const declA = useMemo(() => calculateDeclinations(chartA.planets), [chartA]);
+  const declA = useMemo(() => chartA?.planets ? calculateDeclinations(chartA.planets) : [], [chartA]);
   const declB = useMemo(() => chartB ? calculateDeclinations(chartB.planets) : undefined, [chartB]);
 
   const aspects = useMemo(() => {
@@ -108,6 +108,14 @@ export function DeclinationPanel({ chartA, chartB, nameA, nameB }: DeclinationPa
     }
     return detectDeclinationAspects(declA, undefined, orbSize);
   }, [declA, declB, orbSize, isSynastry]);
+
+  if (!chartA?.planets || Object.keys(chartA.planets).length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+        <p className="text-sm text-muted-foreground/60">Calculate a chart first to see declinations</p>
+      </div>
+    );
+  }
 
   const parallelCount = aspects.filter(a => a.type === 'parallel').length;
   const contraCount = aspects.filter(a => a.type === 'contra-parallel').length;

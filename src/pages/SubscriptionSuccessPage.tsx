@@ -54,15 +54,15 @@ export default function SubscriptionSuccessPage() {
               <CheckCircle className="w-8 h-8 text-emerald-500" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">Welcome to Astrologer Pro!</h1>
+              <h1 className="text-2xl font-bold">Welcome to Astrologer!</h1>
               <p className="text-muted-foreground mt-2">
-                You now have access to all premium features.
+                Your subscription is active. Explore your personalized dashboard.
               </p>
             </div>
             <div className="flex flex-col gap-2">
-              <Button onClick={() => navigate('/chart')} className="w-full">
+              <Button onClick={() => navigate('/dashboard')} className="w-full">
                 <Sparkles className="w-4 h-4 mr-2" />
-                Start Exploring
+                Go to Dashboard
               </Button>
             </div>
           </>

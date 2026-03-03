@@ -29,6 +29,13 @@ export interface ChartPreset {
   zodiacVantage: number | null;
   // Asteroid groups
   enabledAsteroidGroups: string[];
+  // House system (optional for backwards compat with existing presets)
+  houseSystem?: string;
+  // Custom orbs (optional)
+  customAspectOrbs?: Record<string, number>;
+  customPlanetOrbs?: Record<string, number>;
+  // Harmonic number (optional)
+  harmonicNumber?: number;
 }
 
 const STORAGE_KEY = 'biwheel-chart-presets';
@@ -139,6 +146,10 @@ export function buildPresetFromState(opts: {
   rotateToAscendant: boolean;
   zodiacVantage: number | null;
   enabledAsteroidGroups: Set<AsteroidGroup>;
+  houseSystem?: string;
+  customAspectOrbs?: Record<string, number>;
+  customPlanetOrbs?: Record<string, number>;
+  harmonicNumber?: number;
 }): Omit<ChartPreset, 'id' | 'createdAt'> {
   return {
     name: opts.name,
@@ -154,5 +165,9 @@ export function buildPresetFromState(opts: {
     rotateToAscendant: opts.rotateToAscendant,
     zodiacVantage: opts.zodiacVantage,
     enabledAsteroidGroups: Array.from(opts.enabledAsteroidGroups),
+    houseSystem: opts.houseSystem,
+    customAspectOrbs: opts.customAspectOrbs && Object.keys(opts.customAspectOrbs).length > 0 ? opts.customAspectOrbs : undefined,
+    customPlanetOrbs: opts.customPlanetOrbs && Object.keys(opts.customPlanetOrbs).length > 0 ? opts.customPlanetOrbs : undefined,
+    harmonicNumber: opts.harmonicNumber && opts.harmonicNumber > 1 ? opts.harmonicNumber : undefined,
   };
 }

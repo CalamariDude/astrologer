@@ -65,6 +65,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <script>
+      // Apply theme before React mounts to prevent white flash
+      (function() {
+        var t = localStorage.getItem('astrologer_theme') || 'classic';
+        var dark = ['dark','midnight','cosmic','forest','sunset','ocean'].indexOf(t) !== -1;
+        if (dark) {
+          document.documentElement.classList.add('dark');
+          document.documentElement.style.colorScheme = 'dark';
+          document.body.style.backgroundColor = '#0a0a0a';
+        }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

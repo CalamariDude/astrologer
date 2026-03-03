@@ -680,16 +680,27 @@ function KeywordsSection({ sign, ruler }: { sign: string; ruler: string }) {
 }
 
 export function ProfectionsPanel({ birthDate, natalChart, personName }: ProfectionsPanelProps) {
-  const profections = useMemo(() => calculateProfections(birthDate, natalChart), [birthDate, natalChart]);
-  const [selectedYear, setSelectedYear] = useState<ProfectionYear>(profections.currentYear);
-  const colors = ELEMENT_COLORS[selectedYear.element] || ELEMENT_COLORS.fire;
-  const currentMonth = selectedYear.months.find(m => m.isCurrent);
+  const profections = useMemo(
+    () => natalChart?.planets ? calculateProfections(birthDate, natalChart) : null,
+    [birthDate, natalChart]
+  );
+  const [selectedYear, setSelectedYear] = useState<ProfectionYear | null>(profections?.currentYear ?? null);
+  const colors = ELEMENT_COLORS[selectedYear?.element ?? 'fire'] || ELEMENT_COLORS.fire;
+  const currentMonth = selectedYear?.months.find(m => m.isCurrent);
 
   // Time lord natal condition
   const timeLordCondition = useMemo(
-    () => getTimeLordNatalCondition(selectedYear.timeLord.ruler, natalChart),
-    [selectedYear.timeLord.ruler, natalChart]
+    () => selectedYear ? getTimeLordNatalCondition(selectedYear.timeLord.ruler, natalChart) : null,
+    [selectedYear?.timeLord.ruler, natalChart]
   );
+
+  if (!profections || !selectedYear) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+        <p className="text-sm text-muted-foreground/60">Calculate a chart first to see profections</p>
+      </div>
+    );
+  }
 
   // Ordinal suffix helper
   const ordinal = (n: number) => {

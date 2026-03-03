@@ -6,7 +6,7 @@
  * Adapts to the current chart theme via COLORS.
  */
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { COLORS } from '../utils/constants';
 
 interface TransitJogWheelProps {
@@ -20,7 +20,7 @@ interface TransitJogWheelProps {
 
 type Interval = '1h' | '1d' | '1w' | '1mo';
 const INTERVALS: Interval[] = ['1h', '1d', '1w', '1mo'];
-const STEP_DEGREES = 360; // full rotation = 1 step
+const STEP_DEGREES = 30; // 12 steps per full rotation
 
 /** Angle (0°=top, clockwise positive) from center of element to pointer. */
 function getAngle(cx: number, cy: number, clientX: number, clientY: number): number {
@@ -61,13 +61,14 @@ export const TransitJogWheel: React.FC<TransitJogWheelProps> = ({
   size = 96,
 }) => {
   const [interval, setInterval_] = useState<Interval>('1d');
-  const [currentAngle, setCurrentAngle] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const accumulatedRef = useRef(0);
   const lastAngleRef = useRef(0);
+  const currentAngleRef = useRef(0);
   const draggingRef = useRef(false);
   const didDragRef = useRef(false); // true if pointer moved significantly during this gesture
   const wheelRef = useRef<HTMLDivElement>(null);
+  const dotRef = useRef<HTMLDivElement>(null);
 
   const dateRef = useRef(transitDate);
   const timeRef = useRef(transitTime);
@@ -141,6 +142,20 @@ export const TransitJogWheel: React.FC<TransitJogWheelProps> = ({
     [getCenter],
   );
 
+  /** Update the dot position directly via DOM (no React re-render). */
+  const updateDotPosition = useCallback((angle: number) => {
+    currentAngleRef.current = angle;
+    const dot = dotRef.current;
+    if (!dot) return;
+    const r = size / 2;
+    const rim = r - 12;
+    const ds = Math.max(18, size * 0.22);
+    const x = r + rim * Math.sin((angle * Math.PI) / 180) - ds / 2;
+    const y = r - rim * Math.cos((angle * Math.PI) / 180) - ds / 2;
+    dot.style.left = `${x}px`;
+    dot.style.top = `${y}px`;
+  }, [size]);
+
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
       if (!draggingRef.current) return;
@@ -156,7 +171,7 @@ export const TransitJogWheel: React.FC<TransitJogWheelProps> = ({
         didDragRef.current = true;
       }
 
-      setCurrentAngle(angle);
+      updateDotPosition(angle);
       accumulatedRef.current += delta;
 
       const totalSteps = Math.trunc(accumulatedRef.current / STEP_DEGREES);
@@ -165,7 +180,7 @@ export const TransitJogWheel: React.FC<TransitJogWheelProps> = ({
         advanceDate(totalSteps);
       }
     },
-    [getCenter, advanceDate],
+    [getCenter, advanceDate, updateDotPosition],
   );
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
@@ -200,8 +215,6 @@ export const TransitJogWheel: React.FC<TransitJogWheelProps> = ({
   const radius = size / 2;
   const rimRadius = radius - 12;
   const dotSize = Math.max(18, size * 0.22);
-  const dotX = radius + rimRadius * Math.sin((currentAngle * Math.PI) / 180);
-  const dotY = radius - rimRadius * Math.cos((currentAngle * Math.PI) / 180);
 
   // Tick marks around the rim (12 ticks like a clock)
   const ticks = Array.from({ length: 12 }, (_, i) => {
@@ -286,6 +299,7 @@ export const TransitJogWheel: React.FC<TransitJogWheelProps> = ({
 
       {/* Knob dot on rim */}
       <div
+        ref={dotRef}
         style={{
           position: 'absolute',
           width: dotSize,
@@ -294,8 +308,8 @@ export const TransitJogWheel: React.FC<TransitJogWheelProps> = ({
           background: `radial-gradient(circle at 40% 35%, ${accent}, ${text})`,
           boxShadow: `0 1px 4px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.2)`,
           border: `1px solid ${border}`,
-          left: dotX - dotSize / 2,
-          top: dotY - dotSize / 2,
+          left: radius + rimRadius * Math.sin((currentAngleRef.current * Math.PI) / 180) - dotSize / 2,
+          top: radius - rimRadius * Math.cos((currentAngleRef.current * Math.PI) / 180) - dotSize / 2,
           pointerEvents: 'none',
           transition: isDragging ? 'none' : 'left 0.05s, top 0.05s',
         }}

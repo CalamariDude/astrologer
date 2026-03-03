@@ -59,6 +59,15 @@ export const swissEphemeris = {
 
   /** Calculate secondary progressions */
   progressed: (body: Record<string, unknown>) => apiCall('/progressed', body),
+
+  /** List available fixed stars (GET endpoint) */
+  fixedStars: async () => {
+    const res = await fetch(`${BASE_URL}/fixed-stars`, {
+      headers: { 'Authorization': `Bearer ${getApiKey()}` },
+    });
+    if (!res.ok) throw new Error(`SwissEph API error ${res.status}`);
+    return res.json();
+  },
 };
 
 export default swissEphemeris;

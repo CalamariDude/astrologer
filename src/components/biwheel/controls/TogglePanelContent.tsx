@@ -11,13 +11,18 @@ import {
   ASTEROIDS,
   ARABIC_PARTS,
   ASTEROID_GROUP_INFO,
+  FIXED_STARS,
+  FIXED_STAR_GROUP_INFO,
   ZODIAC_SIGNS,
+  PLANET_ORBS,
+  PLANET_GROUPS,
   getThemeAwarePlanetColor,
 } from '../utils/constants';
 import type { AspectType } from '../utils/aspectCalculations';
-import type { ChartMode, AsteroidGroup, LocationData } from '../types';
-import { ASTEROID_GROUPS } from '../types';
+import type { ChartMode, AsteroidGroup, FixedStarGroup, LocationData } from '../types';
+import { ASTEROID_GROUPS, FIXED_STAR_GROUPS } from '../types';
 import { THEMES, THEME_LABELS, type ThemeName } from '../utils/themes';
+import { AYANAMSA_SYSTEMS } from '@/lib/sidereal';
 
 interface TogglePanelContentProps {
   visiblePlanets: Set<string>;
@@ -66,6 +71,12 @@ interface TogglePanelContentProps {
   onToggleAsteroidGroup?: (group: AsteroidGroup) => void;
   onEnableAllAsteroids?: () => void;
   onDisableAllAsteroids?: () => void;
+  // Fixed star group controls
+  enableFixedStars?: boolean;
+  enabledFixedStarGroups?: Set<FixedStarGroup>;
+  onToggleFixedStarGroup?: (group: FixedStarGroup) => void;
+  onEnableAllFixedStars?: () => void;
+  onDisableAllFixedStars?: () => void;
   // Progressed chart controls
   enableProgressed?: boolean;
   progressedPerson?: 'A' | 'B' | 'both' | null;
@@ -86,15 +97,34 @@ interface TogglePanelContentProps {
   // Display toggles
   showDecans?: boolean;
   onSetShowDecans?: (show: boolean) => void;
+  degreeSymbolMode?: 'sign' | 'spark';
+  onSetDegreeSymbolMode?: (mode: 'sign' | 'spark') => void;
   // Aspect line display options
   straightAspects?: boolean;
   onSetStraightAspects?: (straight: boolean) => void;
   showEffects?: boolean;
   onSetShowEffects?: (show: boolean) => void;
-  // Birth time shift (natal knobs)
+  // Birth time shift (wheel-time knobs)
   enableBirthTimeShift?: boolean;
   showBirthTimeShift?: boolean;
   onSetShowBirthTimeShift?: (show: boolean) => void;
+  // House system
+  houseSystem?: string;
+  onSetHouseSystem?: (system: string) => void;
+  // Custom orbs
+  customAspectOrbs?: Record<string, number>;
+  customPlanetOrbs?: Record<string, number>;
+  onSetCustomAspectOrb?: (aspect: string, orb: number) => void;
+  onSetCustomPlanetOrb?: (planet: string, orb: number) => void;
+  onResetOrbs?: () => void;
+  // Harmonic charts
+  harmonicNumber?: number;
+  onSetHarmonicNumber?: (n: number) => void;
+  // Sidereal zodiac
+  zodiacType?: 'tropical' | 'sidereal';
+  onSetZodiacType?: (type: 'tropical' | 'sidereal') => void;
+  ayanamsaKey?: string;
+  onSetAyanamsaKey?: (key: string) => void;
   // Presets
   presets?: { id: string; name: string }[];
   activePresetId?: string | null;
@@ -102,6 +132,8 @@ interface TogglePanelContentProps {
   onDeletePreset?: (id: string) => void;
   onSavePreset?: (name: string) => void;
   presetsAtLimit?: boolean;
+  // Save current settings as default
+  onSaveAsDefault?: () => void;
 }
 
 interface SectionProps {
@@ -393,6 +425,12 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
   onToggleAsteroidGroup,
   onEnableAllAsteroids,
   onDisableAllAsteroids,
+  // Fixed star group controls
+  enableFixedStars = false,
+  enabledFixedStarGroups = new Set(),
+  onToggleFixedStarGroup,
+  onEnableAllFixedStars,
+  onDisableAllFixedStars,
   // Progressed controls
   enableProgressed = false,
   progressedPerson = null,
@@ -413,15 +451,34 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
   // Display toggles
   showDecans = false,
   onSetShowDecans,
+  degreeSymbolMode = 'sign',
+  onSetDegreeSymbolMode,
   // Aspect line display options
   straightAspects = false,
   onSetStraightAspects,
   showEffects = true,
   onSetShowEffects,
-  // Birth time shift (natal knobs)
+  // Birth time shift (wheel-time knobs)
   enableBirthTimeShift = false,
   showBirthTimeShift = false,
   onSetShowBirthTimeShift,
+  // House system
+  houseSystem = 'whole_sign',
+  onSetHouseSystem,
+  // Custom orbs
+  customAspectOrbs,
+  customPlanetOrbs,
+  onSetCustomAspectOrb,
+  onSetCustomPlanetOrb,
+  onResetOrbs,
+  // Harmonic charts
+  harmonicNumber = 1,
+  onSetHarmonicNumber,
+  // Sidereal zodiac
+  zodiacType = 'tropical',
+  onSetZodiacType,
+  ayanamsaKey = 'lahiri',
+  onSetAyanamsaKey,
   // Presets
   presets,
   activePresetId,
@@ -429,6 +486,7 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
   onDeletePreset,
   onSavePreset,
   presetsAtLimit,
+  onSaveAsDefault,
 }) => {
   const [presetSaveName, setPresetSaveName] = useState('');
   const [showPresetSave, setShowPresetSave] = useState(false);
@@ -462,7 +520,7 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
         />
       )}
 
-      {/* Chart Mode - Transit, Natal Knobs, and Composite controls */}
+      {/* Chart Mode - Transit, Wheel-Time Knobs, and Composite controls */}
       {(enableTransits || enableComposite || enableBirthTimeShift) && (
         <Section title="Chart Mode" defaultOpen={true} isMobile={isMobile}>
           {/* Transit toggle with date picker */}
@@ -577,11 +635,11 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
             </div>
           )}
 
-          {/* Birth time shift (natal knobs) toggle */}
+          {/* Birth time shift (wheel-time knobs) toggle */}
           {enableBirthTimeShift && (
             <div style={{ marginBottom: 8, marginTop: enableTransits ? 8 : 0 }}>
               <Checkbox
-                label="Show Natal Knobs"
+                label="Show Wheel-Time Knobs"
                 checked={showBirthTimeShift}
                 onChange={() => onSetShowBirthTimeShift?.(!showBirthTimeShift)}
                 color="#a78bfa"
@@ -936,6 +994,33 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
           onChange={() => onSetShowHouses(!showHouses)}
           isMobile={isMobile}
         />
+        {showHouses && onSetHouseSystem && (
+          <div style={{ marginLeft: isMobile ? 0 : 20, marginBottom: 8 }}>
+            <select
+              value={houseSystem}
+              onChange={(e) => onSetHouseSystem(e.target.value)}
+              style={{
+                width: '100%',
+                padding: isMobile ? '8px 10px' : '5px 8px',
+                fontSize: isMobile ? 14 : 11,
+                border: `1px solid ${COLORS.gridLineFaint}`,
+                borderRadius: 4,
+                color: COLORS.textSecondary,
+                background: COLORS.background,
+                cursor: 'pointer',
+              }}
+            >
+              <option value="whole_sign">Whole Sign</option>
+              <option value="placidus">Placidus</option>
+              <option value="koch">Koch</option>
+              <option value="equal">Equal</option>
+              <option value="campanus">Campanus</option>
+              <option value="regiomontanus">Regiomontanus</option>
+              <option value="porphyry">Porphyry</option>
+              <option value="topocentric">Topocentric</option>
+            </select>
+          </div>
+        )}
         <Checkbox
           label="Degree Markers"
           checked={showDegreeMarkers}
@@ -953,6 +1038,14 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
             label="Decans"
             checked={showDecans}
             onChange={() => onSetShowDecans(!showDecans)}
+            isMobile={isMobile}
+          />
+        )}
+        {onSetDegreeSymbolMode && (
+          <Checkbox
+            label="Degree Glyphs"
+            checked={degreeSymbolMode === 'spark'}
+            onChange={() => onSetDegreeSymbolMode(degreeSymbolMode === 'spark' ? 'sign' : 'spark')}
             isMobile={isMobile}
           />
         )}
@@ -1121,6 +1214,179 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
         </div>
       </Section>
 
+      {/* Orb Settings */}
+      {onSetCustomAspectOrb && (
+        <Section title="Orb Settings" defaultOpen={false} isMobile={isMobile}>
+          {/* Per-aspect orbs */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: isMobile ? 12 : 10, color: COLORS.textMuted, marginBottom: 6 }}>Aspect Orbs</div>
+            {Object.entries(ASPECTS).filter(([key]) => visibleAspects.has(key as AspectType)).map(([key, def]) => {
+              const current = customAspectOrbs?.[key] ?? def.orb;
+              return (
+                <div key={key} style={{ marginBottom: isMobile ? 10 : 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: isMobile ? 13 : 11, marginBottom: 2 }}>
+                    <span style={{ color: def.color, width: 14, textAlign: 'center' }}>{def.symbol}</span>
+                    <span style={{ flex: 1, color: COLORS.textSecondary }}>{def.name}</span>
+                    <span style={{ fontSize: isMobile ? 13 : 11, fontWeight: 600, color: COLORS.textPrimary, minWidth: 28, textAlign: 'right' }}>{current}°</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0.5}
+                    max={12}
+                    step={0.5}
+                    value={current}
+                    onChange={(e) => onSetCustomAspectOrb(key, parseFloat(e.target.value))}
+                    style={{ width: '100%', accentColor: def.color }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          {/* Per-planet orbs */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: isMobile ? 12 : 10, color: COLORS.textMuted, marginBottom: 6 }}>Planet Orbs</div>
+            {[...PLANET_GROUPS.core, ...PLANET_GROUPS.outer].map(key => {
+              const info = PLANETS[key as keyof typeof PLANETS];
+              if (!info || !visiblePlanets.has(key)) return null;
+              const current = customPlanetOrbs?.[key] ?? PLANET_ORBS[key] ?? 3;
+              return (
+                <div key={key} style={{ marginBottom: isMobile ? 10 : 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: isMobile ? 13 : 11, marginBottom: 2 }}>
+                    <span style={{ color: getThemeAwarePlanetColor(key), width: 14, textAlign: 'center' }}>{info.symbol}</span>
+                    <span style={{ flex: 1, color: COLORS.textSecondary }}>{info.name}</span>
+                    <span style={{ fontSize: isMobile ? 13 : 11, fontWeight: 600, color: COLORS.textPrimary, minWidth: 28, textAlign: 'right' }}>{current}°</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={1}
+                    max={12}
+                    step={0.5}
+                    value={current}
+                    onChange={(e) => onSetCustomPlanetOrb?.(key, parseFloat(e.target.value))}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          {onResetOrbs && (
+            <button onClick={onResetOrbs} style={buttonStyle}>
+              Reset to Defaults
+            </button>
+          )}
+        </Section>
+      )}
+
+      {/* Harmonic Charts */}
+      {onSetHarmonicNumber && (
+        <Section title="Harmonic Charts" defaultOpen={false} isMobile={isMobile}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: isMobile ? 13 : 11, color: COLORS.textSecondary }}>H</span>
+            <input
+              type="number"
+              min={1}
+              max={360}
+              value={harmonicNumber}
+              onChange={(e) => onSetHarmonicNumber(Math.max(1, Math.min(360, parseInt(e.target.value) || 1)))}
+              style={{
+                width: 60,
+                padding: isMobile ? '6px 8px' : '4px 6px',
+                fontSize: isMobile ? 14 : 11,
+                border: `1px solid ${COLORS.gridLineFaint}`,
+                borderRadius: 4,
+                color: COLORS.textPrimary,
+                background: COLORS.background,
+                textAlign: 'center',
+              }}
+            />
+            {harmonicNumber > 1 && (
+              <button onClick={() => onSetHarmonicNumber(1)} style={{ ...buttonStyle, fontSize: isMobile ? 12 : 10 }}>
+                Reset
+              </button>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {[
+              { v: 1, l: 'H1', d: 'Natal' },
+              { v: 5, l: 'H5', d: 'Creativity' },
+              { v: 7, l: 'H7', d: 'Inspiration' },
+              { v: 9, l: 'H9', d: 'Joy' },
+              { v: 12, l: 'H12', d: 'Karma' },
+            ].map(h => (
+              <button
+                key={h.v}
+                onClick={() => onSetHarmonicNumber(h.v)}
+                title={h.d}
+                style={{
+                  ...buttonStyle,
+                  background: harmonicNumber === h.v ? COLORS.textPrimary : COLORS.backgroundAlt2,
+                  color: harmonicNumber === h.v ? COLORS.background : COLORS.textSecondary,
+                  fontWeight: harmonicNumber === h.v ? 600 : 400,
+                }}
+              >
+                {h.l}
+              </button>
+            ))}
+          </div>
+          {harmonicNumber > 1 && (
+            <div style={{ marginTop: 8, fontSize: isMobile ? 11 : 9, color: COLORS.textMuted, padding: '4px 6px', background: COLORS.backgroundAlt, borderRadius: 4 }}>
+              Harmonic {harmonicNumber}: each planet longitude × {harmonicNumber} (mod 360°)
+            </div>
+          )}
+        </Section>
+      )}
+
+      {/* Sidereal Zodiac */}
+      {onSetZodiacType && (
+        <Section title="Zodiac System" defaultOpen={false} isMobile={isMobile}>
+          <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+            {(['tropical', 'sidereal'] as const).map(type => (
+              <button
+                key={type}
+                onClick={() => onSetZodiacType(type)}
+                style={{
+                  ...buttonStyle,
+                  flex: 1,
+                  background: zodiacType === type ? COLORS.textPrimary : COLORS.backgroundAlt2,
+                  color: zodiacType === type ? COLORS.background : COLORS.textSecondary,
+                  fontWeight: zodiacType === type ? 600 : 400,
+                  textTransform: 'capitalize',
+                }}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+          {zodiacType === 'sidereal' && onSetAyanamsaKey && (
+            <>
+              <div style={{ fontSize: isMobile ? 12 : 10, color: COLORS.textMuted, marginBottom: 4 }}>Ayanamsa</div>
+              <select
+                value={ayanamsaKey}
+                onChange={e => onSetAyanamsaKey(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: isMobile ? '10px 8px' : '5px 6px',
+                  fontSize: isMobile ? 13 : 11,
+                  background: COLORS.backgroundAlt2,
+                  color: COLORS.textPrimary,
+                  border: `1px solid ${COLORS.gridLineFaint}`,
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  marginBottom: 8,
+                }}
+              >
+                {AYANAMSA_SYSTEMS.map(sys => (
+                  <option key={sys.key} value={sys.key}>{sys.name}</option>
+                ))}
+              </select>
+              <div style={{ fontSize: isMobile ? 11 : 9, color: COLORS.textMuted, padding: '4px 6px', background: COLORS.backgroundAlt, borderRadius: 4 }}>
+                Sidereal positions shifted by ~{AYANAMSA_SYSTEMS.find(s => s.key === ayanamsaKey)?.epoch2000.toFixed(1) ?? '?'}° ({ayanamsaKey})
+              </div>
+            </>
+          )}
+        </Section>
+      )}
+
       {/* Extended Asteroids */}
       {enableAsteroids && onToggleAsteroidGroup && (
         <Section title="Extended Asteroids" defaultOpen={false} isMobile={isMobile}>
@@ -1185,6 +1451,83 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
                 </div>
                 <div style={isMobile ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 } : {}}>
                   {groupAsteroids.map(([key, def]) => (
+                    <Checkbox
+                      key={key}
+                      label={def.name}
+                      checked={visiblePlanets.has(key)}
+                      onChange={() => onTogglePlanet(key)}
+                      color={def.color}
+                      isMobile={isMobile}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </Section>
+      )}
+
+      {/* Fixed Stars */}
+      {enableFixedStars && onToggleFixedStarGroup && (
+        <Section title="Fixed Stars" defaultOpen={false} isMobile={isMobile}>
+          {/* Quick toggles */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            <button onClick={onEnableAllFixedStars} style={buttonStyle}>
+              All
+            </button>
+            <button onClick={onDisableAllFixedStars} style={buttonStyle}>
+              Clear
+            </button>
+          </div>
+
+          {/* Group toggle buttons */}
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr', gap: 6, marginBottom: 12 }}>
+            {(Object.entries(FIXED_STAR_GROUP_INFO) as [FixedStarGroup, { name: string; color: string; icon: string }][]).map(([groupKey, info]) => {
+              const isEnabled = enabledFixedStarGroups.has(groupKey);
+              const groupStars = FIXED_STAR_GROUPS[groupKey] || [];
+              return (
+                <button
+                  key={groupKey}
+                  onClick={() => onToggleFixedStarGroup(groupKey)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: isMobile ? '10px 12px' : '6px 8px',
+                    fontSize: isMobile ? 13 : 11,
+                    background: isEnabled ? info.color + '20' : COLORS.backgroundAlt2,
+                    color: isEnabled ? info.color : COLORS.textSecondary,
+                    border: `1px solid ${isEnabled ? info.color + '60' : COLORS.gridLineFaint}`,
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    fontWeight: isEnabled ? 600 : 400,
+                    textAlign: 'left' as const,
+                  }}
+                >
+                  <span style={{ fontSize: isMobile ? 16 : 14 }}>{info.icon}</span>
+                  <span style={{ flex: 1 }}>{info.name}</span>
+                  <span style={{ fontSize: isMobile ? 11 : 9, opacity: 0.6 }}>{groupStars.length}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Individual star checkboxes by group */}
+          {(Object.entries(FIXED_STAR_GROUP_INFO) as [FixedStarGroup, { name: string; color: string; icon: string }][]).map(([groupKey, groupInfo]) => {
+            const groupStars = Object.entries(FIXED_STARS).filter(([_, def]) => def.group === groupKey);
+            if (groupStars.length === 0) return null;
+            return (
+              <div key={groupKey} style={{ marginBottom: 8 }}>
+                <div style={{
+                  fontSize: isMobile ? 12 : 9,
+                  color: groupInfo.color,
+                  marginBottom: 4,
+                  fontWeight: 600,
+                }}>
+                  {groupInfo.icon} {groupInfo.name}
+                </div>
+                <div style={isMobile ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 } : {}}>
+                  {groupStars.map(([key, def]) => (
                     <Checkbox
                       key={key}
                       label={def.name}
@@ -1329,6 +1672,31 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
             </div>
           )}
         </Section>
+      )}
+
+      {/* Save as Default */}
+      {onSaveAsDefault && (
+        <div style={{ marginTop: 8, marginBottom: 12, paddingTop: 8, borderTop: `1px solid ${COLORS.gridLineFaint}` }}>
+          <button
+            onClick={onSaveAsDefault}
+            style={{
+              width: '100%',
+              padding: isMobile ? '10px 8px' : '6px 8px',
+              fontSize: isMobile ? 13 : 11,
+              fontWeight: 600,
+              background: COLORS.backgroundAlt2,
+              border: `1px solid ${COLORS.gridLineFaint}`,
+              borderRadius: 4,
+              color: COLORS.textPrimary,
+              cursor: 'pointer',
+            }}
+          >
+            Save as Default
+          </button>
+          <div style={{ fontSize: isMobile ? 11 : 9, color: COLORS.textMuted, marginTop: 4, textAlign: 'center' }}>
+            New charts will use these settings
+          </div>
+        </div>
       )}
 
     </div>

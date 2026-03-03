@@ -4,6 +4,9 @@
  * Auth required (host only). Downloads audio chunks in parallel,
  * concatenates them, uploads the merged file, cleans up chunks,
  * then invokes session-transcribe for stage 2.
+ *
+ * Accepts `skip_transcription` boolean — if true, skips Deepgram
+ * transcription and marks session as ready with audio only.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -65,7 +68,7 @@ serve(async (req) => {
       userId = user.id;
     }
 
-    const { session_id } = await req.json();
+    const { session_id, skip_transcription } = await req.json();
     parsedSessionId = session_id;
     if (!session_id) {
       return new Response(JSON.stringify({ error: "session_id required" }), {
@@ -129,7 +132,7 @@ serve(async (req) => {
 
     for (let i = 0; i < chunks.length; i += PARALLEL_DOWNLOADS) {
       const batch = chunks.slice(i, i + PARALLEL_DOWNLOADS);
-      const results = await Promise.allSettled(
+      await Promise.allSettled(
         batch.map(async (chunk, batchIdx) => {
           const { data: fileData, error: dlError } = await supabase.storage
             .from("session-recordings")
@@ -182,6 +185,31 @@ serve(async (req) => {
       throw new Error(`Merged upload failed: ${uploadError.message}`);
     }
 
+    // ── Cleanup chunk files ────────────────────────────────
+    try {
+      const chunkPaths = chunks.map((c: { storage_path: string }) => c.storage_path);
+      await supabase.storage.from("session-recordings").remove(chunkPaths);
+    } catch {
+      // Non-critical
+    }
+
+    // ── Skip transcription if requested ────────────────────
+    if (skip_transcription) {
+      await supabase
+        .from("astrologer_sessions")
+        .update({
+          status: "ready",
+          audio_status: "skipped",
+          audio_storage_path: mergedPath,
+        })
+        .eq("id", session_id);
+
+      return new Response(
+        JSON.stringify({ success: true, stage: "merge_complete_no_transcription", chunks: chunks.length }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // ── Update session with audio path ─────────────────────
     await supabase
       .from("astrologer_sessions")
@@ -190,14 +218,6 @@ serve(async (req) => {
         audio_storage_path: mergedPath,
       })
       .eq("id", session_id);
-
-    // ── Cleanup chunk files ────────────────────────────────
-    try {
-      const chunkPaths = chunks.map((c: { storage_path: string }) => c.storage_path);
-      await supabase.storage.from("session-recordings").remove(chunkPaths);
-    } catch {
-      // Non-critical
-    }
 
     // ── Chain to Stage 2: Transcribe ───────────────────────
     const fnUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/astrologer-session-transcribe`;

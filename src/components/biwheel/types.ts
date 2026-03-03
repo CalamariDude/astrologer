@@ -222,6 +222,8 @@ export interface BiWheelSynastryProps {
   onZodiacVantageChange?: (vantage: number | null) => void;
   // Asteroids data fetch callback - called when asteroid groups are enabled to fetch positions
   onFetchAsteroidData?: (asteroids: string[]) => Promise<{ chartA: Record<string, any>; chartB: Record<string, any> }>;
+  // Fixed stars data fetch callback - called when fixed star groups are enabled
+  onFetchFixedStarData?: () => Promise<{ chartA: Record<string, any>; chartB: Record<string, any> }>;
   // Full state change callback — fires whenever any chart setting changes (for session broadcast)
   onInternalStateChange?: (state: Record<string, any>) => void;
   // Birth time shift (rectification) props
@@ -233,6 +235,26 @@ export interface BiWheelSynastryProps {
   onShowBirthTimeShiftChange?: (show: boolean) => void;
   onTimeShiftAChange?: (offset: number) => void;
   onTimeShiftBChange?: (offset: number) => void;
+  // House system for non-Whole-Sign rendering
+  houseSystem?: string;
+  birthLatA?: number;
+  birthLatB?: number;
+  onHouseSystemChange?: (system: string) => void;
+  onRefetchWithHouseSystem?: (system: string) => Promise<void>;
+  // Custom orbs
+  customAspectOrbs?: Record<string, number>;
+  customPlanetOrbs?: Record<string, number>;
+  onCustomAspectOrbChange?: (aspect: string, orb: number) => void;
+  onCustomPlanetOrbChange?: (planet: string, orb: number) => void;
+  onResetOrbs?: () => void;
+  // Harmonic charts
+  harmonicNumber?: number;
+  onHarmonicNumberChange?: (n: number) => void;
+  // Sidereal zodiac
+  zodiacType?: 'tropical' | 'sidereal';
+  onZodiacTypeChange?: (type: 'tropical' | 'sidereal') => void;
+  ayanamsaKey?: string;
+  onAyanamsaKeyChange?: (key: string) => void;
 }
 
 // Available asteroid groups - matches constants.ts ASTEROIDS groups
@@ -250,6 +272,21 @@ export const ASTEROID_GROUPS = {
 
 export type AsteroidGroup = keyof typeof ASTEROID_GROUPS;
 
+// Available fixed star groups
+export const FIXED_STAR_GROUPS = {
+  royal: ['aldebaran', 'regulus', 'antares', 'fomalhaut'],
+  bright: ['sirius', 'spica', 'arcturus', 'vega', 'rigel', 'betelgeuse', 'canopus', 'capella', 'castor', 'pollux', 'procyon', 'deneb', 'altair', 'achernar'],
+  notable: ['algol', 'alcyone', 'bellatrix', 'denebola', 'el_nath', 'hamal', 'markab', 'menkar', 'mirach', 'nunki', 'ras_alhague', 'scheat', 'vindemiatrix', 'zosma', 'zubeneschamali', 'zubenelgenubi'],
+  minor: ['sadalmelik', 'sadalsuud', 'toliman', 'unukalhai', 'alnilam', 'alnitak', 'mintaka'],
+} as const;
+
+export type FixedStarGroup = keyof typeof FIXED_STAR_GROUPS;
+
+// Set of all fixed star keys (for filtering)
+export const ALL_FIXED_STAR_KEYS = new Set(
+  Object.values(FIXED_STAR_GROUPS).flat()
+);
+
 // Biwheel state
 export interface BiWheelState {
   visiblePlanets: Set<string>;
@@ -258,6 +295,7 @@ export interface BiWheelState {
   showDegreeMarkers: boolean;
   showRetrogrades: boolean;
   showDecans: boolean;
+  degreeSymbolMode: 'sign' | 'spark';  // 'sign' = zodiac sign glyph, 'spark' = degree-based parity glyph
   hoveredPlanet: { planet: string; chart: 'A' | 'B' | 'Transit' | 'Progressed' | 'Composite' } | null;
   selectedAspect: SynastryAspect | null;
   selectedPlanet: { planet: string; chart: 'A' | 'B' | 'Transit' | 'Progressed' | 'Composite' } | null;
@@ -290,6 +328,8 @@ export interface BiWheelState {
   showLocationPicker: boolean;
   // Asteroids state
   enabledAsteroidGroups: Set<AsteroidGroup>;
+  // Fixed stars state
+  enabledFixedStarGroups: Set<FixedStarGroup>;
   // Solar Arc state (derived from progressed Sun)
   showSolarArc: boolean;
   // Aspect line display options

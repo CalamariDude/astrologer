@@ -7,8 +7,12 @@ const corsHeaders = {
 };
 
 const XAI_API_KEY = Deno.env.get("XAI_API_KEY") || Deno.env.get("COSMOSIS_GROK_API_KEY")!;
-const FREE_AI_LIMIT = 3;
-const PAID_AI_LIMIT = 1000;
+const TIER_AI_LIMITS: Record<string, number> = {
+  lite: 3,
+  horoscope: 3,
+  astrologer: 100,
+  professional: 300,
+};
 const SEPARATOR = "---TECHNICAL---";
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
@@ -42,32 +46,45 @@ ${JSON.stringify(chartSummary, null, 2)}
 
 Return the JSON array of planet keys to analyze.`;
 
-  const response = await fetch("https://api.x.ai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${XAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "grok-4-1-fast",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.3,
-      max_tokens: 100,
-      stream: false,
-    }),
-  });
+  let content = "[]";
+  const maxRetries = 3;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const response = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${XAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "grok-4-1-fast",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.3,
+        max_tokens: 100,
+        stream: false,
+      }),
+    });
 
-  if (!response.ok) {
+    if (response.ok) {
+      const result = await response.json();
+      content = result.choices?.[0]?.message?.content || "[]";
+      break;
+    }
+
     const errorText = await response.text();
-    console.error("Grok phase0 error:", response.status, errorText);
-    throw new Error(`Grok phase0 API error: ${response.status}`);
-  }
+    console.error(`Grok phase0 error (attempt ${attempt + 1}/${maxRetries}):`, response.status, errorText);
 
-  const result = await response.json();
-  const content = result.choices?.[0]?.message?.content || "[]";
+    if ((response.status === 429 || response.status >= 500) && attempt < maxRetries - 1) {
+      const delay = Math.pow(2, attempt) * 1000 + Math.random() * 500;
+      await new Promise(r => setTimeout(r, delay));
+      continue;
+    }
+
+    // Non-retryable or last attempt — fall back to defaults
+    return ["sun", "moon", "venus"];
+  }
 
   const jsonMatch = content.match(/\[[\s\S]*?\]/);
   if (!jsonMatch) return ["sun", "moon", "venus"];
@@ -270,32 +287,48 @@ ${JSON.stringify(vantage, null, 2)}
 
 Analyze this energy pattern thoroughly.`;
 
-  const response = await fetch("https://api.x.ai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${XAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "grok-4-1-fast",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.6,
-      max_tokens: 2000,
-      stream: false,
-    }),
-  });
+  const maxRetries = 3;
+  let lastError = "";
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const response = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${XAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "grok-4-1-fast",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.6,
+        max_tokens: 2000,
+        stream: false,
+      }),
+    });
 
-  if (!response.ok) {
+    if (response.ok) {
+      const result = await response.json();
+      return result.choices?.[0]?.message?.content || "";
+    }
+
     const errText = await response.text();
-    console.error(`Vantage analysis error for ${vantage.planet?.planet}:`, response.status, errText);
-    throw new Error(`AI vantage analysis error: ${response.status}`);
+    lastError = `${response.status}: ${errText}`;
+    console.error(`Vantage analysis error for ${vantage.planet?.planet} (attempt ${attempt + 1}/${maxRetries}):`, response.status, errText);
+
+    // Retry on rate limit (429) or server errors (5xx)
+    if (response.status === 429 || response.status >= 500) {
+      const delay = Math.pow(2, attempt) * 1000 + Math.random() * 500;
+      await new Promise(r => setTimeout(r, delay));
+      continue;
+    }
+
+    // Non-retryable error
+    break;
   }
 
-  const result = await response.json();
-  return result.choices?.[0]?.message?.content || "";
+  throw new Error(`AI vantage analysis error: ${lastError}`);
 }
 
 // ─── Main Handler ─────────────────────────────────────────────────
@@ -347,6 +380,11 @@ serve(async (req) => {
 
     const { trees, treesB, question, readingFocus, personName, personNameB } = body;
 
+    // Detect entity type — company charts use "CompanyName (Incorporation)" format
+    const companyMatchA = personName?.match(/^(.+?)\s*\((Incorporation|IPO|Founded|Launch|Listing|Merger|Rebrand)\)$/i);
+    const isCompanyChart = !!companyMatchA;
+    const entityNameA = companyMatchA ? companyMatchA[1].trim() : personName;
+
     if (!trees && body.chartData) {
       return jsonResponse({ error: "Please update the app to use the new reading system." });
     }
@@ -364,7 +402,7 @@ serve(async (req) => {
     let profile: any = null;
     const { data: fullProfile, error: profileErr } = await adminSupabase
       .from("astrologer_profiles")
-      .select("subscription_status, trial_ends_at, ai_credits_used, ai_credits_reset_at")
+      .select("subscription_status, subscription_tier, trial_ends_at, ai_credits_used, ai_credits_reset_at")
       .eq("id", verifiedUser.id)
       .single();
 
@@ -372,7 +410,7 @@ serve(async (req) => {
       console.warn("Full profile query failed, trying basic:", profileErr.message);
       const { data: basicProfile } = await adminSupabase
         .from("astrologer_profiles")
-        .select("subscription_status, trial_ends_at")
+        .select("subscription_status, subscription_tier, trial_ends_at")
         .eq("id", verifiedUser.id)
         .single();
       profile = basicProfile ? { ...basicProfile, ai_credits_used: 0, ai_credits_reset_at: null } : null;
@@ -384,14 +422,13 @@ serve(async (req) => {
       await adminSupabase.from("astrologer_profiles").upsert({
         id: verifiedUser.id,
         subscription_status: "free",
+        subscription_tier: "lite",
       }, { onConflict: "id" });
-      profile = { subscription_status: "free", trial_ends_at: null, ai_credits_used: 0, ai_credits_reset_at: null };
+      profile = { subscription_status: "free", subscription_tier: "lite", trial_ends_at: null, ai_credits_used: 0, ai_credits_reset_at: null };
     }
 
-    const isPaid = profile.subscription_status === "active" ||
-      (profile.subscription_status === "trialing" && profile.trial_ends_at && new Date(profile.trial_ends_at) > new Date());
-
-    const limit = isPaid ? PAID_AI_LIMIT : FREE_AI_LIMIT;
+    const tier = profile.subscription_tier || "lite";
+    const limit = TIER_AI_LIMITS[tier] ?? TIER_AI_LIMITS.lite;
 
     const resetAt = new Date(profile.ai_credits_reset_at || "2000-01-01");
     const monthStart = new Date();
@@ -410,11 +447,12 @@ serve(async (req) => {
     }
 
     if (creditsUsed >= limit) {
+      const tierLabel = tier === "lite" ? "Lite" : tier === "astrologer" ? "Astrologer" : "Professional";
       return jsonResponse({
         error: "credit_limit",
-        message: isPaid
-          ? `You've used all ${PAID_AI_LIMIT} AI readings this month. Credits reset on the 1st.`
-          : `Free accounts get ${FREE_AI_LIMIT} AI readings per month. Upgrade to Pro for ${PAID_AI_LIMIT}/month.`,
+        message: tier === "lite"
+          ? `Free accounts get ${limit} AI readings per month. Upgrade for more.`
+          : `You've used all ${limit} AI readings this month (${tierLabel} plan). Credits reset on the 1st.`,
         credits_used: creditsUsed,
         credits_limit: limit,
       });
@@ -512,6 +550,36 @@ RULES FOR THE TECHNICAL SECTION (after ${SEPARATOR}):
 - Structure with ## headers per perspective
 - Note tight cross-chart aspects with orbs
 - Be concise but thorough`;
+    } else if (isCompanyChart) {
+      synthesisSystemPrompt = `You are a sharp business/financial astrology analyst. You have access to detailed analysis of ${entityNameA}'s incorporation/founding chart — the planetary patterns that reveal the company's DNA, strengths, vulnerabilities, and timing cycles.
+
+You produce TWO sections in this exact format:
+
+[Plain language business analysis — all the rules below apply to this section.
+Write in flowing paragraphs about the company's nature, strategy, and outlook.]
+
+${SEPARATOR}
+
+[Technical mundane/financial astrology summary. Use proper planet names,
+sign names, house numbers (with business meanings), aspect types.
+Structure with markdown headers per major theme. Be concise but precise.]
+
+RULES FOR THE READING SECTION (before ${SEPARATOR}):
+- NEVER use astrology terminology: no planet names, no sign names, no house numbers, no aspect names
+- Translate everything into business/corporate language about ${entityNameA}
+- Reference the company by name: "${entityNameA}" — NOT "you" or "this person"
+- Map planets to business functions: Sun=brand identity, Moon=culture/sentiment, Mercury=communications/tech, Venus=brand appeal/partnerships, Mars=competitive strategy, Jupiter=expansion, Saturn=regulation/structure, Uranus=disruption/innovation, Neptune=brand mystique/scandals, Pluto=power dynamics/M&A
+- Map houses to business areas: H1=brand, H2=revenue, H3=PR/comms, H4=HQ/culture, H5=products, H6=operations, H7=partnerships/competitors, H8=debt/M&A, H9=international/legal, H10=market position, H11=shareholders, H12=hidden risks
+- Use behavioral micro-scenarios from business: "${entityNameA} is the kind of company that..." / "When competitors move aggressively, ${entityNameA} tends to..."
+- NO preamble. Start directly with insights about the company.
+- NO closing summary paragraph.
+
+RULES FOR THE TECHNICAL SECTION (after ${SEPARATOR}):
+- Use full astrological terminology with business interpretation
+- Structure with ## headers per major theme
+- Include specific placements mapped to business meaning
+- Note significant aspects with orbs
+- Be concise but thorough`;
     } else {
       synthesisSystemPrompt = `You are a wise, perceptive advisor who understands people deeply. You have access to detailed analysis of this person's inner patterns — personality layers, emotional tendencies, relationship dynamics, career drives, and life timing.
 
@@ -586,11 +654,14 @@ RULES FOR THE TECHNICAL SECTION (after ${SEPARATOR}):
           );
 
           const analysisPromises = vantagesWithContext.map(({ vantage, category, hasTransits, derived, synastryCtx, label }, idx) =>
-            analyzeVantage(vantage, category, hasTransits, derived, synastryCtx).then(analysis => ({
-              planet: label || vantage.planet?.planet || `vantage_${idx}`,
-              analysis,
-              index: idx,
-            }))
+            // Stagger requests by 200ms each to avoid rate limits
+            new Promise(r => setTimeout(r, idx * 200)).then(() =>
+              analyzeVantage(vantage, category, hasTransits, derived, synastryCtx).then(analysis => ({
+                planet: label || vantage.planet?.planet || `vantage_${idx}`,
+                analysis,
+                index: idx,
+              }))
+            )
           );
 
           const vantageAnalyses: { planet: string; analysis: string }[] = [];
@@ -694,28 +765,38 @@ NOTE: Current timing data is included in the analyses. Ground your answer in wha
             encoder.encode(`data: ${JSON.stringify({ phase: "synthesizing" })}\n\n`)
           );
 
-          // Stream synthesis from Grok
-          const grokResponse = await fetch("https://api.x.ai/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${XAI_API_KEY}`,
-            },
-            body: JSON.stringify({
-              model: "grok-4-1-fast",
-              messages: [
-                { role: "system", content: synthesisSystemPrompt },
-                { role: "user", content: synthesisUserPrompt },
-              ],
-              temperature: 0.7,
-              max_tokens: 8000,
-              stream: true,
-            }),
-          });
+          // Stream synthesis from Grok (with retry for rate limits)
+          let grokResponse: Response | null = null;
+          for (let attempt = 0; attempt < 3; attempt++) {
+            grokResponse = await fetch("https://api.x.ai/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${XAI_API_KEY}`,
+              },
+              body: JSON.stringify({
+                model: "grok-4-1-fast",
+                messages: [
+                  { role: "system", content: synthesisSystemPrompt },
+                  { role: "user", content: synthesisUserPrompt },
+                ],
+                temperature: 0.7,
+                max_tokens: 8000,
+                stream: true,
+              }),
+            });
 
-          if (!grokResponse.ok) {
+            if (grokResponse.ok) break;
+
             const errText = await grokResponse.text();
-            console.error("Synthesis error:", grokResponse.status, errText);
+            console.error(`Synthesis error (attempt ${attempt + 1}/3):`, grokResponse.status, errText);
+
+            if ((grokResponse.status === 429 || grokResponse.status >= 500) && attempt < 2) {
+              const delay = Math.pow(2, attempt) * 1000 + Math.random() * 500;
+              await new Promise(r => setTimeout(r, delay));
+              continue;
+            }
+
             throw new Error(`AI synthesis error: ${grokResponse.status}`);
           }
 

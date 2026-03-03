@@ -106,10 +106,12 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
 async function updateProfile(userId: string, subscription: Stripe.Subscription) {
   const status = mapStripeStatus(subscription.status);
   const plan = determinePlan(subscription);
+  const tier = determineTier(subscription);
 
   const update: Record<string, any> = {
     subscription_status: status,
     subscription_plan: plan,
+    subscription_tier: tier,
     stripe_subscription_id: subscription.id,
   };
 
@@ -158,6 +160,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     .update({
       subscription_status: "canceled",
       subscription_plan: null,
+      subscription_tier: "lite",
       stripe_subscription_id: null,
     })
     .eq("id", userId);
@@ -194,4 +197,33 @@ function determinePlan(subscription: Stripe.Subscription): string | null {
   if (interval === "year") return "annual";
   if (interval === "month") return "monthly";
   return "monthly";
+}
+
+// Horoscope tier price IDs (env vars)
+const HOROSCOPE_PRICE_IDS = new Set([
+  Deno.env.get("COSMOSIS_STRIPE_HOROSCOPE_MONTHLY_PRICE_ID"),
+  Deno.env.get("COSMOSIS_STRIPE_HOROSCOPE_ANNUAL_PRICE_ID"),
+  Deno.env.get("COSMOSIS_STRIPE_HOROSCOPE_MONTHLY_PRICE_ID_TEST"),
+  Deno.env.get("COSMOSIS_STRIPE_HOROSCOPE_ANNUAL_PRICE_ID_TEST"),
+].filter(Boolean));
+
+// Astrologer tier price IDs (env vars)
+const ASTROLOGER_PRICE_IDS = new Set([
+  Deno.env.get("COSMOSIS_STRIPE_ASTROLOGER_MONTHLY_PRICE_ID"),
+  Deno.env.get("COSMOSIS_STRIPE_ASTROLOGER_ANNUAL_PRICE_ID"),
+  Deno.env.get("COSMOSIS_STRIPE_ASTROLOGER_MONTHLY_PRICE_ID_TEST"),
+  Deno.env.get("COSMOSIS_STRIPE_ASTROLOGER_ANNUAL_PRICE_ID_TEST"),
+].filter(Boolean));
+
+function determineTier(subscription: Stripe.Subscription): string {
+  const priceId = subscription.items?.data?.[0]?.price?.id;
+  // Check horoscope first (lowest paid tier)
+  if (priceId && HOROSCOPE_PRICE_IDS.has(priceId)) return "horoscope";
+  if (priceId && ASTROLOGER_PRICE_IDS.has(priceId)) return "astrologer";
+  // Check metadata fallback
+  const metaTier = subscription.metadata?.tier;
+  if (metaTier === "horoscope") return "horoscope";
+  if (metaTier === "astrologer") return "astrologer";
+  // Default to professional for backward compat (existing subs)
+  return "professional";
 }

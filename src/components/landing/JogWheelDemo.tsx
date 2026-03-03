@@ -4,7 +4,7 @@
  * Fully client-side: hardcoded base positions + deterministic daily motion rates.
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, memo } from 'react';
 import { TransitJogWheel } from '@/components/biwheel/controls/TransitJogWheel';
 import { longitudeToXY, createSegmentPath } from '@/components/biwheel/utils/chartMath';
 import { ZODIAC_SIGNS, PLANETS } from '@/components/biwheel/utils/constants';
@@ -100,7 +100,7 @@ const EL: Record<string, { fill: string; sym: string }> = {
 
 // ─── SVG Chart ──────────────────────────────────────────────────────────
 
-function MiniChart({ positions, aspects }: { positions: Record<string, number>; aspects: Aspect[] }) {
+const MiniChart = memo(function MiniChart({ positions, aspects }: { positions: Record<string, number>; aspects: Aspect[] }) {
   return (
     <svg
       width={SIZE}
@@ -197,26 +197,29 @@ function MiniChart({ positions, aspects }: { positions: Record<string, number>; 
         const lng = positions[key];
         const planet = PLANETS[key];
         const pos = longitudeToXY(lng, CX, CY, PLANET_R);
-        const ease = 'cubic-bezier(0.4, 0, 0.2, 1)';
-        const dur = '0.5s';
         return (
-          <g key={key}>
+          <g
+            key={key}
+            style={{
+              transform: `translate(${pos.x}px, ${pos.y}px)`,
+              transition: 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+          >
             {/* Background disc */}
             <circle
-              cx={pos.x}
-              cy={pos.y}
+              cx={0}
+              cy={0}
               r={12}
               fill="white"
               stroke={planet.color}
               strokeWidth={0.6}
               opacity={0.9}
               filter="url(#jd-shadow)"
-              style={{ transition: `cx ${dur} ${ease}, cy ${dur} ${ease}` }}
             />
             {/* Symbol */}
             <text
-              x={pos.x}
-              y={pos.y}
+              x={0}
+              y={0}
               dy={1}
               textAnchor="middle"
               dominantBaseline="central"
@@ -224,7 +227,7 @@ function MiniChart({ positions, aspects }: { positions: Record<string, number>; 
               fontSize={12}
               fontWeight={500}
               fontFamily="'Times New Roman', serif"
-              style={{ pointerEvents: 'none', transition: `x ${dur} ${ease}, y ${dur} ${ease}` }}
+              style={{ pointerEvents: 'none' }}
             >
               {planet.symbol}
             </text>
@@ -233,7 +236,7 @@ function MiniChart({ positions, aspects }: { positions: Record<string, number>; 
       })}
     </svg>
   );
-}
+});
 
 // ─── Date formatting ────────────────────────────────────────────────────
 

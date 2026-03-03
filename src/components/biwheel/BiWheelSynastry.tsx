@@ -27,8 +27,8 @@ import { TransitRing } from './layers/TransitRing';
 // ProgressedRing no longer used - progressed planets are integrated into effectiveChart
 import { DecanRing } from './layers/DecanRing';
 import { AspectGrid } from './layers/AspectGrid';
-import type { PlanetDisplayPositions, TransitData, CompositeData, ChartMode, ProgressedData, RelocatedData, LocationData, AsteroidGroup } from './types';
-import { ASTEROID_GROUPS } from './types';
+import type { PlanetDisplayPositions, TransitData, CompositeData, ChartMode, ProgressedData, RelocatedData, LocationData, AsteroidGroup, FixedStarGroup } from './types';
+import { ASTEROID_GROUPS, FIXED_STAR_GROUPS } from './types';
 // Lazy-load LocationPicker — Leaflet is ~4MB, only needed when relocate modal opens
 const LocationPicker = React.lazy(() => import('./controls/LocationPicker').then(m => ({ default: m.LocationPicker })));
 import { useAuth } from '@/contexts/AuthContext';
@@ -58,9 +58,11 @@ interface SavedChartDefaults {
   showDegreeMarkers: boolean;
   showRetrogrades: boolean;
   showDecans: boolean;
+  degreeSymbolMode?: 'sign' | 'spark';
   rotateToAscendant: boolean;
   chartTheme: string;
   enabledAsteroidGroups: string[];
+  enabledFixedStarGroups?: string[];
   straightAspects?: boolean;
   showEffects?: boolean;
 }
@@ -393,6 +395,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   onZodiacVantageChange,
   // Asteroids data fetch
   onFetchAsteroidData,
+  // Fixed stars data fetch
+  onFetchFixedStarData,
   // Initial enabled asteroid groups (from parent wrapper on remount)
   initialEnabledAsteroidGroups,
   // Initial display toggles (from parent wrapper for session sync)
@@ -409,6 +413,25 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   onShowBirthTimeShiftChange,
   onTimeShiftAChange,
   onTimeShiftBChange,
+  // House system
+  houseSystem,
+  birthLatA,
+  birthLatB,
+  onHouseSystemChange,
+  // Custom orbs
+  customAspectOrbs,
+  customPlanetOrbs,
+  onCustomAspectOrbChange,
+  onCustomPlanetOrbChange,
+  onResetOrbs,
+  // Harmonic charts
+  harmonicNumber,
+  onHarmonicNumberChange,
+  // Sidereal zodiac
+  zodiacType,
+  onZodiacTypeChange,
+  ayanamsaKey,
+  onAyanamsaKeyChange,
 }) => {
   // Subscription gating for astrocartography
   const { user } = useAuth();
@@ -432,6 +455,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     showDegreeMarkers: savedDefaults ? savedDefaults.showDegreeMarkers : initialShowDegreeMarkers,
     showRetrogrades: initialShowRetrogrades ?? savedDefaults?.showRetrogrades ?? true,
     showDecans: initialShowDecans ?? savedDefaults?.showDecans ?? false,
+    degreeSymbolMode: savedDefaults?.degreeSymbolMode ?? 'sign',
     hoveredPlanet: null,
     selectedAspect: null,
     selectedPlanet: null,
@@ -463,6 +487,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     showLocationPicker: false,
     // Asteroids state
     enabledAsteroidGroups: initialEnabledAsteroidGroups || (savedDefaults?.enabledAsteroidGroups ? new Set(savedDefaults.enabledAsteroidGroups as AsteroidGroup[]) : new Set<AsteroidGroup>()),
+    // Fixed stars state
+    enabledFixedStarGroups: savedDefaults?.enabledFixedStarGroups ? new Set(savedDefaults.enabledFixedStarGroups as FixedStarGroup[]) : new Set<FixedStarGroup>(),
     // Solar Arc state (derived from progressed Sun - mutually exclusive with progressed)
     showSolarArc: initialShowSolarArc || false,
     // Aspect line display options
@@ -748,6 +774,10 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   const [asteroidData, setAsteroidData] = useState<{ chartA: Record<string, any>; chartB: Record<string, any> } | null>(null);
   const [asteroidLoading, setAsteroidLoading] = useState(false);
 
+  // Fixed star data state - stores fetched fixed star positions
+  const [fixedStarData, setFixedStarData] = useState<{ chartA: Record<string, any>; chartB: Record<string, any> } | null>(null);
+  const [fixedStarLoading, setFixedStarLoading] = useState(false);
+
   // Sync chartMode when initialChartMode prop changes
   useEffect(() => {
     setState(prev => ({ ...prev, chartMode: initialChartMode }));
@@ -903,6 +933,32 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
     fetchData();
   }, [computedAsteroids, onFetchAsteroidData]);
+
+  // Fetch fixed star data when any fixed star group is enabled
+  useEffect(() => {
+    if (state.enabledFixedStarGroups.size === 0) {
+      setFixedStarData(null);
+      return;
+    }
+    // Already fetched - no need to re-fetch (fixed stars don't change per group)
+    if (fixedStarData) return;
+    if (!onFetchFixedStarData) return;
+
+    const fetchStars = async () => {
+      setFixedStarLoading(true);
+      try {
+        const data = await onFetchFixedStarData();
+        if (Object.keys(data.chartA || {}).length > 0 || Object.keys(data.chartB || {}).length > 0) {
+          setFixedStarData(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch fixed star data:', error);
+      } finally {
+        setFixedStarLoading(false);
+      }
+    };
+    fetchStars();
+  }, [state.enabledFixedStarGroups.size, onFetchFixedStarData, fixedStarData]);
 
   // Fetch transits when showTransits is enabled or transitDate/transitTime changes
   useEffect(() => {
@@ -1338,6 +1394,52 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     });
   }, []);
 
+  // Fixed star group handlers - toggle visibility
+  const toggleFixedStarGroup = useCallback((group: FixedStarGroup) => {
+    setState(prev => {
+      const nextGroups = new Set(prev.enabledFixedStarGroups);
+      const nextPlanets = new Set(prev.visiblePlanets);
+      const stars = FIXED_STAR_GROUPS[group];
+
+      if (nextGroups.has(group)) {
+        nextGroups.delete(group);
+        for (const star of stars) { nextPlanets.delete(star); }
+      } else {
+        nextGroups.add(group);
+        for (const star of stars) { nextPlanets.add(star); }
+      }
+      return { ...prev, enabledFixedStarGroups: nextGroups, visiblePlanets: nextPlanets };
+    });
+  }, []);
+
+  const enableAllFixedStars = useCallback(() => {
+    setState(prev => {
+      const nextPlanets = new Set(prev.visiblePlanets);
+      for (const group of Object.keys(FIXED_STAR_GROUPS) as FixedStarGroup[]) {
+        for (const star of FIXED_STAR_GROUPS[group]) { nextPlanets.add(star); }
+      }
+      return {
+        ...prev,
+        enabledFixedStarGroups: new Set(Object.keys(FIXED_STAR_GROUPS) as FixedStarGroup[]),
+        visiblePlanets: nextPlanets,
+      };
+    });
+  }, []);
+
+  const disableAllFixedStars = useCallback(() => {
+    setState(prev => {
+      const nextPlanets = new Set(prev.visiblePlanets);
+      for (const group of Object.keys(FIXED_STAR_GROUPS) as FixedStarGroup[]) {
+        for (const star of FIXED_STAR_GROUPS[group]) { nextPlanets.delete(star); }
+      }
+      return {
+        ...prev,
+        enabledFixedStarGroups: new Set<FixedStarGroup>(),
+        visiblePlanets: nextPlanets,
+      };
+    });
+  }, []);
+
   // Merge planets with angles and asteroid data for aspect calculations
   const planetsWithAnglesA = useMemo(() => {
     const merged = { ...chartA.planets };
@@ -1347,6 +1449,12 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         if (!merged[key]) {
           merged[key] = value;
         }
+      }
+    }
+    // Merge fixed star data if available
+    if (fixedStarData?.chartA) {
+      for (const [key, value] of Object.entries(fixedStarData.chartA)) {
+        if (!merged[key]) merged[key] = value;
       }
     }
     if (chartA.angles) {
@@ -1366,7 +1474,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       }
     }
     return merged;
-  }, [chartA.planets, chartA.angles, asteroidData]);
+  }, [chartA.planets, chartA.angles, asteroidData, fixedStarData]);
 
   const planetsWithAnglesB = useMemo(() => {
     const merged = { ...chartB.planets };
@@ -1376,6 +1484,12 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         if (!merged[key]) {
           merged[key] = value;
         }
+      }
+    }
+    // Merge fixed star data if available
+    if (fixedStarData?.chartB) {
+      for (const [key, value] of Object.entries(fixedStarData.chartB)) {
+        if (!merged[key]) merged[key] = value;
       }
     }
     if (chartB.angles) {
@@ -1395,7 +1509,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       }
     }
     return merged;
-  }, [chartB.planets, chartB.angles, asteroidData]);
+  }, [chartB.planets, chartB.angles, asteroidData, fixedStarData]);
 
   // Create merged chart objects that include asteroid data for rendering
   const mergedChartA = useMemo((): NatalChart => ({
@@ -1922,6 +2036,10 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     setState((prev) => ({ ...prev, showDecans: show }));
   }, []);
 
+  const setDegreeSymbolMode = useCallback((mode: 'sign' | 'spark') => {
+    setState((prev) => ({ ...prev, degreeSymbolMode: mode }));
+  }, []);
+
   const setStraightAspects = useCallback((show: boolean) => {
     setState((prev) => ({ ...prev, straightAspects: show }));
   }, []);
@@ -2107,6 +2225,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       relocatedLocationA: state.relocatedLocationA,
       relocatedLocationB: state.relocatedLocationB,
       enabledAsteroidGroups: Array.from(state.enabledAsteroidGroups),
+      enabledFixedStarGroups: Array.from(state.enabledFixedStarGroups),
       chartTheme,
       rotateToAscendant,
       zodiacVantage,
@@ -2271,6 +2390,9 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           hideOuterHouseRing={isSingleWheel}
           visiblePlanets={state.visiblePlanets}
           smoothTransitions={state.showBirthTimeShift && (state.timeShiftA !== 0 || state.timeShiftB !== 0)}
+          houseSystem={houseSystem}
+          birthLatA={birthLatA}
+          birthLatB={birthLatB}
         />
 
         {/* Aspect lines (drawn on top of house ring) */}
@@ -2324,6 +2446,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           visiblePlanets={state.visiblePlanets}
           showRetrogrades={state.showRetrogrades}
           showDecans={state.showDecans}
+          degreeSymbolMode={state.degreeSymbolMode}
           hoveredPlanet={state.hoveredPlanet}
           selectedAspect={state.selectedAspect}
           aspects={aspects}
@@ -2924,6 +3047,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             showDegreeMarkers={state.showDegreeMarkers}
             showRetrogrades={state.showRetrogrades}
             showDecans={state.showDecans}
+            degreeSymbolMode={state.degreeSymbolMode}
+            onSetDegreeSymbolMode={setDegreeSymbolMode}
             onTogglePlanet={togglePlanet}
             onToggleAspect={toggleAspect}
             onSetShowHouses={setShowHouses}
@@ -2995,13 +3120,55 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             onToggleAsteroidGroup={toggleAsteroidGroup}
             onEnableAllAsteroids={enableAllAsteroids}
             onDisableAllAsteroids={disableAllAsteroids}
+            // Fixed star group controls
+            enableFixedStars={!!onFetchFixedStarData}
+            enabledFixedStarGroups={state.enabledFixedStarGroups}
+            onToggleFixedStarGroup={toggleFixedStarGroup}
+            onEnableAllFixedStars={enableAllFixedStars}
+            onDisableAllFixedStars={disableAllFixedStars}
             // Theme controls
             chartTheme={chartTheme}
             onThemeChange={handleUserThemeChange}
-            // Birth time shift (natal knobs)
+            // Birth time shift (wheel-time knobs)
             enableBirthTimeShift={enableBirthTimeShift}
             showBirthTimeShift={state.showBirthTimeShift}
             onSetShowBirthTimeShift={setShowBirthTimeShift}
+            // House system
+            houseSystem={houseSystem}
+            onSetHouseSystem={onHouseSystemChange}
+            // Custom orbs
+            customAspectOrbs={customAspectOrbs}
+            customPlanetOrbs={customPlanetOrbs}
+            onSetCustomAspectOrb={onCustomAspectOrbChange}
+            onSetCustomPlanetOrb={onCustomPlanetOrbChange}
+            onResetOrbs={onResetOrbs}
+            // Harmonic charts
+            harmonicNumber={harmonicNumber}
+            onSetHarmonicNumber={onHarmonicNumberChange}
+            // Sidereal zodiac
+            zodiacType={zodiacType}
+            onSetZodiacType={onZodiacTypeChange}
+            ayanamsaKey={ayanamsaKey}
+            onSetAyanamsaKey={onAyanamsaKeyChange}
+            // Save current settings as default
+            onSaveAsDefault={() => {
+              const defaults: SavedChartDefaults = {
+                visiblePlanets: [...state.visiblePlanets],
+                visibleAspects: [...state.visibleAspects],
+                showHouses: state.showHouses,
+                showDegreeMarkers: state.showDegreeMarkers,
+                showRetrogrades: state.showRetrogrades,
+                showDecans: state.showDecans,
+                degreeSymbolMode: state.degreeSymbolMode,
+                rotateToAscendant: rotateToAscendant,
+                chartTheme: chartTheme,
+                enabledAsteroidGroups: [...state.enabledAsteroidGroups],
+                enabledFixedStarGroups: [...state.enabledFixedStarGroups],
+                straightAspects: state.straightAspects,
+                showEffects: state.showEffects,
+              };
+              localStorage.setItem(CHART_DEFAULTS_KEY, JSON.stringify(defaults));
+            }}
             // Controlled collapsed state
             collapsed={togglePanelCollapsed}
             onCollapsedChange={onTogglePanelCollapsedChange}

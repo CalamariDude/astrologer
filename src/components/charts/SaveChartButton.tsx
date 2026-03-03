@@ -214,6 +214,21 @@ export async function deleteSavedChart(id: string, userId?: string | null): Prom
   analytics.trackChartDeleted();
 }
 
+export async function bulkDeleteSavedCharts(ids: string[], userId?: string | null): Promise<void> {
+  if (ids.length === 0) return;
+  if (userId) {
+    await supabase.from('saved_charts').delete().in('id', ids);
+    if (_chartsCache) {
+      const idSet = new Set(ids);
+      _chartsCache = _chartsCache.filter((c) => !idSet.has(c.id));
+    }
+  } else {
+    const idSet = new Set(ids);
+    const charts = getLocalCharts().filter((c) => !idSet.has(c.id));
+    setLocalCharts(charts);
+  }
+}
+
 /** Invalidate cache so next getSavedChartsAsync fetches fresh from DB */
 export function invalidateChartsCache() {
   _chartsCache = null;
@@ -259,7 +274,7 @@ export function SaveChartButton({ personA, personB, hasSynastry }: SaveChartButt
   const [nameConflict, setNameConflict] = useState<SavedChart | null>(null);
   const [charts, setCharts] = useState<SavedChart[]>([]);
   const [saving, setSaving] = useState(false);
-  const { isPaid } = useSubscription();
+  const { isPaid, chartsLimit } = useSubscription();
   const { user } = useAuth();
   const userId = user?.id || null;
 
@@ -283,8 +298,8 @@ export function SaveChartButton({ personA, personB, hasSynastry }: SaveChartButt
   const handleClick = () => {
     if (isAlreadySaved) return;
 
-    if (!isPaid && charts.length >= FREE_CHART_LIMIT) {
-      toast.error(`Free accounts can save up to ${FREE_CHART_LIMIT} charts. Upgrade to Pro for unlimited saves.`);
+    if (chartsLimit !== -1 && charts.length >= chartsLimit) {
+      toast.error(`Your plan allows up to ${chartsLimit} saved charts. Upgrade for more.`);
       return;
     }
 
@@ -346,7 +361,7 @@ export function SaveChartButton({ personA, personB, hasSynastry }: SaveChartButt
         } else {
           updated = [chart, ...existing];
         }
-        const max = isPaid ? 50 : FREE_CHART_LIMIT;
+        const max = chartsLimit === -1 ? 50 : chartsLimit;
         if (updated.length > max) updated.length = max;
         setLocalCharts(updated);
         setCharts(updated);
@@ -376,8 +391,8 @@ export function SaveChartButton({ personA, personB, hasSynastry }: SaveChartButt
       return;
     }
 
-    if (!isPaid && charts.length >= FREE_CHART_LIMIT) {
-      toast.error(`Free accounts can save up to ${FREE_CHART_LIMIT} charts. Upgrade to Pro for unlimited saves.`);
+    if (chartsLimit !== -1 && charts.length >= chartsLimit) {
+      toast.error(`Your plan allows up to ${chartsLimit} saved charts. Upgrade for more.`);
       return;
     }
 

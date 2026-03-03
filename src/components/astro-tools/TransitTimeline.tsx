@@ -427,6 +427,14 @@ export function TransitTimeline({ natalChart, personName }: TransitTimelineProps
     });
   }, [events]);
 
+  if (!natalChart?.planets || Object.keys(natalChart.planets).length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+        <p className="text-sm text-muted-foreground/60">Calculate a chart first to see transits</p>
+      </div>
+    );
+  }
+
   const now = new Date();
   const activeCount = filteredEvents.filter(e => e.isActive).length;
 

@@ -12,8 +12,8 @@
  */
 
 import React from 'react';
-import { PLANETS, ZODIAC_SIGNS, COLORS, ASTEROIDS, ARABIC_PARTS, getElementColor, getThemeAwarePlanetColor } from '../utils/constants';
-import { longitudeToXY, calculateDecan, calculateDegreeSign } from '../utils/chartMath';
+import { PLANETS, ZODIAC_SIGNS, COLORS, ASTEROIDS, ARABIC_PARTS, FIXED_STARS, getElementColor, getThemeAwarePlanetColor } from '../utils/constants';
+import { longitudeToXY, calculateDecan, calculateDegreeSign, getZodiacSignSymbol } from '../utils/chartMath';
 import type { ChartDimensions, NatalChart, PlacedPlanet, PlanetData, ChartMode, CompositeData } from '../types';
 import type { SynastryAspect } from '../utils/aspectCalculations';
 
@@ -33,6 +33,7 @@ interface PlanetRingProps {
   visiblePlanets: Set<string>;
   showRetrogrades: boolean;
   showDecans?: boolean;
+  degreeSymbolMode?: 'sign' | 'spark';
   hoveredPlanet: { planet: string; chart: 'A' | 'B' | 'Composite' } | null;
   selectedAspect?: SynastryAspect | null; // When set, only show planets involved in this aspect
   aspects: SynastryAspect[]; // For highlighting aspect partners
@@ -239,6 +240,9 @@ function getPlanetSymbol(key: string): string {
   // Check Arabic Parts
   const part = ARABIC_PARTS[key as keyof typeof ARABIC_PARTS];
   if (part?.symbol) return part.symbol;
+  // Check Fixed Stars
+  const star = FIXED_STARS[key as keyof typeof FIXED_STARS];
+  if (star?.symbol) return star.symbol;
   return key.charAt(0).toUpperCase();
 }
 
@@ -349,6 +353,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
   visiblePlanets,
   showRetrogrades,
   showDecans = false,
+  degreeSymbolMode = 'sign',
   hoveredPlanet,
   selectedAspect,
   aspects,
@@ -620,6 +625,9 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
         const minutes = Math.floor((planet.longitude % 1) * 60);
         const planetColor = getPlanetColor(planet.key);
         const deg = calculateDegreeSign(planet.longitude);
+        const zodiacSign = degreeSymbolMode === 'sign' ? getZodiacSignSymbol(planet.longitude) : null;
+        const displaySymbol = zodiacSign ? zodiacSign.signSymbol : deg.degreeSymbol;
+        const displayColorIndex = zodiacSign ? zodiacSign.signIndex : deg.degreeIndex;
         const textRotation = isTextLabel(planet.key) ? getRadialRotation(planet.displayLongitude) : 0;
 
         // Use single-wheel radii in personA mode
@@ -666,13 +674,13 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
               );
             })()}
 
-            {/* Degree symbol (between degrees and minutes, colored by degree element) */}
+            {/* Sign/degree symbol (between degrees and minutes, colored by element) */}
             {signPos && (() => {
               const sp = smoothPos(signPos.x, signPos.y, 'font-size 0.15s ease-out');
               return (
                 <text
                   {...sp.posProps}
-                  fill={getSignColor(deg.degreeIndex * 30)}
+                  fill={getSignColor(displayColorIndex * 30)}
                   fontSize={highlighted ? signASize * highlightScale : signASize}
                   fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
                   fontWeight="bold"
@@ -680,7 +688,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
                   dominantBaseline="central"
                   style={{ userSelect: 'none', ...sp.posStyle }}
                 >
-                  {deg.degreeSymbol}
+                  {displaySymbol}
                 </text>
               );
             })()}
@@ -761,6 +769,9 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
         const planetColor = getPlanetColor(planet.key);
         const textRotation = isTextLabel(planet.key) ? getRadialRotation(planet.displayLongitude) : 0;
         const deg = calculateDegreeSign(planet.longitude);
+        const zodiacSignB = degreeSymbolMode === 'sign' ? getZodiacSignSymbol(planet.longitude) : null;
+        const displaySymbolB = zodiacSignB ? zodiacSignB.signSymbol : deg.degreeSymbol;
+        const displayColorIndexB = zodiacSignB ? zodiacSignB.signIndex : deg.degreeIndex;
 
         // Use single-wheel radii in personB mode
         const effectiveDegreeRing = isSingleWheel ? singleDegRadius : degreeBRing;
@@ -806,13 +817,13 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
               );
             })()}
 
-            {/* Degree symbol (between degrees and minutes, colored by degree element) */}
+            {/* Sign/degree symbol (between degrees and minutes, colored by element) */}
             {signPos && (() => {
               const sp = smoothPos(signPos.x, signPos.y, 'font-size 0.15s ease-out');
               return (
                 <text
                   {...sp.posProps}
-                  fill={getSignColor(deg.degreeIndex * 30)}
+                  fill={getSignColor(displayColorIndexB * 30)}
                   fontSize={highlighted ? signBSize * highlightScale : signBSize}
                   fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
                   fontWeight="bold"
@@ -820,7 +831,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
                   dominantBaseline="central"
                   style={{ userSelect: 'none', ...sp.posStyle }}
                 >
-                  {deg.degreeSymbol}
+                  {displaySymbolB}
                 </text>
               );
             })()}
@@ -899,6 +910,9 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
         const minutes = Math.floor((planet.longitude % 1) * 60);
         const planetColor = getPlanetColor(planet.key);
         const deg = calculateDegreeSign(planet.longitude);
+        const zodiacSignC = degreeSymbolMode === 'sign' ? getZodiacSignSymbol(planet.longitude) : null;
+        const displaySymbolC = zodiacSignC ? zodiacSignC.signSymbol : deg.degreeSymbol;
+        const displayColorIndexC = zodiacSignC ? zodiacSignC.signIndex : deg.degreeIndex;
         const textRotation = isTextLabel(planet.key) ? getRadialRotation(planet.displayLongitude) : 0;
 
         // Calculate positions at single-wheel radii
@@ -939,13 +953,13 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
               );
             })()}
 
-            {/* Degree symbol (between degrees and minutes, colored by degree element) */}
+            {/* Sign/degree symbol (between degrees and minutes, colored by element) */}
             {signPos && (() => {
               const sp = smoothPos(signPos.x, signPos.y, 'font-size 0.15s ease-out');
               return (
                 <text
                   {...sp.posProps}
-                  fill={getSignColor(deg.degreeIndex * 30)}
+                  fill={getSignColor(displayColorIndexC * 30)}
                   fontSize={highlighted ? signASize * highlightScale : signASize}
                   fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif"
                   fontWeight="bold"
@@ -953,7 +967,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
                   dominantBaseline="central"
                   style={{ userSelect: 'none', ...sp.posStyle }}
                 >
-                  {deg.degreeSymbol}
+                  {displaySymbolC}
                 </text>
               );
             })()}

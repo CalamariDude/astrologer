@@ -6,15 +6,18 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { BiWheelSynastry } from './BiWheelSynastry';
 import { TogglePanelContent } from './controls/TogglePanelContent';
-import type { BiWheelSynastryProps, AsteroidGroup, ChartMode, LocationData } from './types';
-import { ASTEROID_GROUPS } from './types';
+import type { BiWheelSynastryProps, AsteroidGroup, FixedStarGroup, ChartMode, LocationData } from './types';
+import { ASTEROID_GROUPS, FIXED_STAR_GROUPS } from './types';
 import { ASTEROIDS, ASTEROID_GROUP_INFO, DEFAULT_VISIBLE_PLANETS, applyTheme } from './utils/constants';
 import { THEMES, type ThemeName } from './utils/themes';
 import { BirthTimeShiftKnob } from './controls/BirthTimeShiftKnob';
 import { TransitJogWheel } from './controls/TransitJogWheel';
 import { Drawer } from 'vaul';
-import { Settings2, Download, Image, FileText, Mail, Loader2, Share2, Link2, Check, Plus, X, Bookmark } from 'lucide-react';
+import { Settings2, Download, Image, FileText, Mail, Loader2, Share2, Link2, Check, Plus, X, Bookmark, MessageSquare } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { type ChartPreset, loadPresets, savePreset, deletePreset, reorderPresets, buildPresetFromState, loadPresetsFromProfile, savePresetsToProfile } from './utils/presets';
+import { calculateHarmonicChart } from '@/lib/harmonics';
+import { convertToSidereal, AYANAMSA_SYSTEMS } from '@/lib/sidereal';
 // Lazy-import chart export (pulls in jsPDF ~357KB) — only needed on export button click
 const getChartExport = () => import('@/lib/chartExport');
 import * as analytics from '@/lib/analytics';
@@ -83,6 +86,8 @@ interface BiWheelMobileWrapperProps extends Omit<BiWheelSynastryProps, 'size' | 
   stateRef?: React.MutableRefObject<Record<string, any> | null>;
   /** Remote cursor to render inside the chart container (positioned relative to chart area) */
   remoteCursor?: React.ReactNode;
+  /** Callback when transit date changes internally (e.g. via jog wheel) */
+  onTransitDateChange?: (date: string) => void;
 }
 
 // Default sets for comparison when building share URLs
@@ -115,6 +120,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   onCursorMove,
   stateRef,
   remoteCursor,
+  onTransitDateChange: onTransitDateChangeProp,
   ...biWheelProps
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -170,6 +176,9 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     initialEnabledAsteroidGroups
       || (savedDefaults?.enabledAsteroidGroups ? new Set(savedDefaults.enabledAsteroidGroups) : new Set())
   );
+  const [enabledFixedStarGroups, setEnabledFixedStarGroups] = useState<Set<FixedStarGroup>>(
+    savedDefaults?.enabledFixedStarGroups ? new Set(savedDefaults.enabledFixedStarGroups) : new Set()
+  );
   const [chartMode, setChartMode] = useState<ChartMode>(biWheelProps.initialChartMode || 'synastry');
 
   // Today's date string (used for transit and progressed defaults)
@@ -214,6 +223,27 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   // Display toggles (lifted for session sync)
   const [showRetrogrades, setShowRetrogrades] = useState(savedDefaults?.showRetrogrades ?? true);
   const [showDecans, setShowDecans] = useState(savedDefaults?.showDecans ?? false);
+  const [degreeSymbolMode, setDegreeSymbolMode] = useState<'sign' | 'spark'>(savedDefaults?.degreeSymbolMode ?? 'sign');
+
+  // House system (lifted for mobile drawer access)
+  const [houseSystem, setHouseSystem] = useState<string>(savedDefaults?.houseSystem ?? 'whole_sign');
+  const houseSystemInitRef = useRef(true);
+  useEffect(() => {
+    // Skip on mount — only refetch when user actively changes the dropdown
+    if (houseSystemInitRef.current) { houseSystemInitRef.current = false; return; }
+    biWheelProps.onRefetchWithHouseSystem?.(houseSystem);
+  }, [houseSystem]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Custom orbs (lifted for mobile drawer access)
+  const [customAspectOrbs, setCustomAspectOrbs] = useState<Record<string, number>>(savedDefaults?.customAspectOrbs ?? {});
+  const [customPlanetOrbs, setCustomPlanetOrbs] = useState<Record<string, number>>(savedDefaults?.customPlanetOrbs ?? {});
+
+  // Harmonic number (lifted for mobile drawer access)
+  const [harmonicNumber, setHarmonicNumber] = useState<number>(savedDefaults?.harmonicNumber ?? 1);
+
+  // Sidereal zodiac (lifted for mobile drawer access)
+  const [zodiacType, setZodiacType] = useState<'tropical' | 'sidereal'>(savedDefaults?.zodiacType ?? 'tropical');
+  const [ayanamsaKey, setAyanamsaKey] = useState<string>(savedDefaults?.ayanamsaKey ?? 'lahiri');
 
   // Wheel rotation state (lifted for session broadcast)
   const [rotateToAscendant, setRotateToAscendant] = useState(savedDefaults?.rotateToAscendant ?? true);
@@ -234,6 +264,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
 
   // Auth & subscription (for location picker gating)
   const { user } = useAuth();
+  const navigateTo = useNavigate();
 
   // Load presets from profile for logged-in users
   useEffect(() => {
@@ -279,7 +310,11 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     if (externalState.showHouses !== undefined) setShowHouses(externalState.showHouses);
     if (externalState.showDegreeMarkers !== undefined) setShowDegreeMarkers(externalState.showDegreeMarkers);
     if (externalState.showTransits !== undefined) setShowTransits(externalState.showTransits);
-    if (externalState.transitDate !== undefined) setTransitDate(externalState.transitDate);
+    // Only apply transit date/time from external if it's a genuinely new value from the parent
+    // (not just our own jog wheel change echoing back via the callback)
+    if (externalState.transitDate !== undefined && externalState.transitDate !== lastNotifiedTransitDateRef.current) {
+      setTransitDate(externalState.transitDate);
+    }
     if (externalState.transitTime !== undefined) setTransitTime(externalState.transitTime);
     if (externalState.showProgressed !== undefined && !externalState.showProgressed) setProgressedPerson(null);
     if (externalState.progressedPerson !== undefined) setProgressedPerson(externalState.progressedPerson as any);
@@ -290,6 +325,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     if (externalState.relocatedLocationA !== undefined) setRelocatedLocationA(externalState.relocatedLocationA);
     if (externalState.relocatedLocationB !== undefined) setRelocatedLocationB(externalState.relocatedLocationB);
     if (externalState.enabledAsteroidGroups) setEnabledAsteroidGroups(new Set(externalState.enabledAsteroidGroups as AsteroidGroup[]));
+    if (externalState.enabledFixedStarGroups) setEnabledFixedStarGroups(new Set(externalState.enabledFixedStarGroups as FixedStarGroup[]));
     if (externalState.chartTheme !== undefined) { setChartTheme(externalState.chartTheme); applyTheme(externalState.chartTheme as ThemeName); }
     if (externalState.rotateToAscendant !== undefined) setRotateToAscendant(externalState.rotateToAscendant);
     if (externalState.zodiacVantage !== undefined) setZodiacVantage(externalState.zodiacVantage);
@@ -301,6 +337,15 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     if (externalState.scale !== undefined) setScale(externalState.scale);
     if (externalState.translateX !== undefined && externalState.translateY !== undefined) setTranslate({ x: externalState.translateX, y: externalState.translateY });
   }, [externalState]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Track last transit date we sent to parent, to avoid externalState echo snap-back
+  const lastNotifiedTransitDateRef = useRef<string>('');
+
+  // Notify parent when transit date changes (e.g. via jog wheel)
+  useEffect(() => {
+    lastNotifiedTransitDateRef.current = transitDate;
+    onTransitDateChangeProp?.(transitDate);
+  }, [transitDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync visibility changes up to parent (for galactic mode linking)
   useEffect(() => {
@@ -359,6 +404,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
       relocatedLocationA,
       relocatedLocationB,
       enabledAsteroidGroups: Array.from(enabledAsteroidGroups),
+      enabledFixedStarGroups: Array.from(enabledFixedStarGroups),
       chartTheme,
       rotateToAscendant,
       zodiacVantage,
@@ -369,6 +415,8 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
       showBirthTimeShift,
       timeShiftA,
       timeShiftB,
+      houseSystem,
+      harmonicNumber,
       scale,
       translateX: translate.x,
       translateY: translate.y,
@@ -376,7 +424,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     console.log('[BiWheelWrapper] Broadcasting via lifted-state effect', { chartMode, planets: visiblePlanets.size, asteroids: enabledAsteroidGroups.size });
     onStateChangeRef.current('state_snapshot' as any, snapshot);
     if (stateRef) stateRef.current = snapshot;
-  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, showTransits, transitDate, transitTime, progressedPerson, progressedDate, showSolarArc, relocatedPerson, relocatedLocationA, relocatedLocationB, enabledAsteroidGroups, chartTheme, rotateToAscendant, zodiacVantage, straightAspects, mobileShowEffects, showRetrogrades, showDecans, showBirthTimeShift, timeShiftA, timeShiftB, scale, translate.x, translate.y, externalState, stateRef]);
+  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, showTransits, transitDate, transitTime, progressedPerson, progressedDate, showSolarArc, relocatedPerson, relocatedLocationA, relocatedLocationB, enabledAsteroidGroups, enabledFixedStarGroups, chartTheme, rotateToAscendant, zodiacVantage, straightAspects, mobileShowEffects, showRetrogrades, showDecans, showBirthTimeShift, timeShiftA, timeShiftB, houseSystem, harmonicNumber, scale, translate.x, translate.y, externalState, stateRef]);
 
   // Calculate responsive chart size
   const chartSize = useMemo(() => {
@@ -659,6 +707,20 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     setShowShareMenu(false);
   }, [buildShareUrl]);
 
+  const handleShareToCommunity = useCallback(async () => {
+    if (!chartContainerRef.current) return;
+    setShowShareMenu(false);
+    try {
+      const { captureChartAsBase64 } = await getChartExport();
+      const base64 = await captureChartAsBase64(chartContainerRef.current);
+      const dataUrl = `data:image/png;base64,${base64}`;
+      navigateTo('/community', { state: { chartSnapshot: dataUrl, chartTitle: biWheelProps.nameA || 'Chart' } });
+      window.scrollTo(0, 0);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to capture chart');
+    }
+  }, [navigateTo, biWheelProps.nameA]);
+
   const handleEmailShare = useCallback(async () => {
     if (!chartContainerRef.current || !emailTo.trim()) return;
     setSendingEmail(true);
@@ -781,6 +843,44 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     });
   }, []);
 
+  // Fixed star group handlers
+  const toggleFixedStarGroup = useCallback((group: FixedStarGroup) => {
+    setEnabledFixedStarGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(group)) {
+        next.delete(group);
+        const stars = FIXED_STAR_GROUPS[group] || [];
+        setVisiblePlanets(vp => { const n = new Set(vp); stars.forEach(s => n.delete(s)); return n; });
+      } else {
+        next.add(group);
+        const stars = FIXED_STAR_GROUPS[group] || [];
+        setVisiblePlanets(vp => { const n = new Set(vp); stars.forEach(s => n.add(s)); return n; });
+      }
+      return next;
+    });
+  }, []);
+
+  const enableAllFixedStars = useCallback(() => {
+    const allGroups = Object.keys(FIXED_STAR_GROUPS) as FixedStarGroup[];
+    setEnabledFixedStarGroups(new Set(allGroups));
+    setVisiblePlanets(prev => {
+      const next = new Set(prev);
+      for (const group of allGroups) { (FIXED_STAR_GROUPS[group] || []).forEach(s => next.add(s)); }
+      return next;
+    });
+  }, []);
+
+  const disableAllFixedStars = useCallback(() => {
+    setEnabledFixedStarGroups(new Set());
+    setVisiblePlanets(prev => {
+      const next = new Set(prev);
+      for (const group of Object.keys(FIXED_STAR_GROUPS) as FixedStarGroup[]) {
+        (FIXED_STAR_GROUPS[group] || []).forEach(s => next.delete(s));
+      }
+      return next;
+    });
+  }, []);
+
   // Preset handlers
   const handleSavePreset = useCallback((name: string) => {
     const payload = buildPresetFromState({
@@ -797,6 +897,10 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
       rotateToAscendant,
       zodiacVantage,
       enabledAsteroidGroups,
+      houseSystem,
+      customAspectOrbs,
+      customPlanetOrbs,
+      harmonicNumber,
     });
     const created = savePreset(payload);
     if (created) {
@@ -811,7 +915,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     } else {
       toast.error('Max 10 presets reached. Delete one first.');
     }
-  }, [visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, showRetrogrades, showDecans, straightAspects, mobileShowEffects, chartTheme, rotateToAscendant, zodiacVantage, enabledAsteroidGroups, user?.id]);
+  }, [visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, showRetrogrades, showDecans, straightAspects, mobileShowEffects, chartTheme, rotateToAscendant, zodiacVantage, enabledAsteroidGroups, houseSystem, customAspectOrbs, customPlanetOrbs, harmonicNumber, user?.id]);
 
   const isLoadingPresetRef = useRef(false);
 
@@ -831,6 +935,10 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     setRotateToAscendant(preset.rotateToAscendant);
     setZodiacVantage(preset.zodiacVantage);
     setEnabledAsteroidGroups(new Set(preset.enabledAsteroidGroups as AsteroidGroup[]));
+    if (preset.houseSystem) setHouseSystem(preset.houseSystem);
+    if (preset.customAspectOrbs) setCustomAspectOrbs(preset.customAspectOrbs);
+    if (preset.customPlanetOrbs) setCustomPlanetOrbs(preset.customPlanetOrbs);
+    if (preset.harmonicNumber !== undefined) setHarmonicNumber(preset.harmonicNumber);
     setActivePresetId(preset.id);
     // Allow the effect to skip this batch
     requestAnimationFrame(() => { isLoadingPresetRef.current = false; });
@@ -852,6 +960,10 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     setRotateToAscendant(true);
     setZodiacVantage(null);
     setEnabledAsteroidGroups(new Set());
+    setHouseSystem('whole_sign');
+    setCustomAspectOrbs({});
+    setCustomPlanetOrbs({});
+    setHarmonicNumber(1);
     setActivePresetId('__default__');
     requestAnimationFrame(() => { isLoadingPresetRef.current = false; });
   }, [biWheelProps]);
@@ -901,7 +1013,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     if (isLoadingPresetRef.current) return;
     if (activePresetId) setActivePresetId(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, showRetrogrades, showDecans, straightAspects, mobileShowEffects, chartTheme, rotateToAscendant, zodiacVantage, enabledAsteroidGroups]);
+  }, [visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, showRetrogrades, showDecans, straightAspects, mobileShowEffects, chartTheme, rotateToAscendant, zodiacVantage, enabledAsteroidGroups, houseSystem, customAspectOrbs, customPlanetOrbs, harmonicNumber]);
 
   // Mutual exclusivity: progressed ↔ relocated
   const handleSetProgressedPerson = useCallback((person: 'A' | 'B' | 'both' | null) => {
@@ -964,8 +1076,8 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   const chartKey = useMemo(() => {
     const locKeyA = relocatedLocationA ? `${relocatedLocationA.lat},${relocatedLocationA.lng}` : 'none';
     const locKeyB = relocatedLocationB ? `${relocatedLocationB.lat},${relocatedLocationB.lng}` : 'none';
-    return `${chartMode}-${Array.from(visiblePlanets).sort().join(',')}-${Array.from(visibleAspects).sort().join(',')}-${showHouses}-${showDegreeMarkers}-${Array.from(enabledAsteroidGroups).sort().join(',')}-${showTransits}-${transitDate}-${transitTime}-${progressedPerson}-${progressedDate}-${showSolarArc}-${relocatedPerson}-${locKeyA}-${locKeyB}-${chartTheme}-${straightAspects}-${mobileShowEffects}-${showRetrogrades}-${showDecans}`;
-  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups, showTransits, transitDate, transitTime, progressedPerson, progressedDate, showSolarArc, relocatedPerson, relocatedLocationA, relocatedLocationB, chartTheme, straightAspects, mobileShowEffects, showRetrogrades, showDecans]);
+    return `${chartMode}-${Array.from(visiblePlanets).sort().join(',')}-${Array.from(visibleAspects).sort().join(',')}-${showHouses}-${showDegreeMarkers}-${Array.from(enabledAsteroidGroups).sort().join(',')}-${showTransits}-${transitDate}-${transitTime}-${progressedPerson}-${progressedDate}-${showSolarArc}-${relocatedPerson}-${locKeyA}-${locKeyB}-${chartTheme}-${straightAspects}-${mobileShowEffects}-${showRetrogrades}-${showDecans}-${houseSystem}-${harmonicNumber}-${zodiacType}-${ayanamsaKey}-${JSON.stringify(customAspectOrbs)}-${JSON.stringify(customPlanetOrbs)}`;
+  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups, showTransits, transitDate, transitTime, progressedPerson, progressedDate, showSolarArc, relocatedPerson, relocatedLocationA, relocatedLocationB, chartTheme, straightAspects, mobileShowEffects, showRetrogrades, showDecans, houseSystem, harmonicNumber, zodiacType, ayanamsaKey, customAspectOrbs, customPlanetOrbs]);
 
   return (
     <div ref={containerRef} className="w-full">
@@ -1018,6 +1130,13 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                     >
                       <Mail className="w-3.5 h-3.5" />
                       Send via Email
+                    </button>
+                    <button
+                      onClick={handleShareToCommunity}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-muted transition-colors"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      Post to Community
                     </button>
                   </div>
                 </>
@@ -1091,10 +1210,31 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
           } : {})}
         >
           {(() => {
+            // Apply sidereal conversion when zodiacType === 'sidereal'
+            let baseChartA = biWheelProps.chartA;
+            let baseChartB = biWheelProps.chartB;
+            if (zodiacType === 'sidereal' && baseChartA) {
+              const dateA = biWheelProps.birthDateA || '2000-01-01';
+              baseChartA = convertToSidereal(baseChartA, dateA, ayanamsaKey);
+              if (baseChartB) {
+                const dateB = biWheelProps.birthDateB || dateA;
+                baseChartB = convertToSidereal(baseChartB, dateB, ayanamsaKey);
+              }
+            }
+            // Apply harmonic transformation when harmonicNumber > 1
+            const effectiveChartA = harmonicNumber > 1 && baseChartA
+              ? calculateHarmonicChart(baseChartA as any, harmonicNumber)
+              : baseChartA;
+            const effectiveChartB = harmonicNumber > 1 && baseChartB
+              ? calculateHarmonicChart(baseChartB as any, harmonicNumber)
+              : baseChartB;
+
             // Shared props for BiWheelSynastry — single source of truth for both mobile/desktop.
             // All lifted state is passed as initial* props so remounts (key change) pick up the latest.
             const sharedSynastryProps = {
               ...biWheelProps,
+              chartA: effectiveChartA,
+              chartB: effectiveChartB,
               size: chartSize,
               // All lifted chart state → initial* props
               initialVisiblePlanets: visiblePlanets,
@@ -1117,6 +1257,25 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
               initialShowDecans: showDecans,
               initialRotateToAscendant: rotateToAscendant,
               initialZodiacVantage: zodiacVantage,
+              // House system
+              houseSystem,
+              birthLatA: biWheelProps.originalLocation?.lat ?? 0,
+              birthLatB: biWheelProps.locationB?.lat ?? biWheelProps.originalLocation?.lat ?? 0,
+              onHouseSystemChange: setHouseSystem,
+              // Custom orbs
+              customAspectOrbs,
+              customPlanetOrbs,
+              onCustomAspectOrbChange: (aspect: string, orb: number) => setCustomAspectOrbs(prev => ({ ...prev, [aspect]: orb })),
+              onCustomPlanetOrbChange: (planet: string, orb: number) => setCustomPlanetOrbs(prev => ({ ...prev, [planet]: orb })),
+              onResetOrbs: () => { setCustomAspectOrbs({}); setCustomPlanetOrbs({}); },
+              // Harmonic charts
+              harmonicNumber,
+              onHarmonicNumberChange: setHarmonicNumber,
+              // Sidereal zodiac
+              zodiacType,
+              onZodiacTypeChange: setZodiacType,
+              ayanamsaKey,
+              onAyanamsaKeyChange: setAyanamsaKey,
               // External relocated control
               externalRelocatedLocationA: relocatedLocationA,
               externalRelocatedLocationB: relocatedLocationB,
@@ -1206,7 +1365,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                 <BiWheelSynastry
                   {...sharedSynastryProps}
                   key={externalState ? chartKey : undefined}
-                  showTogglePanel={!externalState}
+                  showTogglePanel={!readOnly}
                 />
               </div>
             );
@@ -1402,6 +1561,8 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                   onSetShowRetrogrades={setShowRetrogrades}
                   showDecans={showDecans}
                   onSetShowDecans={setShowDecans}
+                  degreeSymbolMode={degreeSymbolMode}
+                  onSetDegreeSymbolMode={setDegreeSymbolMode}
                   straightAspects={straightAspects}
                   onSetStraightAspects={setStraightAspects}
                   showEffects={mobileShowEffects}
@@ -1463,6 +1624,11 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                   onToggleAsteroidGroup={toggleAsteroidGroup}
                   onEnableAllAsteroids={enableAllAsteroids}
                   onDisableAllAsteroids={disableAllAsteroids}
+                  enableFixedStars={!!biWheelProps.onFetchFixedStarData}
+                  enabledFixedStarGroups={enabledFixedStarGroups}
+                  onToggleFixedStarGroup={toggleFixedStarGroup}
+                  onEnableAllFixedStars={enableAllFixedStars}
+                  onDisableAllFixedStars={disableAllFixedStars}
                   // Progressed controls
                   enableProgressed={biWheelProps.enableProgressed}
                   progressedPerson={progressedPerson}
@@ -1488,13 +1654,30 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                   // Theme controls
                   chartTheme={chartTheme as any}
                   onThemeChange={(theme) => { applyTheme(theme); setChartTheme(theme); biWheelProps.onThemeChange?.(theme); }}
-                  // Birth time shift (natal knobs)
+                  // Birth time shift (wheel-time knobs)
                   enableBirthTimeShift={biWheelProps.enableBirthTimeShift}
                   showBirthTimeShift={showBirthTimeShift}
                   onSetShowBirthTimeShift={(show) => {
                     setShowBirthTimeShift(show);
                     if (!show) { setTimeShiftA(0); setTimeShiftB(0); biWheelProps.onTimeShiftAChange?.(0); biWheelProps.onTimeShiftBChange?.(0); }
                   }}
+                  // House system
+                  houseSystem={houseSystem}
+                  onSetHouseSystem={setHouseSystem}
+                  // Custom orbs
+                  customAspectOrbs={customAspectOrbs}
+                  customPlanetOrbs={customPlanetOrbs}
+                  onSetCustomAspectOrb={(aspect, orb) => setCustomAspectOrbs(prev => ({ ...prev, [aspect]: orb }))}
+                  onSetCustomPlanetOrb={(planet, orb) => setCustomPlanetOrbs(prev => ({ ...prev, [planet]: orb }))}
+                  onResetOrbs={() => { setCustomAspectOrbs({}); setCustomPlanetOrbs({}); }}
+                  // Harmonic charts
+                  harmonicNumber={harmonicNumber}
+                  onSetHarmonicNumber={setHarmonicNumber}
+                  // Sidereal zodiac
+                  zodiacType={zodiacType}
+                  onSetZodiacType={setZodiacType}
+                  ayanamsaKey={ayanamsaKey}
+                  onSetAyanamsaKey={setAyanamsaKey}
                   // Presets
                   presets={presets.map(p => ({ id: p.id, name: p.name }))}
                   activePresetId={activePresetId}
@@ -1502,6 +1685,24 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                   onDeletePreset={handleDeletePreset}
                   onSavePreset={handleSavePreset}
                   presetsAtLimit={presets.length >= 10}
+                  onSaveAsDefault={() => {
+                    const defaults = {
+                      visiblePlanets: [...visiblePlanets],
+                      visibleAspects: [...visibleAspects],
+                      showHouses,
+                      showDegreeMarkers,
+                      showRetrogrades,
+                      showDecans,
+                      degreeSymbolMode,
+                      rotateToAscendant,
+                      chartTheme,
+                      enabledAsteroidGroups: [...enabledAsteroidGroups],
+                      enabledFixedStarGroups: [...enabledFixedStarGroups],
+                      straightAspects,
+                      showEffects: mobileShowEffects,
+                    };
+                    localStorage.setItem('biwheel-chart-defaults', JSON.stringify(defaults));
+                  }}
                 />
               </div>
             </Drawer.Content>

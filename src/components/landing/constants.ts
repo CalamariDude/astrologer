@@ -91,7 +91,7 @@ export const PLANETS: PlanetConfig[] = [
     speed: 0.12,
     initialAngle: 5.4,
     hasRing: true,
-    ringColor: '#D4C08880',
+    ringColor: '#D4C088',
     ringSize: 2.2,
   },
   {
@@ -106,7 +106,7 @@ export const PLANETS: PlanetConfig[] = [
     speed: 0.06,
     initialAngle: 0.3,
     hasRing: true,
-    ringColor: '#7FDBDB30',
+    ringColor: '#7FDBDB',
     ringSize: 1.6,
   },
   {
