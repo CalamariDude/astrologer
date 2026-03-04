@@ -151,36 +151,57 @@ function InlineBirthForm({
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<GeoResult[]>([]);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationFocused, setLocationFocused] = useState(false);
+  const [locSelectedIdx, setLocSelectedIdx] = useState(-1);
+  const locationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const locationAbortRef = useRef<AbortController | null>(null);
   const [nameSuggestions, setNameSuggestions] = useState<SavedPerson[]>([]);
   const [showNameDropdown, setShowNameDropdown] = useState(false);
   const [nameSelectedIdx, setNameSelectedIdx] = useState(-1);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const nameDropdownRef = useRef<HTMLDivElement>(null);
 
-  const searchLocation = useCallback(async () => {
-    if (!data.location || data.location.length < 2) return;
+  // Live location autocomplete — debounced search as you type (Mapbox)
+  const searchLocation = useCallback(async (query: string) => {
+    if (!query || query.length < 2) { setResults([]); return; }
+    locationAbortRef.current?.abort();
+    const controller = new AbortController();
+    locationAbortRef.current = controller;
     setSearching(true);
     setLocationError(null);
     try {
-      const base = import.meta.env.DEV
-        ? '/nominatim'
-        : 'https://nominatim.openstreetmap.org';
+      const token = import.meta.env.VITE_MAPBOX_TOKEN;
       const res = await fetch(
-        `${base}/search?format=json&q=${encodeURIComponent(data.location)}&limit=5`,
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&autocomplete=true&limit=5&types=place,locality,region,country`,
+        { signal: controller.signal },
       );
-      const json: GeoResult[] = await res.json();
-      if (json.length > 0) {
-        onChange({ ...data, location: json[0].display_name, lat: parseFloat(json[0].lat), lng: parseFloat(json[0].lon) });
-        setResults(json.length > 1 ? json.slice(1) : []);
-      } else {
-        setResults([]);
-        setLocationError('No locations found');
+      const json = await res.json();
+      if (!controller.signal.aborted) {
+        const mapped: GeoResult[] = (json.features || []).map((f: any) => ({
+          display_name: f.place_name,
+          lat: String(f.center[1]),
+          lon: String(f.center[0]),
+        }));
+        setResults(mapped);
+        setLocSelectedIdx(-1);
+        if (mapped.length === 0) setLocationError('No locations found');
       }
-    } catch {
-      setLocationError('Location search failed');
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') setLocationError('Location search failed');
     } finally {
-      setSearching(false);
+      if (!controller.signal.aborted) setSearching(false);
     }
+  }, []);
+
+  const debouncedLocationSearch = useCallback((query: string) => {
+    if (locationDebounceRef.current) clearTimeout(locationDebounceRef.current);
+    locationDebounceRef.current = setTimeout(() => searchLocation(query), 300);
+  }, [searchLocation]);
+
+  const selectLocation = useCallback((r: GeoResult) => {
+    onChange({ ...data, location: r.display_name, lat: parseFloat(r.lat), lng: parseFloat(r.lon) });
+    setResults([]);
+    setLocSelectedIdx(-1);
   }, [data, onChange]);
 
   const inputBase = "w-full bg-transparent text-sm placeholder:text-muted-foreground/50 focus:outline-none";
@@ -320,53 +341,69 @@ function InlineBirthForm({
         </div>
 
         {/* Location */}
-        <div className="group flex items-center gap-3 px-3 py-2.5 transition-colors group-focus-within:border-foreground/20">
-          <MapPin className="w-4 h-4 text-muted-foreground/50 shrink-0" />
-          <input
-            type="text"
-            placeholder="City, Country"
-            value={data.location}
-            onChange={(e) => {
-              onChange({ ...data, location: e.target.value, lat: null, lng: null });
-              setResults([]);
-              setLocationError(null);
-            }}
-            onKeyDown={(e) => e.key === 'Enter' && searchLocation()}
-            onBlur={() => { if (data.lat === null && data.location && data.location.length >= 2) searchLocation(); }}
-            className={`${inputBase} flex-1 min-w-0`}
-          />
-          <button
-            onClick={searchLocation}
-            disabled={searching}
-            className="shrink-0 p-1.5 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-40"
-          >
-            {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-          </button>
+        <div className="relative group">
+          <div className="flex items-center gap-3 px-3 py-2.5 transition-colors group-focus-within:border-foreground/20">
+            <MapPin className="w-4 h-4 text-muted-foreground/50 shrink-0" />
+            <input
+              type="text"
+              placeholder="City, Country"
+              value={data.location}
+              onChange={(e) => {
+                const val = e.target.value;
+                onChange({ ...data, location: val, lat: null, lng: null });
+                setLocationError(null);
+                debouncedLocationSearch(val);
+              }}
+              onKeyDown={(e) => {
+                if (results.length > 0) {
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setLocSelectedIdx(i => Math.min(i + 1, results.length - 1));
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setLocSelectedIdx(i => Math.max(i - 1, -1));
+                  } else if (e.key === 'Enter' && locSelectedIdx >= 0) {
+                    e.preventDefault();
+                    selectLocation(results[locSelectedIdx]);
+                  } else if (e.key === 'Escape') {
+                    setResults([]);
+                    setLocSelectedIdx(-1);
+                  }
+                } else if (e.key === 'Enter' && data.location.length >= 2) {
+                  searchLocation(data.location);
+                }
+              }}
+              onFocus={() => setLocationFocused(true)}
+              onBlur={() => { setTimeout(() => { setLocationFocused(false); }, 200); }}
+              className={`${inputBase} flex-1 min-w-0`}
+              autoComplete="off"
+            />
+            {searching && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground/60 shrink-0" />}
+          </div>
+          {locationFocused && results.length > 0 && (
+            <div className="absolute z-[100] left-0 right-0 top-full mt-1 mx-1 border border-border/60 rounded-lg bg-card shadow-xl max-h-48 overflow-y-auto">
+              {results.map((r, i) => (
+                <button
+                  key={i}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onMouseEnter={() => setLocSelectedIdx(i)}
+                  onClick={() => selectLocation(r)}
+                  className={`w-full text-left px-3 py-2.5 text-xs border-b border-border/20 last:border-0 transition-colors ${
+                    i === locSelectedIdx ? 'bg-accent' : 'hover:bg-muted/60'
+                  }`}
+                >
+                  {r.display_name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-        {locationError && (
+        {locationError && !locationFocused && (
           <div className="px-4 pb-1 -mt-0.5">
             <span className="text-[11px] text-destructive">{locationError}</span>
           </div>
         )}
       </div>
-
-      {/* Location results */}
-      {results.length > 0 && (
-        <div className="mx-3 mb-3 border border-border/40 rounded-lg bg-muted/20 max-h-32 overflow-y-auto">
-          {results.map((r, i) => (
-            <button
-              key={i}
-              onClick={() => {
-                onChange({ ...data, location: r.display_name, lat: parseFloat(r.lat), lng: parseFloat(r.lon) });
-                setResults([]);
-              }}
-              className="w-full text-left px-3 py-2 text-xs hover:bg-muted/60 border-b border-border/20 last:border-0 transition-colors"
-            >
-              {r.display_name}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Coordinates badge */}
       {data.lat !== null && (
@@ -1002,14 +1039,19 @@ export default function ChartPage() {
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Persist tabs to sessionStorage (survive refresh)
+  // Persist tabs to sessionStorage (survive refresh) — debounced to avoid JSON serialization on every keystroke
+  const sessionSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    try {
-      sessionStorage.setItem('astrologer_session', JSON.stringify({
-        tabs,
-        activeTabIndex,
-      }));
-    } catch {}
+    if (sessionSaveRef.current) clearTimeout(sessionSaveRef.current);
+    sessionSaveRef.current = setTimeout(() => {
+      try {
+        sessionStorage.setItem('astrologer_session', JSON.stringify({
+          tabs,
+          activeTabIndex,
+        }));
+      } catch {}
+    }, 500);
+    return () => { if (sessionSaveRef.current) clearTimeout(sessionSaveRef.current); };
   }, [tabs, activeTabIndex]);
 
   // Persist tabs to user profile (debounced)

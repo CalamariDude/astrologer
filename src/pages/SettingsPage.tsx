@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, User, CreditCard, Settings, AlertTriangle,
@@ -94,6 +94,10 @@ export default function SettingsPage() {
   const [birthLng, setBirthLng] = useState<number | null>(null);
   const [birthGeoResults, setBirthGeoResults] = useState<{ display_name: string; lat: string; lon: string }[]>([]);
   const [birthSearching, setBirthSearching] = useState(false);
+  const [birthLocFocused, setBirthLocFocused] = useState(false);
+  const [birthLocSelectedIdx, setBirthLocSelectedIdx] = useState(-1);
+  const birthLocDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const birthLocAbortRef = useRef<AbortController | null>(null);
   const [birthSaving, setBirthSaving] = useState(false);
 
   // Danger zone state
@@ -331,28 +335,47 @@ export default function SettingsPage() {
     if (error) { toast.error('Failed to save'); } else { setBlockedWords(next); }
   }, [user, blockedWords]);
 
-  const searchBirthLocation = useCallback(async () => {
-    if (!birthLocation || birthLocation.length < 2) return;
+  const searchBirthLocation = useCallback(async (query: string) => {
+    if (!query || query.length < 2) { setBirthGeoResults([]); return; }
+    birthLocAbortRef.current?.abort();
+    const controller = new AbortController();
+    birthLocAbortRef.current = controller;
     setBirthSearching(true);
     try {
-      const base = import.meta.env.DEV ? '/nominatim' : 'https://nominatim.openstreetmap.org';
-      const res = await fetch(`${base}/search?format=json&q=${encodeURIComponent(birthLocation)}&limit=5`);
+      const token = import.meta.env.VITE_MAPBOX_TOKEN;
+      const res = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&autocomplete=true&limit=5&types=place,locality,region,country`,
+        { signal: controller.signal },
+      );
       const json = await res.json();
-      if (json.length > 0) {
-        setBirthLocation(json[0].display_name);
-        setBirthLat(parseFloat(json[0].lat));
-        setBirthLng(parseFloat(json[0].lon));
-        setBirthGeoResults(json.length > 1 ? json.slice(1) : []);
-      } else {
-        setBirthGeoResults([]);
-        toast.error('No locations found');
+      if (!controller.signal.aborted) {
+        const mapped = (json.features || []).map((f: any) => ({
+          display_name: f.place_name,
+          lat: String(f.center[1]),
+          lon: String(f.center[0]),
+        }));
+        setBirthGeoResults(mapped);
+        setBirthLocSelectedIdx(-1);
       }
-    } catch {
-      toast.error('Location search failed');
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') toast.error('Location search failed');
     } finally {
-      setBirthSearching(false);
+      if (!controller.signal.aborted) setBirthSearching(false);
     }
-  }, [birthLocation]);
+  }, []);
+
+  const debouncedBirthLocationSearch = useCallback((query: string) => {
+    if (birthLocDebounceRef.current) clearTimeout(birthLocDebounceRef.current);
+    birthLocDebounceRef.current = setTimeout(() => searchBirthLocation(query), 300);
+  }, [searchBirthLocation]);
+
+  const selectBirthGeoResult = useCallback((r: { display_name: string; lat: string; lon: string }) => {
+    setBirthLocation(r.display_name);
+    setBirthLat(parseFloat(r.lat));
+    setBirthLng(parseFloat(r.lon));
+    setBirthGeoResults([]);
+    setBirthLocSelectedIdx(-1);
+  }, []);
 
   const handleSaveBirthDetails = useCallback(async () => {
     if (!user || !birthName.trim() || !birthDate || !birthLat || !birthLng) return;
@@ -789,43 +812,58 @@ export default function SettingsPage() {
                       </div>
                       <div>
                         <label className="text-sm font-medium">Birth Location</label>
-                        <div className="flex gap-2 mt-1">
-                          <div className="relative flex-1">
+                        <div className="relative mt-1">
+                          <div className="relative flex items-center">
                             <input
                               type="text"
                               value={birthLocation}
-                              onChange={e => { setBirthLocation(e.target.value); setBirthLat(null); setBirthLng(null); setBirthGeoResults([]); }}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setBirthLocation(val);
+                                setBirthLat(null);
+                                setBirthLng(null);
+                                debouncedBirthLocationSearch(val);
+                              }}
+                              onKeyDown={e => {
+                                if (birthGeoResults.length > 0) {
+                                  if (e.key === 'ArrowDown') { e.preventDefault(); setBirthLocSelectedIdx(i => Math.min(i + 1, birthGeoResults.length - 1)); }
+                                  else if (e.key === 'ArrowUp') { e.preventDefault(); setBirthLocSelectedIdx(i => Math.max(i - 1, -1)); }
+                                  else if (e.key === 'Enter' && birthLocSelectedIdx >= 0) { e.preventDefault(); selectBirthGeoResult(birthGeoResults[birthLocSelectedIdx]); }
+                                  else if (e.key === 'Escape') { setBirthGeoResults([]); setBirthLocSelectedIdx(-1); }
+                                } else if (e.key === 'Enter' && birthLocation.length >= 2) {
+                                  searchBirthLocation(birthLocation);
+                                }
+                              }}
+                              onFocus={() => setBirthLocFocused(true)}
+                              onBlur={() => setTimeout(() => setBirthLocFocused(false), 200)}
                               placeholder="City, Country"
                               className="w-full h-9 px-3 pr-8 rounded-md border bg-background text-sm"
-                              onKeyDown={e => e.key === 'Enter' && searchBirthLocation()}
+                              autoComplete="off"
                             />
-                            {birthLat !== null && (
+                            {birthSearching ? (
+                              <Loader2 className="absolute right-2.5 top-2.5 w-4 h-4 animate-spin text-muted-foreground" />
+                            ) : birthLat !== null ? (
                               <MapPin className="absolute right-2.5 top-2.5 w-4 h-4 text-emerald-500" />
-                            )}
+                            ) : null}
                           </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={searchBirthLocation}
-                            disabled={birthSearching || !birthLocation || birthLocation.length < 2}
-                            className="h-9 px-3"
-                          >
-                            {birthSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                          </Button>
+                          {birthLocFocused && birthGeoResults.length > 0 && (
+                            <div className="absolute z-50 left-0 right-0 top-full mt-1 border rounded-md bg-popover shadow-xl max-h-48 overflow-y-auto">
+                              {birthGeoResults.map((r, i) => (
+                                <button
+                                  key={i}
+                                  onMouseDown={e => e.preventDefault()}
+                                  onMouseEnter={() => setBirthLocSelectedIdx(i)}
+                                  onClick={() => selectBirthGeoResult(r)}
+                                  className={`w-full text-left px-3 py-2.5 text-xs border-b last:border-b-0 transition-colors ${
+                                    i === birthLocSelectedIdx ? 'bg-accent' : 'hover:bg-muted'
+                                  }`}
+                                >
+                                  {r.display_name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        {birthGeoResults.length > 0 && (
-                          <div className="mt-1 border rounded-md bg-popover shadow-sm max-h-32 overflow-y-auto">
-                            {birthGeoResults.map((r, i) => (
-                              <button
-                                key={i}
-                                onClick={() => { setBirthLocation(r.display_name); setBirthLat(parseFloat(r.lat)); setBirthLng(parseFloat(r.lon)); setBirthGeoResults([]); }}
-                                className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors border-b last:border-b-0"
-                              >
-                                {r.display_name}
-                              </button>
-                            ))}
-                          </div>
-                        )}
                       </div>
                       <div className="flex gap-2 pt-2">
                         <Button

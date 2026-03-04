@@ -41,7 +41,7 @@ export const PostSessionBanner: React.FC<PostSessionBannerProps> = ({
   const isProcessing = ['ended', 'processing'].includes(status);
 
   return (
-    <div className="border-b border-border bg-muted/50 px-4 py-3">
+    <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-muted/95 backdrop-blur-sm px-4 py-3 shadow-lg">
       <div className="container max-w-6xl mx-auto flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
           <div className="shrink-0">

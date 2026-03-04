@@ -5,7 +5,9 @@ import { useState, useEffect, useCallback } from 'react';
  * Uses requestAnimationFrame for smooth, jank-free updates.
  */
 export function useScrollProgress(scrollDistance = window.innerHeight * 1.5): number {
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState(() =>
+    Math.min(1, Math.max(0, window.scrollY / scrollDistance)),
+  );
 
   const handleScroll = useCallback(() => {
     const y = window.scrollY;

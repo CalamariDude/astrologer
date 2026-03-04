@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Loader2, MapPin, Search, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -36,6 +36,10 @@ export function BirthDetailsModal({ open, onComplete }: BirthDetailsModalProps) 
   const [geoResults, setGeoResults] = useState<GeoResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [locationFocused, setLocationFocused] = useState(false);
+  const [locSelectedIdx, setLocSelectedIdx] = useState(-1);
+  const locationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const locationAbortRef = useRef<AbortController | null>(null);
 
   // Load display name from profile on first open
   const [nameLoaded, setNameLoaded] = useState(false);
@@ -47,38 +51,46 @@ export function BirthDetailsModal({ open, onComplete }: BirthDetailsModalProps) 
       });
   }
 
-  const searchLocation = useCallback(async () => {
-    if (!location || location.length < 2) return;
+  const searchLocation = useCallback(async (query: string) => {
+    if (!query || query.length < 2) { setGeoResults([]); return; }
+    locationAbortRef.current?.abort();
+    const controller = new AbortController();
+    locationAbortRef.current = controller;
     setSearching(true);
     try {
-      const base = import.meta.env.DEV
-        ? '/nominatim'
-        : 'https://nominatim.openstreetmap.org';
+      const token = import.meta.env.VITE_MAPBOX_TOKEN;
       const res = await fetch(
-        `${base}/search?format=json&q=${encodeURIComponent(location)}&limit=5`,
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&autocomplete=true&limit=5&types=place,locality,region,country`,
+        { signal: controller.signal },
       );
-      const json: GeoResult[] = await res.json();
-      if (json.length > 0) {
-        setLocation(json[0].display_name);
-        setLat(parseFloat(json[0].lat));
-        setLng(parseFloat(json[0].lon));
-        setGeoResults(json.length > 1 ? json.slice(1) : []);
-      } else {
-        setGeoResults([]);
-        toast.error('No locations found');
+      const json = await res.json();
+      if (!controller.signal.aborted) {
+        const mapped: GeoResult[] = (json.features || []).map((f: any) => ({
+          display_name: f.place_name,
+          lat: String(f.center[1]),
+          lon: String(f.center[0]),
+        }));
+        setGeoResults(mapped);
+        setLocSelectedIdx(-1);
       }
-    } catch {
-      toast.error('Location search failed');
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') toast.error('Location search failed');
     } finally {
-      setSearching(false);
+      if (!controller.signal.aborted) setSearching(false);
     }
-  }, [location]);
+  }, []);
+
+  const debouncedLocationSearch = useCallback((query: string) => {
+    if (locationDebounceRef.current) clearTimeout(locationDebounceRef.current);
+    locationDebounceRef.current = setTimeout(() => searchLocation(query), 300);
+  }, [searchLocation]);
 
   const selectGeoResult = useCallback((result: GeoResult) => {
     setLocation(result.display_name);
     setLat(parseFloat(result.lat));
     setLng(parseFloat(result.lon));
     setGeoResults([]);
+    setLocSelectedIdx(-1);
   }, []);
 
   const isValid = name.trim() && birthDate && birthDate.length === 10 && lat !== null && lng !== null;
@@ -167,44 +179,58 @@ export function BirthDetailsModal({ open, onComplete }: BirthDetailsModalProps) 
           {/* Birth Location */}
           <div>
             <label className="text-sm font-medium">Birth Location</label>
-            <div className="flex gap-2 mt-1">
-              <div className="relative flex-1">
+            <div className="relative mt-1">
+              <div className="relative flex items-center">
                 <input
                   type="text"
                   value={location}
-                  onChange={e => { setLocation(e.target.value); setLat(null); setLng(null); setGeoResults([]); }}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setLocation(val);
+                    setLat(null);
+                    setLng(null);
+                    debouncedLocationSearch(val);
+                  }}
+                  onKeyDown={e => {
+                    if (geoResults.length > 0) {
+                      if (e.key === 'ArrowDown') { e.preventDefault(); setLocSelectedIdx(i => Math.min(i + 1, geoResults.length - 1)); }
+                      else if (e.key === 'ArrowUp') { e.preventDefault(); setLocSelectedIdx(i => Math.max(i - 1, -1)); }
+                      else if (e.key === 'Enter' && locSelectedIdx >= 0) { e.preventDefault(); selectGeoResult(geoResults[locSelectedIdx]); }
+                      else if (e.key === 'Escape') { setGeoResults([]); setLocSelectedIdx(-1); }
+                    } else if (e.key === 'Enter' && location.length >= 2) {
+                      searchLocation(location);
+                    }
+                  }}
+                  onFocus={() => setLocationFocused(true)}
+                  onBlur={() => setTimeout(() => setLocationFocused(false), 200)}
                   placeholder="City, Country"
                   className="w-full h-9 px-3 pr-8 rounded-md border bg-background text-sm"
-                  onKeyDown={e => e.key === 'Enter' && searchLocation()}
+                  autoComplete="off"
                 />
-                {lat !== null && (
+                {searching ? (
+                  <Loader2 className="absolute right-2.5 top-2.5 w-4 h-4 animate-spin text-muted-foreground" />
+                ) : lat !== null ? (
                   <MapPin className="absolute right-2.5 top-2.5 w-4 h-4 text-emerald-500" />
-                )}
+                ) : null}
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={searchLocation}
-                disabled={searching || !location || location.length < 2}
-                className="h-9 px-3"
-              >
-                {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              </Button>
+              {locationFocused && geoResults.length > 0 && (
+                <div className="absolute z-50 left-0 right-0 top-full mt-1 border rounded-md bg-popover shadow-xl max-h-48 overflow-y-auto">
+                  {geoResults.map((r, i) => (
+                    <button
+                      key={i}
+                      onMouseDown={e => e.preventDefault()}
+                      onMouseEnter={() => setLocSelectedIdx(i)}
+                      onClick={() => selectGeoResult(r)}
+                      className={`w-full text-left px-3 py-2.5 text-xs border-b last:border-b-0 transition-colors ${
+                        i === locSelectedIdx ? 'bg-accent' : 'hover:bg-muted'
+                      }`}
+                    >
+                      {r.display_name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            {/* Geo results dropdown */}
-            {geoResults.length > 0 && (
-              <div className="mt-1 border rounded-md bg-popover shadow-sm max-h-32 overflow-y-auto">
-                {geoResults.map((r, i) => (
-                  <button
-                    key={i}
-                    onClick={() => selectGeoResult(r)}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors border-b last:border-b-0"
-                  >
-                    {r.display_name}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
