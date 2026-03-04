@@ -5,6 +5,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { TimeInput } from '@/components/ui/TimeInput';
 import { SECTORS, type Company } from '@/data/companies';
 
 interface AddCompanyDialogProps {
@@ -96,7 +97,7 @@ export function AddCompanyDialog({ open, onOpenChange, onSave }: AddCompanyDialo
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="incTime">Time (optional)</Label>
-              <Input id="incTime" type="time" value={incTime} onChange={e => setIncTime(e.target.value)} />
+              <TimeInput value={incTime} onChange={setIncTime} />
             </div>
           </div>
 

@@ -705,6 +705,13 @@ export function PlanetNode3D({ planet, selected, onSelect, animationDelay = 0, d
   // Transit planets use the base planet key for color lookup
   const colorKey = isTransit ? planet.key.replace('transit_', '') : planet.key;
 
+  // ── Smooth orbital arc animation for transit planets ──
+  // Instead of teleporting, planets race along their orbit to the new position.
+  const animLongRef = useRef(planet.rawLongitude ?? planet.longitude);
+  const orbitRadiusRef = useRef(
+    Math.sqrt(planet.position.x * planet.position.x + planet.position.z * planet.position.z),
+  );
+
   // Use realistic 3D color, falling back to chart color
   const realColor = PLANET_COLORS_3D[colorKey] ?? planet.color;
   const planetColor3D = useMemo(() => new THREE.Color(realColor), [realColor]);
@@ -745,8 +752,8 @@ export function PlanetNode3D({ planet, selected, onSelect, animationDelay = 0, d
     [planetColor3D],
   );
 
-  // Orb glow size — larger like landing page, still capped
-  const auraSize = Math.min(planet.size * 5, planet.orb * 0.2 + planet.size * 2.5);
+  // Orb glow size — larger like landing page, still capped. Skip for transit planets.
+  const auraSize = isTransit ? 0 : Math.min(planet.size * 5, planet.orb * 0.2 + planet.size * 2.5);
 
   // Degree + sign + degree label text
   const { degreeText, degreeSymbol } = useMemo(() => {
@@ -795,6 +802,35 @@ export function PlanetNode3D({ planet, selected, onSelect, animationDelay = 0, d
     if (groupRef.current) {
       const s = scaleRef.current;
       groupRef.current.scale.set(s, s, s);
+
+      // ── Transit planet: arc interpolation ──
+      // Animate longitude so planets race along their orbit instead of cutting across.
+      if (isTransit && planet.rawLongitude !== undefined) {
+        const target = planet.rawLongitude;
+        let current = animLongRef.current;
+        let diff = target - current;
+
+        // For very large jumps (>720°), snap to within one orbit and animate the rest
+        if (Math.abs(diff) > 720) {
+          current = target - Math.sign(diff) * 360;
+          animLongRef.current = current;
+          diff = target - current;
+        }
+
+        if (Math.abs(diff) > 0.05) {
+          // Adaptive lerp: fast for tiny diffs (smooth play), slower for big jumps (visible sweep)
+          const absDiff = Math.abs(diff);
+          const lerp = absDiff < 10 ? 0.25 : 0.06 + 0.19 * Math.max(0, 1 - absDiff / 30);
+          current += diff * lerp;
+          animLongRef.current = current;
+          const rad = ((current % 360 + 360) % 360) * Math.PI / 180;
+          const r = orbitRadiusRef.current;
+          groupRef.current.position.set(Math.cos(rad) * r, 0, -Math.sin(rad) * r);
+        } else {
+          animLongRef.current = target;
+          groupRef.current.position.copy(planet.position);
+        }
+      }
     }
 
     // Emissive pulse
@@ -887,19 +923,7 @@ export function PlanetNode3D({ planet, selected, onSelect, animationDelay = 0, d
         </sprite>
       )}
 
-      {/* Transit indicator ring — amber dashed ring around transit planets */}
-      {isTransit && (
-        <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[planet.size * 1.6, 0.02, 8, 48]} />
-          <meshBasicMaterial
-            color="#f59e0b"
-            transparent
-            opacity={0.6 * dimFactor}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-          />
-        </mesh>
-      )}
+      {/* Transit indicator ring removed — transits are distinguished by label prefix and color */}
 
       {/* Selection ring */}
       {selected && (

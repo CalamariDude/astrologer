@@ -5,7 +5,7 @@ import { FeatureGrid } from '@/components/landing/FeatureGrid';
 import { useFadeIn } from '@/hooks/useFadeIn';
 
 const GRID_ITEMS = [
-  { icon: '\u2609', title: 'Company Natal Charts', description: 'Cast a natal chart from any company\'s incorporation or IPO date. 76 companies pre-loaded.' },
+  { icon: '\u2609', title: 'Company Natal Charts', description: 'Cast a natal chart from any company\'s IPO date and time. 76 companies pre-loaded.' },
   { icon: '\u25A1', title: 'Candlestick Price Charts', description: 'Real stock price data rendered as interactive candlestick charts with volume.' },
   { icon: '\u2604', title: 'Transit Overlays', description: 'Click any candle to see which transits were hitting the company\'s natal chart on that date.' },
   { icon: '\u25CE', title: 'Live Stock Stats', description: 'Current price, P/E ratio, market cap, volume, 52-week range, dividend yield, and more.' },
@@ -63,7 +63,7 @@ function MarketsMockVisual() {
           <div>
             <div className="text-xs text-black/40 font-bold uppercase tracking-wider">Company Chart</div>
             <div className="text-lg font-semibold text-black/80 mt-1">Apple Inc. (AAPL)</div>
-            <div className="text-[11px] text-black/35">Founded: Apr 1, 1976 {'\u2014'} Cupertino, CA</div>
+            <div className="text-[11px] text-black/35">IPO: Dec 12, 1980 · 9:30 AM {'\u2014'} NASDAQ</div>
           </div>
           <div className="text-right">
             <div className="text-xl font-bold text-emerald-600">$243.85</div>

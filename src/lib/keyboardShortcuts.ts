@@ -23,6 +23,7 @@ export const TAB_VALUES = [
   'solar-return',
   'lunar-return',
   'ai-reading',
+  'time-finder',
   'notes',
 ] as const;
 

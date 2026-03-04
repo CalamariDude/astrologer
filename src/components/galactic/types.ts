@@ -26,6 +26,7 @@ export interface Planet3D {
   ringTilt?: number; // radians
   ringSize?: number; // multiplier of planet size for ring radius
   isTransit?: boolean; // true for transit overlay planets
+  rawLongitude?: number; // unwrapped longitude (no mod 360) for smooth orbital animation
 }
 
 /** An aspect with 3D endpoint positions and energy parameters */

@@ -154,7 +154,8 @@ export function useGalacticChart(
 
       const orbital = PLANET_ORBITAL_ELEMENTS[key];
       const motion = orbital?.meanDailyMotion ?? 0;
-      const transitLong = ((data.longitude + motion * transitDayOffset) % 360 + 360) % 360;
+      const rawLong = data.longitude + motion * transitDayOffset;
+      const transitLong = ((rawLong) % 360 + 360) % 360;
 
       const info = getPlanetInfo(key);
       const semiMajor = TRANSIT_ORBIT_RADIUS + (TRANSIT_ORBIT_SPREAD[key] ?? 0);
@@ -169,6 +170,7 @@ export function useGalacticChart(
         symbol: info.symbol,
         position,
         longitude: transitLong,
+        rawLongitude: rawLong,
         latitude: 0,
         color: info.color,
         size: getPlanetSize(info.category) * 0.65,

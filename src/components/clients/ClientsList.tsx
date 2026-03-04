@@ -6,6 +6,7 @@
 import { useState, useMemo } from 'react';
 import { Search, Trash2, Pencil, Check, X, ExternalLink, Plus, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { TimeInput } from '@/components/ui/TimeInput';
 import { toast } from 'sonner';
 import {
   loadClients, addClient, updateClient, deleteClient, searchClients,
@@ -141,7 +142,7 @@ export function ClientsList({ savedCharts = [] }: ClientsListProps) {
           <input type="text" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Name" className="w-full px-2.5 py-1.5 text-xs rounded-md border border-border/50 bg-transparent focus:outline-none focus:ring-1 focus:ring-ring" />
           <div className="grid grid-cols-2 gap-2">
             <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="px-2.5 py-1.5 text-xs rounded-md border border-border/50 bg-transparent focus:outline-none focus:ring-1 focus:ring-ring" />
-            <input type="time" value={newTime} onChange={e => setNewTime(e.target.value)} className="px-2.5 py-1.5 text-xs rounded-md border border-border/50 bg-transparent focus:outline-none focus:ring-1 focus:ring-ring" />
+            <TimeInput value={newTime} onChange={setNewTime} className="px-2.5 py-1.5 h-auto text-xs rounded-md border-border/50 bg-transparent focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-0" />
           </div>
           <input type="text" value={newLocation} onChange={e => setNewLocation(e.target.value)} placeholder="Location" className="w-full px-2.5 py-1.5 text-xs rounded-md border border-border/50 bg-transparent focus:outline-none focus:ring-1 focus:ring-ring" />
           <div className="flex gap-2 justify-end">

@@ -23,6 +23,7 @@ import type { ChartMode, AsteroidGroup, FixedStarGroup, LocationData } from '../
 import { ASTEROID_GROUPS, FIXED_STAR_GROUPS } from '../types';
 import { THEMES, THEME_LABELS, type ThemeName } from '../utils/themes';
 import { AYANAMSA_SYSTEMS } from '@/lib/sidereal';
+import { TimeInput } from '@/components/ui/TimeInput';
 
 interface TogglePanelContentProps {
   visiblePlanets: Set<string>;
@@ -587,7 +588,11 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
                   <input
                     type="date"
                     value={transitDate}
-                    onChange={(e) => onSetTransitDate(e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      const year = v.split('-')[0];
+                      if (year && year.length >= 4) onSetTransitDate(v);
+                    }}
                     style={{
                       width: '100%',
                       padding: isMobile ? '10px 12px' : '4px 6px',
@@ -602,10 +607,10 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
                   {/* Time picker */}
                   {onSetTransitTime && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
-                      <input
-                        type="time"
+                      <TimeInput
                         value={transitTime}
-                        onChange={(e) => onSetTransitTime(e.target.value)}
+                        onChange={(v) => onSetTransitTime(v)}
+                        unstyled
                         style={{
                           flex: 1,
                           padding: isMobile ? '10px 12px' : '4px 6px',
@@ -614,7 +619,6 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
                           borderRadius: 6,
                           background: COLORS.backgroundAlt2,
                           color: COLORS.textPrimary,
-                          colorScheme: COLORS.background.charAt(1) < '8' ? 'dark' : 'light',
                         }}
                       />
                       <button
@@ -802,7 +806,11 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
                   <input
                     type="date"
                     value={progressedDate}
-                    onChange={(e) => onSetProgressedDate(e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      const year = v.split('-')[0];
+                      if (year && year.length >= 4) onSetProgressedDate(v);
+                    }}
                     style={{ width: '100%', padding: isMobile ? '10px 12px' : '4px 6px', fontSize: isMobile ? 14 : 11, border: `1px solid ${COLORS.gridLineFaint}`, borderRadius: 6, background: COLORS.backgroundAlt2, color: COLORS.textPrimary, colorScheme: COLORS.background.charAt(1) < '8' ? 'dark' : 'light' }}
                   />
                 </div>

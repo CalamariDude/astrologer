@@ -58,6 +58,7 @@ const DignityTable = React.lazy(() => import('@/components/astro-tools/DignityTa
 const FixedStarsPanel = React.lazy(() => import('@/components/astro-tools/FixedStarsPanel').then(m => ({ default: m.FixedStarsPanel })));
 const SolarReturnPanel = React.lazy(() => import('@/components/astro-tools/SolarReturnPanel').then(m => ({ default: m.SolarReturnPanel })));
 const LunarReturnPanel = React.lazy(() => import('@/components/astro-tools/LunarReturnPanel').then(m => ({ default: m.LunarReturnPanel })));
+const TimeFinder = React.lazy(() => import('@/components/astro-tools/TimeFinder').then(m => ({ default: m.TimeFinder })));
 
 const ZODIAC_SIGNS = [
   'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
@@ -469,6 +470,17 @@ function parseNatalResponse(data: any): NatalChart {
         degree: p.degree ?? undefined,
         minute: p.minute ?? undefined,
         retrograde: p.retrograde ?? false,
+      };
+    }
+    // Derive South Node from North Node (always 180° opposite)
+    if (planets.northnode && !planets.southnode) {
+      const snLong = (planets.northnode.longitude + 180) % 360;
+      planets.southnode = {
+        longitude: snLong,
+        sign: ZODIAC_SIGNS[Math.floor(snLong / 30)] || '',
+        degree: Math.floor(snLong % 30),
+        minute: Math.floor((snLong % 1) * 60),
+        retrograde: planets.northnode.retrograde ?? true,
       };
     }
   }
@@ -2114,6 +2126,7 @@ export default function ChartPage() {
                 ]},
                 { group: 'Tools', tabs: [
                   { value: 'ai-reading', icon: Sparkles, label: 'AI Reading' },
+                  { value: 'time-finder', icon: Search, label: 'Time Finder' },
                   { value: 'notes', icon: StickyNote, label: 'Notes' },
                 ]},
               ].map(group => (
@@ -2190,6 +2203,21 @@ export default function ChartPage() {
                 nameB={hasSynastry ? (personB!.name || 'Person B') : undefined}
                 birthInfoA={{ date: personAData.date, time: personAData.time, lat: personAData.lat ?? undefined, lng: personAData.lng ?? undefined }}
                 birthInfoB={hasSynastry && personBData ? { date: personBData.date, time: personBData.time, lat: personBData.lat ?? undefined, lng: personBData.lng ?? undefined } : undefined}
+              />
+            </TabsContent>
+            <TabsContent value="time-finder" className="mt-4 min-h-[400px]">
+              <TimeFinder
+                onUseTime={(data) => {
+                  setPersonAData(prev => ({
+                    ...prev,
+                    date: data.date,
+                    time: data.time,
+                    location: data.location,
+                    lat: data.lat,
+                    lng: data.lng,
+                  }));
+                  setEditing(true);
+                }}
               />
             </TabsContent>
             <TabsContent value="notes" className="mt-4 min-h-[400px]">

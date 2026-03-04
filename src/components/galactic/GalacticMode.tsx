@@ -244,19 +244,21 @@ function TransitControls({
   onReset: () => void;
   onJumpToToday: () => void;
 }) {
+  // Round offset so label only recalculates when the displayed day changes (not every frame)
+  const roundedOffset = Math.round(dayOffset);
   const dateLabel = useMemo(() => {
-    if (dayOffset === 0) return 'Natal';
+    if (roundedOffset === 0) return 'Natal';
     if (birthDate) {
       const d = new Date(birthDate);
-      d.setDate(d.getDate() + Math.round(dayOffset));
+      d.setDate(d.getDate() + roundedOffset);
       return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
-    const sign = dayOffset > 0 ? '+' : '';
-    const absDays = Math.abs(Math.round(dayOffset));
-    if (absDays >= 365) return `${sign}${(dayOffset / 365.25).toFixed(1)}y`;
-    if (absDays >= 30) return `${sign}${Math.round(dayOffset / 30.44)}mo`;
-    return `${sign}${Math.round(dayOffset)}d`;
-  }, [dayOffset, birthDate]);
+    const sign = roundedOffset > 0 ? '+' : '';
+    const absDays = Math.abs(roundedOffset);
+    if (absDays >= 365) return `${sign}${(roundedOffset / 365.25).toFixed(1)}y`;
+    if (absDays >= 30) return `${sign}${Math.round(roundedOffset / 30.44)}mo`;
+    return `${sign}${roundedOffset}d`;
+  }, [roundedOffset, birthDate]);
 
   const btnClass = "p-1.5 rounded-md bg-white/5 hover:bg-white/10 text-white/60 hover:text-white/90 transition-colors";
 
@@ -732,7 +734,7 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
       </Suspense>
 
       {/* Top-left: title + transit toggle */}
-      <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
+      <div className="absolute top-3 left-3 z-10 flex items-center gap-2" onPointerDown={e => e.stopPropagation()}>
         <div className="flex items-center gap-2 bg-black/50 backdrop-blur-sm rounded-lg px-3 py-1.5">
           <div className={`w-2 h-2 rounded-full ${transitEnabled ? 'bg-amber-400' : 'bg-indigo-400'} animate-pulse`} />
           <span className="text-xs font-medium text-white/80">
@@ -754,7 +756,7 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
       </div>
 
       {/* Top-right: settings toggle + quick buttons */}
-      <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
+      <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5" onPointerDown={e => e.stopPropagation()}>
         <button
           onClick={() => setShowOverview(v => !v)}
           className={`p-2 rounded-lg backdrop-blur-sm transition-colors ${
@@ -808,7 +810,7 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
 
       {/* ═══ Right-side Settings Panel ═══ */}
       {settingsPanelOpen && (
-        <div className="absolute top-14 right-3 z-20 w-56 max-h-[calc(100%-7rem)] overflow-y-auto bg-black/90 backdrop-blur-md rounded-lg border border-white/10 scrollbar-thin scrollbar-thumb-white/10">
+        <div className="absolute top-14 right-3 z-20 w-56 max-h-[calc(100%-7rem)] overflow-y-auto bg-black/90 backdrop-blur-md rounded-lg border border-white/10 scrollbar-thin scrollbar-thumb-white/10" onPointerDown={e => e.stopPropagation()}>
           <div className="p-2.5 space-y-1">
             {/* Header */}
             <div className="flex items-center justify-between pb-1 border-b border-white/10 mb-1">
@@ -997,7 +999,13 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
       )}
 
       {/* Bottom: Transit controls (when enabled) + camera presets */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
+      {/* stopPropagation prevents clicks from leaking to the 3D canvas / orbit controls */}
+      <div
+        className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2"
+        onPointerDown={e => e.stopPropagation()}
+        onPointerUp={e => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
+      >
         {/* Transit time controls — only when transit mode is active */}
         {transitEnabled && (
           <TransitControls

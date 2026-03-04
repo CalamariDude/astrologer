@@ -2,58 +2,72 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 interface TimeInputProps {
-  value: string; // "HH:MM" or ""
+  value: string; // "HH:MM" 24h format
   onChange: (value: string) => void;
   className?: string;
+  style?: React.CSSProperties;
+  unstyled?: boolean;
 }
 
-function parseTimeValue(value: string): { hh: string; mm: string } {
-  if (!value) return { hh: '', mm: '' };
+function to12h(hh24: number): { hh12: number; period: 'AM' | 'PM' } {
+  const period = hh24 >= 12 ? 'PM' : 'AM';
+  let hh12 = hh24 % 12;
+  if (hh12 === 0) hh12 = 12;
+  return { hh12, period };
+}
+
+function to24h(hh12: number, period: 'AM' | 'PM'): number {
+  if (period === 'AM') return hh12 === 12 ? 0 : hh12;
+  return hh12 === 12 ? 12 : hh12 + 12;
+}
+
+function parseTimeValue(value: string): { hh: string; mm: string; period: 'AM' | 'PM' } {
+  if (!value) return { hh: '', mm: '', period: 'AM' };
   const match = value.match(/^(\d{1,2}):(\d{2})$/);
-  if (match) return { hh: match[1].padStart(2, '0'), mm: match[2] };
-  return { hh: '', mm: '' };
+  if (match) {
+    const hh24 = parseInt(match[1], 10);
+    const { hh12, period } = to12h(hh24);
+    return { hh: String(hh12), mm: match[2], period };
+  }
+  return { hh: '', mm: '', period: 'AM' };
 }
 
 function clamp(val: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, val));
 }
 
-function assembleTime(hh: string, mm: string): string {
-  if (hh.length === 2 && mm.length === 2) return `${hh}:${mm}`;
-  return '';
-}
-
-export function TimeInput({ value, onChange, className }: TimeInputProps) {
+export function TimeInput({ value, onChange, className, style, unstyled }: TimeInputProps) {
   const parsed = parseTimeValue(value);
   const [hh, setHh] = React.useState(parsed.hh);
   const [mm, setMm] = React.useState(parsed.mm);
+  const [period, setPeriod] = React.useState<'AM' | 'PM'>(parsed.period);
 
   const hhRef = React.useRef<HTMLInputElement>(null);
   const mmRef = React.useRef<HTMLInputElement>(null);
 
-  // Sync from external value changes
   React.useEffect(() => {
     const p = parseTimeValue(value);
     setHh(p.hh);
     setMm(p.mm);
+    setPeriod(p.period);
   }, [value]);
 
-  const emitChange = (newHh: string, newMm: string) => {
-    const assembled = assembleTime(newHh, newMm);
-    if (assembled) onChange(assembled);
+  const emitChange = (newHh: string, newMm: string, newPeriod: 'AM' | 'PM') => {
+    if (newHh && newMm.length === 2) {
+      const h12 = clamp(parseInt(newHh, 10), 1, 12);
+      const hh24 = to24h(h12, newPeriod);
+      const m = clamp(parseInt(newMm, 10), 0, 59);
+      onChange(`${String(hh24).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    }
   };
 
   const handleChange = (segment: 'hh' | 'mm', raw: string) => {
     const digits = raw.replace(/\D/g, '').slice(0, 2);
-
     let newHh = hh, newMm = mm;
     if (segment === 'hh') { newHh = digits; setHh(digits); }
     if (segment === 'mm') { newMm = digits; setMm(digits); }
-
-    // Auto-advance
     if (segment === 'hh' && digits.length === 2) mmRef.current?.focus();
-
-    emitChange(newHh, newMm);
+    emitChange(newHh, newMm, period);
   };
 
   const handleKeyDown = (segment: 'hh' | 'mm', e: React.KeyboardEvent) => {
@@ -68,10 +82,9 @@ export function TimeInput({ value, onChange, className }: TimeInputProps) {
 
   const handleBlur = (segment: 'hh' | 'mm') => {
     let newHh = hh, newMm = mm;
-
     if (segment === 'hh' && hh) {
-      const n = clamp(parseInt(hh, 10), 0, 23);
-      newHh = String(n).padStart(2, '0');
+      const n = clamp(parseInt(hh, 10), 1, 12);
+      newHh = String(n);
       setHh(newHh);
     }
     if (segment === 'mm' && mm) {
@@ -79,33 +92,60 @@ export function TimeInput({ value, onChange, className }: TimeInputProps) {
       newMm = String(n).padStart(2, '0');
       setMm(newMm);
     }
+    emitChange(newHh, newMm, period);
+  };
 
-    emitChange(newHh, newMm);
+  const togglePeriod = () => {
+    const newPeriod = period === 'AM' ? 'PM' : 'AM';
+    setPeriod(newPeriod);
+    emitChange(hh, mm, newPeriod);
   };
 
   const handlePaste = (e: React.ClipboardEvent) => {
     const text = e.clipboardData.getData('text').trim();
-    // Try HH:MM or H:MM
-    const match = text.match(/^(\d{1,2}):(\d{2})$/);
+    const match = text.match(/^(\d{1,2}):(\d{2})\s*(am|pm)?$/i);
     if (match) {
       e.preventDefault();
-      const pHh = match[1].padStart(2, '0');
-      const pMm = match[2];
-      setHh(pHh); setMm(pMm);
-      emitChange(pHh, pMm);
+      let pHh = parseInt(match[1], 10);
+      let pPeriod = period;
+      if (match[3]) {
+        pPeriod = match[3].toUpperCase() as 'AM' | 'PM';
+        pHh = clamp(pHh, 1, 12);
+      } else if (pHh > 12) {
+        const conv = to12h(pHh);
+        pHh = conv.hh12;
+        pPeriod = conv.period;
+      }
+      setHh(String(pHh));
+      setMm(match[2]);
+      setPeriod(pPeriod);
+      emitChange(String(pHh), match[2], pPeriod);
       mmRef.current?.focus();
     }
   };
 
-  const segmentClass =
-    'bg-transparent border-none outline-none text-center tabular-nums placeholder:text-muted-foreground/50 text-sm';
+  const segStyle: React.CSSProperties = {
+    background: 'transparent',
+    border: 'none',
+    outline: 'none',
+    textAlign: 'center',
+    fontVariantNumeric: 'tabular-nums',
+    color: 'inherit',
+    fontSize: 'inherit',
+    width: '1.6em',
+    padding: 0,
+  };
 
   return (
     <div
-      className={cn(
-        'flex h-10 items-center rounded-md border border-input bg-background px-3 ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
-        className,
-      )}
+      className={unstyled
+        ? cn('flex items-center gap-0.5', className)
+        : cn(
+            'flex items-center rounded-md border border-input bg-background px-3 gap-0.5 text-sm h-10 ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
+            className,
+          )
+      }
+      style={style}
       onPaste={handlePaste}
     >
       <input
@@ -114,25 +154,46 @@ export function TimeInput({ value, onChange, className }: TimeInputProps) {
         onChange={(e) => handleChange('hh', e.target.value)}
         onKeyDown={(e) => handleKeyDown('hh', e)}
         onBlur={() => handleBlur('hh')}
-        placeholder="HH"
+        placeholder="12"
         inputMode="numeric"
         pattern="[0-9]*"
-        className={cn(segmentClass, 'w-7')}
+        style={segStyle}
         maxLength={2}
       />
-      <span className="text-muted-foreground/50 mx-0.5">:</span>
+      <span style={{ opacity: 0.5, color: 'inherit' }}>:</span>
       <input
         ref={mmRef}
         value={mm}
         onChange={(e) => handleChange('mm', e.target.value)}
         onKeyDown={(e) => handleKeyDown('mm', e)}
         onBlur={() => handleBlur('mm')}
-        placeholder="MM"
+        placeholder="00"
         inputMode="numeric"
         pattern="[0-9]*"
-        className={cn(segmentClass, 'w-7')}
+        style={segStyle}
         maxLength={2}
       />
+      <button
+        type="button"
+        onClick={togglePeriod}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          fontWeight: 600,
+          fontSize: '0.85em',
+          color: 'inherit',
+          opacity: 0.7,
+          padding: '1px 4px',
+          borderRadius: 3,
+          marginLeft: 2,
+          lineHeight: 1,
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; }}
+      >
+        {period}
+      </button>
     </div>
   );
 }

@@ -56,8 +56,8 @@ export const PLANET_ORBIT_RADII: Record<string, number> = {
 /** Default radius for unlisted planets/asteroids */
 export const DEFAULT_ORBIT_RADIUS = 8.0;
 
-/** Base orbit radius for all transit planets (placed outside all natal orbits) */
-export const TRANSIT_ORBIT_RADIUS = 10.0;
+/** Base orbit radius for all transit planets (placed outside the zodiac ring outer edge of 10.8) */
+export const TRANSIT_ORBIT_RADIUS = 12.0;
 
 /** Small per-planet spread so transit planets don't stack on one ring */
 export const TRANSIT_ORBIT_SPREAD: Record<string, number> = {

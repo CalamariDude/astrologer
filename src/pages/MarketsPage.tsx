@@ -222,8 +222,9 @@ export default function MarketsPage() {
     }
     let cancelled = false;
     setNatalLoading(true);
+    const chartDate = selectedCompany.ipoDate || selectedCompany.ipoDate || selectedCompany.incorporationDate;
     swissEphemeris.natal({
-      birth_date: selectedCompany.incorporationDate,
+      birth_date: chartDate,
       birth_time: selectedCompany.incorporationTime || '12:00',
       lat: selectedCompany.lat,
       lng: selectedCompany.lng,
@@ -337,10 +338,10 @@ export default function MarketsPage() {
               <span className="text-sm text-muted-foreground">{selectedCompany.name}</span>
               <Badge variant="outline" className="text-[10px]">{selectedCompany.sector}</Badge>
               <span className="text-xs text-muted-foreground">
-                Founded {formatDate(selectedCompany.incorporationDate)}
+                IPO {formatDate(selectedCompany.ipoDate || selectedCompany.ipoDate || selectedCompany.incorporationDate)}
               </span>
               <span className="text-xs text-muted-foreground">
-                Sun in <span className="font-medium text-foreground">{getSunSign(selectedCompany.incorporationDate)}</span>
+                Sun in <span className="font-medium text-foreground">{getSunSign(selectedCompany.ipoDate || selectedCompany.ipoDate || selectedCompany.incorporationDate)}</span>
               </span>
             </>
           )}
@@ -450,7 +451,7 @@ export default function MarketsPage() {
                   onTransitDateChange={handleDateSelect}
                   initialTheme={pageTheme}
                   minSize={500}
-                  birthDateA={selectedCompany.incorporationDate}
+                  birthDateA={selectedCompany.ipoDate || selectedCompany.ipoDate || selectedCompany.incorporationDate}
                   birthTimeA={selectedCompany.incorporationTime || '12:00'}
                 />
               </Suspense>
@@ -502,7 +503,7 @@ export default function MarketsPage() {
                   <TransitTimeline
                     natalChart={natalChart}
                     birthInfo={{
-                      date: selectedCompany.incorporationDate,
+                      date: selectedCompany.ipoDate || selectedCompany.incorporationDate,
                       time: selectedCompany.incorporationTime || '12:00',
                       lat: selectedCompany.lat,
                       lng: selectedCompany.lng,
@@ -513,7 +514,7 @@ export default function MarketsPage() {
                 <TabsContent value="ephemeris" className="mt-4 min-h-[400px]">
                   <EphemerisTable
                     natalChart={natalChart}
-                    birthDate={selectedCompany.incorporationDate}
+                    birthDate={selectedCompany.ipoDate || selectedCompany.incorporationDate}
                     birthTime={selectedCompany.incorporationTime || '12:00'}
                     lat={selectedCompany.lat}
                     lng={selectedCompany.lng}
@@ -523,7 +524,7 @@ export default function MarketsPage() {
                 <TabsContent value="graphic-eph" className="mt-4 min-h-[400px]">
                   <GraphicEphemeris
                     natalChart={natalChart}
-                    birthDate={selectedCompany.incorporationDate}
+                    birthDate={selectedCompany.ipoDate || selectedCompany.incorporationDate}
                     birthTime={selectedCompany.incorporationTime || '12:00'}
                     lat={selectedCompany.lat}
                     lng={selectedCompany.lng}
