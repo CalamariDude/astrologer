@@ -6,17 +6,10 @@ import { FeatureGrid } from '@/components/landing/FeatureGrid';
 const GRID_ITEMS = [
   { icon: '\u262F', title: 'BiWheel Chart', description: 'Two natal charts overlaid in a single wheel — see every connection at a glance.' },
   { icon: '\u25A6', title: 'Aspect Grid', description: 'Complete inter-chart aspect table with orbs and color-coded aspect types.' },
-  { icon: '\u25CE', title: 'Radar Chart', description: 'Visual plot comparing compatibility across romance, communication, stability, and more.' },
   { icon: '\u2593', title: 'Heatmap Matrix', description: 'Color-coded matrix showing which planet pairs interact most strongly.' },
-  { icon: '\u2261', title: 'Sankey Diagram', description: 'Flow diagram showing how energy moves between two charts by aspect type.' },
   { icon: '\u2295', title: 'Composite Chart', description: 'Midpoint composite revealing the relationship\'s own identity and themes.' },
-  { icon: '\u25B3', title: 'Score Breakdown', description: 'Weighted compatibility score with category-by-category analysis.' },
-  { icon: '\u2606', title: 'Attraction Timeline', description: 'How attraction and connection phases evolve over time between two charts.' },
-  { icon: '\u2661', title: 'Marriage Indicators', description: 'Traditional marriage indicators drawn from composite and synastry aspects.' },
-  { icon: '\u23F3', title: 'Longevity Analysis', description: 'Relationship durability assessment based on stabilizing aspects.' },
-  { icon: '\u2302', title: 'Lifestyle Compatibility', description: 'How daily rhythms, domestic preferences, and values align.' },
-  { icon: '\u2B12', title: 'House Overlays', description: 'See which houses each person\'s planets fall into in the other\'s chart.' },
-  { icon: '\u25C6', title: 'Polarity & Stellium Bonuses', description: 'Extra scoring for element harmony and close conjunctions.' },
+  { icon: '\u23F3', title: 'Progressed vs Progressed', description: 'Compare two secondary progressed charts to see how your relationship evolves over time.' },
+  { icon: '\u2302', title: 'Relocated vs Relocated', description: 'Move both charts to a new location and see how the relationship dynamic shifts.' },
   { icon: '\u2728', title: 'AI Compatibility Reading', description: 'Ask the AI about your relationship dynamics and get personalized insights.', pro: true },
 ];
 
@@ -26,7 +19,7 @@ export default function SynastryFeaturePage() {
       pageTitle="Compatibility"
       tag="Compatibility"
       title="Understand how two charts connect."
-      description="Synastry biwheels, composite charts, radar plots, heatmaps, Sankey diagrams, and compatibility scoring — a suite of tools for relationship analysis."
+      description="Synastry biwheels, composite charts, heatmaps, progressed-vs-progressed, relocated-vs-relocated, and AI readings — a suite of tools for relationship analysis."
       gradient="bg-gradient-to-br from-pink-500/20 via-violet-500/10 to-transparent"
     >
       <FeatureShowcase

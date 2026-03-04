@@ -2092,48 +2092,55 @@ export default function ChartPage() {
 
           {/* Astro Tools Tabs */}
           <Tabs value={activeTab} onValueChange={handleTabChange}>
-            <div className="relative">
-              {/* Left fade */}
-              <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background to-transparent z-10" />
-              <TabsList
-                ref={tabsListRef as any}
-                className="flex flex-wrap gap-1 w-full bg-transparent rounded-none p-1 h-auto"
-              >
+            <div ref={tabsListRef as any}>
+              <TabsList className="flex flex-wrap gap-x-1 gap-y-2 w-full bg-transparent rounded-none px-1 pt-2 pb-1 h-auto items-end">
               {[
-                { value: 'aspect-grid', icon: Grid3X3, label: 'Aspects' },
-                { value: 'profections', icon: RotateCcw, label: 'Profections' },
-                { value: 'age-degree', icon: Gauge, label: 'Activations' },
-                { value: 'ephemeris', icon: Table2, label: 'Ephemeris' },
-                { value: 'graphic-eph', icon: TrendingUp, label: 'Graph. Eph.' },
-                { value: 'transits', icon: CalendarClock, label: 'Transits' },
-                { value: 'declination', icon: ArrowUpDown, label: 'Declination' },
-                { value: 'dignities', icon: Crown, label: 'Dignities' },
-                { value: 'fixed-stars', icon: Star, label: 'Fixed Stars' },
-                { value: 'solar-return', icon: Sun, label: 'Solar Return' },
-                { value: 'lunar-return', icon: Moon, label: 'Lunar Return' },
-                { value: 'ai-reading', icon: Sparkles, label: 'AI Reading' },
-                { value: 'notes', icon: StickyNote, label: 'Notes' },
-              ].map(tab => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.value;
-                return (
-                  <TabsTrigger
-                    key={tab.value}
-                    value={tab.value}
-                    className={`text-[11px] whitespace-nowrap gap-1 rounded-md px-2.5 py-1.5 bg-transparent shadow-none transition-all duration-150 border ${
-                      isActive
-                        ? 'text-foreground bg-foreground/10 border-foreground/20'
-                        : 'text-muted-foreground/50 border-transparent hover:text-muted-foreground hover:bg-muted/30'
-                    }`}
-                  >
-                    <Icon className="w-3 h-3" />
-                    {tab.label}
-                  </TabsTrigger>
-                );
-              })}
+                { group: 'Analysis', tabs: [
+                  { value: 'aspect-grid', icon: Grid3X3, label: 'Aspects' },
+                  { value: 'dignities', icon: Crown, label: 'Dignities' },
+                  { value: 'fixed-stars', icon: Star, label: 'Fixed Stars' },
+                  { value: 'declination', icon: ArrowUpDown, label: 'Declination' },
+                ]},
+                { group: 'Time', tabs: [
+                  { value: 'profections', icon: RotateCcw, label: 'Profections' },
+                  { value: 'age-degree', icon: Gauge, label: 'Activations' },
+                  { value: 'transits', icon: CalendarClock, label: 'Transits' },
+                  { value: 'solar-return', icon: Sun, label: 'Solar Return' },
+                  { value: 'lunar-return', icon: Moon, label: 'Lunar Return' },
+                ]},
+                { group: 'Data', tabs: [
+                  { value: 'ephemeris', icon: Table2, label: 'Ephemeris' },
+                  { value: 'graphic-eph', icon: TrendingUp, label: 'Graphic Ephemeris' },
+                ]},
+                { group: 'Tools', tabs: [
+                  { value: 'ai-reading', icon: Sparkles, label: 'AI Reading' },
+                  { value: 'notes', icon: StickyNote, label: 'Notes' },
+                ]},
+              ].map(group => (
+                <div key={group.group} className="flex items-end gap-0.5">
+                  <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/40 px-1 pb-1.5 select-none">{group.group}</span>
+                  {group.tabs.map(tab => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.value;
+                    return (
+                      <TabsTrigger
+                        key={tab.value}
+                        value={tab.value}
+                        className={`text-xs whitespace-nowrap gap-1.5 rounded-lg px-3 py-2 bg-transparent shadow-none transition-all duration-150 border ${
+                          isActive
+                            ? 'text-foreground bg-foreground/10 border-foreground/20 font-medium'
+                            : 'text-muted-foreground/60 border-transparent hover:text-foreground hover:bg-muted/40'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        {tab.label}
+                      </TabsTrigger>
+                    );
+                  })}
+                  <div className="w-px h-5 bg-border/40 mx-1 mb-1 last:hidden" />
+                </div>
+              ))}
               </TabsList>
-              {/* Right fade */}
-              <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent z-10 hidden" />
             </div>
 
             <ErrorBoundary fallbackMessage="This tool tab encountered an error">

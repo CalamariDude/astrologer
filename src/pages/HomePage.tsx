@@ -153,7 +153,7 @@ export default function HomePage() {
       <FeatureShowcase
         tag="Compatibility"
         headline={<>See the connection<br className="hidden sm:block" /> between any two people.</>}
-        body="Compare any two birth charts side by side. Discover what draws people together — and where the growth edges are. Radar charts, heatmaps, scoring, and 14 tools for understanding your relationships."
+        body="Compare any two birth charts side by side. Discover what draws people together — and where the growth edges are. Heatmaps, composites, progressed-vs-progressed, relocated-vs-relocated, and AI readings for understanding your relationships."
         link="/features/compatibility"
         linkLabel="Explore compatibility tools"
         reversed

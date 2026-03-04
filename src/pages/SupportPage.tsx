@@ -153,7 +153,7 @@ export default function SupportPage() {
           {error && (
             <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-600 dark:text-red-400">
               {error}
-              <p className="mt-1 text-xs">You can also email us directly at <a href="mailto:zeineddine.jad@gmail.com" className="underline">zeineddine.jad@gmail.com</a></p>
+              <p className="mt-1 text-xs">Please try again later or use the form above.</p>
             </div>
           )}
 

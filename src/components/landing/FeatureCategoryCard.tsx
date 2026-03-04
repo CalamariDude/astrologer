@@ -47,8 +47,8 @@ export const FEATURE_CATEGORIES: FeatureCategory[] = [
     href: '/features/compatibility',
     icon: <svg {...iconProps}><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/></svg>,
     title: 'Compatibility',
-    description: 'Synastry biwheels, composite charts, radar plots, heatmaps, and relationship scoring.',
-    count: 14,
+    description: 'Synastry biwheels, composite charts, heatmaps, progressions, relocations, and AI readings.',
+    count: 7,
     color: '#db2777',
   },
   {

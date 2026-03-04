@@ -63,7 +63,7 @@ function MarketsMockVisual() {
           <div>
             <div className="text-xs text-black/40 font-bold uppercase tracking-wider">Company Chart</div>
             <div className="text-lg font-semibold text-black/80 mt-1">Apple Inc. (AAPL)</div>
-            <div className="text-[11px] text-black/35">Founded: Apr 1, 1976 \u2014 Cupertino, CA</div>
+            <div className="text-[11px] text-black/35">Founded: Apr 1, 1976 {'\u2014'} Cupertino, CA</div>
           </div>
           <div className="text-right">
             <div className="text-xl font-bold text-emerald-600">$243.85</div>
@@ -71,23 +71,28 @@ function MarketsMockVisual() {
           </div>
         </div>
 
-        <div className="relative h-32 mb-4 rounded-lg bg-black/[0.02] border border-black/[0.04] overflow-hidden">
-          <svg viewBox="0 0 400 120" className="w-full h-full" preserveAspectRatio="none">
+        <div className="relative h-36 mb-4 rounded-lg bg-black/[0.02] border border-black/[0.04] overflow-hidden">
+          <svg viewBox="0 0 400 130" className="w-full h-full" preserveAspectRatio="none">
             <defs>
               <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#10b981" stopOpacity="0.15" />
                 <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
               </linearGradient>
             </defs>
-            <path d="M0,80 L40,75 L80,60 L120,65 L160,45 L200,50 L240,35 L280,40 L320,25 L360,30 L400,15" fill="none" stroke="#10b981" strokeWidth="2" />
-            <path d="M0,80 L40,75 L80,60 L120,65 L160,45 L200,50 L240,35 L280,40 L320,25 L360,30 L400,15 L400,120 L0,120 Z" fill="url(#chartGrad)" />
-            <line x1="160" y1="0" x2="160" y2="120" stroke="#8b5cf6" strokeWidth="1" strokeDasharray="3 3" opacity="0.4" />
-            <line x1="280" y1="0" x2="280" y2="120" stroke="#d97706" strokeWidth="1" strokeDasharray="3 3" opacity="0.4" />
+            <path d="M0,85 L40,80 L80,65 L120,70 L160,50 L200,55 L240,40 L280,45 L320,30 L360,35 L400,20" fill="none" stroke="#10b981" strokeWidth="2" />
+            <path d="M0,85 L40,80 L80,65 L120,70 L160,50 L200,55 L240,40 L280,45 L320,30 L360,35 L400,20 L400,130 L0,130 Z" fill="url(#chartGrad)" />
+            <line x1="160" y1="0" x2="160" y2="130" stroke="#8b5cf6" strokeWidth="1" strokeDasharray="3 3" opacity="0.4" />
+            <line x1="280" y1="0" x2="280" y2="130" stroke="#d97706" strokeWidth="1" strokeDasharray="3 3" opacity="0.4" />
           </svg>
+          {/* Transit aspect pills */}
           <div className="absolute top-2 left-2 flex gap-2">
-            <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-violet-500/10 text-violet-500 border border-violet-500/20">\u2643 trine MC</span>
-            <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">\u2644 conj \u2609</span>
+            <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-violet-500/10 text-violet-500 border border-violet-500/20">{'\u2643'} trine MC</span>
+            <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">{'\u2644'} conj {'\u2609'}</span>
           </div>
+          {/* AI news event labels */}
+          <div className="absolute bottom-2 left-3 text-[9px] font-semibold text-blue-500/80">Earnings Beat</div>
+          <div className="absolute bottom-8 right-16 text-[9px] font-semibold text-blue-500/80">iPhone Launch</div>
+          <div className="absolute top-10 right-6 text-[9px] font-semibold text-blue-500/80">AI Partnership</div>
         </div>
 
         <div className="grid grid-cols-3 gap-2 mb-4">
@@ -104,7 +109,7 @@ function MarketsMockVisual() {
         </div>
 
         <div className="flex items-center gap-2 text-[10px] text-black/30">
-          <span>Click any candle to see transits for that date</span>
+          <span>Click any candle to see transits and news for that date</span>
         </div>
       </div>
     </div>
@@ -123,7 +128,7 @@ export default function MarketsFeaturePage() {
       <FeatureShowcase
         tag="Financial Astrology"
         headline={<>Stock prices.<br className="hidden sm:block" /> Planetary transits.</>}
-        body="Select a company, see its natal chart alongside live candlestick data. Click any date on the price chart and the transit panel syncs instantly — showing which planets were aspecting the company's chart on that exact day."
+        body="Select a company, see its natal chart alongside live candlestick data. Click any date on the price chart and the transit panel syncs instantly — showing which planets were aspecting the company's chart on that exact day. AI-labeled news events appear right on the chart, so you can see what happened when Saturn crossed the MC."
         visual={<MarketsMockVisual />}
       />
 

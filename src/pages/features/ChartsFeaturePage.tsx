@@ -21,7 +21,7 @@ const GRID_ITEMS = [
   { icon: '\u25CB', title: 'Jog Wheel', description: 'Drag to scrub through time — hours, days, weeks, or months.' },
   { icon: '\u25A1', title: 'Multi-Tab Workspace', description: 'Open up to 10 charts in tabs. Drag to reorder, Cmd+1\u20139 to switch.' },
   { icon: '\u2B1A', title: 'Toolbar & Tooltips', description: 'Contextual toolbar with tooltips explaining every tool and glyph.' },
-  { icon: '\u2B07', title: 'PNG Export', description: 'Export any chart as a high-resolution image.' },
+  { icon: '\u2B07', title: 'PNG + PDF Export', description: 'Export any chart as a high-resolution PNG image or a multi-page PDF report.' },
   { icon: '\u2B50', title: 'Astro.com Import', description: 'Paste your Astro.com profile data and import every chart in seconds.' },
   { icon: '\u25C9', title: '10 Themes', description: 'Classic, Cosmic, Ocean, Parchment, Midnight, Sunset, Forest, Neon, Monochrome, Rose.' },
   { icon: '\u2699', title: 'Custom Orbs & Presets', description: 'Fine-tune orb settings and save chart configuration presets.' },

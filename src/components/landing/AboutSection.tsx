@@ -13,12 +13,9 @@ export function AboutSection() {
         <p className="text-base sm:text-lg leading-relaxed text-muted-foreground">
           Hi, I'm Jad. I'm a student astrologer who built this to help myself learn — then friends started asking me to release it. So here it is.
         </p>
-        <a
-          href="mailto:zeineddine.jad@gmail.com"
-          className="inline-block mt-4 text-sm text-amber-600/70 hover:text-amber-600 transition-colors"
-        >
-          zeineddine.jad@gmail.com
-        </a>
+        <span className="inline-block mt-4 text-sm text-amber-600/70">
+          Built with love and lots of ephemeris tables.
+        </span>
       </div>
     </section>
   );

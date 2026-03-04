@@ -87,29 +87,113 @@ export function PriceChart({ candles, loading, theme, events = [], onDateSelect 
         : (isDark ? 'rgba(239,68,68,0.3)' : 'rgba(239,68,68,0.4)'),
     })));
 
-    // Build event lookup + annotation-style markers
+    // Build event lookup + label data
     const eventByDate = new Map<string, MarketEvent>();
-    const markers: any[] = [];
+    const labelData: { time: string; text: string; color: string; high: number; low: number }[] = [];
+    const arrowMarkers: any[] = [];
 
-    for (let i = 0; i < events.length; i++) {
-      const e = events[i];
+    for (const e of events) {
       const snap = snapToCandle(e.date, candles);
       if (!snap) continue;
       eventByDate.set(snap.dateStr, e);
-      // Alternate above/below to reduce overlap
-      const above = i % 2 === 0;
-      markers.push({
+      const candle = candles.find(c => toDateStr(c.time) === snap.dateStr);
+      if (!candle) continue;
+      const color = e.source === 'manual' ? (e.color || '#6366f1') : '#3b82f6';
+      labelData.push({ time: snap.dateStr, text: e.title, color, high: candle.high, low: candle.low });
+      // Small arrow markers on the candles (no text — labels rendered as HTML)
+      arrowMarkers.push({
         time: snap.dateStr,
-        position: above ? 'aboveBar' as const : 'belowBar' as const,
-        color: e.source === 'manual' ? (e.color || '#6366f1') : '#3b82f6',
-        shape: above ? 'arrowDown' as const : 'arrowUp' as const,
-        text: e.title,
+        position: 'aboveBar' as const,
+        color,
+        shape: 'arrowDown' as const,
+        text: '',
       });
     }
 
-    if (markers.length > 0) {
-      createSeriesMarkers(candleSeries, markers.sort((a: any, b: any) => a.time.localeCompare(b.time)));
+    if (arrowMarkers.length > 0) {
+      createSeriesMarkers(candleSeries, arrowMarkers.sort((a: any, b: any) => a.time.localeCompare(b.time)));
     }
+
+    // Custom HTML overlay labels with pixel-perfect collision avoidance
+    const labelsContainer = document.createElement('div');
+    labelsContainer.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;overflow:hidden;z-index:10;';
+    container.appendChild(labelsContainer);
+
+    const LABEL_FONT_SIZE = 13;
+    const CHAR_WIDTH = LABEL_FONT_SIZE * 0.62;
+    const LABEL_HEIGHT = LABEL_FONT_SIZE + 8;
+    const LABEL_PAD = 10; // horizontal padding between labels
+    const LABEL_VGAP = 4;  // vertical gap between staggered labels
+    const MIN_Y = 8; // don't render above this
+
+    function updateLabels() {
+      labelsContainer.innerHTML = '';
+
+      // Compute pixel positions
+      const items: { x: number; baseY: number; y: number; text: string; color: string; w: number; h: number }[] = [];
+
+      for (const ld of labelData) {
+        const x = chart.timeScale().timeToCoordinate(ld.time as any);
+        if (x === null || x < -50 || x > container.clientWidth + 50) continue;
+        const yHigh = candleSeries.priceToCoordinate(ld.high);
+        if (yHigh === null) continue;
+
+        const w = ld.text.length * CHAR_WIDTH + 12;
+        items.push({
+          x: x - w / 2, // center label on candle
+          baseY: yHigh - LABEL_HEIGHT - 12, // above candle high + arrow space
+          y: yHigh - LABEL_HEIGHT - 12,
+          text: ld.text,
+          color: ld.color,
+          w,
+          h: LABEL_HEIGHT,
+        });
+      }
+
+      // Sort left-to-right for collision sweep
+      items.sort((a, b) => a.x - b.x);
+
+      // Collision avoidance — push overlapping labels upward
+      for (let i = 0; i < items.length; i++) {
+        for (let j = 0; j < i; j++) {
+          const a = items[j];
+          const b = items[i];
+          // Check horizontal overlap
+          if (b.x < a.x + a.w + LABEL_PAD && b.x + b.w + LABEL_PAD > a.x) {
+            // Check vertical overlap
+            if (b.y < a.y + a.h + LABEL_VGAP && b.y + b.h + LABEL_VGAP > a.y) {
+              // Push current label above the colliding one
+              b.y = a.y - b.h - LABEL_VGAP;
+            }
+          }
+        }
+      }
+
+      // Render
+      for (const p of items) {
+        if (p.y < MIN_Y) continue; // clipped off top
+        const el = document.createElement('div');
+        el.style.cssText = `
+          position:absolute;
+          left:${Math.round(p.x)}px;
+          top:${Math.round(p.y)}px;
+          font-size:${LABEL_FONT_SIZE}px;
+          font-weight:600;
+          color:${p.color};
+          white-space:nowrap;
+          pointer-events:none;
+          line-height:1;
+          text-shadow:${isDark
+            ? '0 1px 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.5)'
+            : '0 1px 2px rgba(255,255,255,0.9), 0 0 4px rgba(255,255,255,0.7)'};
+        `;
+        el.textContent = p.text;
+        labelsContainer.appendChild(el);
+      }
+    }
+
+    updateLabels();
+    chart.timeScale().subscribeVisibleLogicalRangeChange(updateLabels);
 
     chart.timeScale().fitContent();
 
@@ -150,14 +234,19 @@ export function PriceChart({ candles, loading, theme, events = [], onDateSelect 
     chart.subscribeClick(clickHandler);
 
     const ro = new ResizeObserver(entries => {
-      if (entries[0]) chart.applyOptions({ width: entries[0].contentRect.width });
+      if (entries[0]) {
+        chart.applyOptions({ width: entries[0].contentRect.width });
+        updateLabels();
+      }
     });
     ro.observe(container);
 
     return () => {
       ro.disconnect();
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(updateLabels);
       chart.unsubscribeCrosshairMove(crosshairHandler);
       chart.unsubscribeClick(clickHandler);
+      if (labelsContainer.parentNode) labelsContainer.parentNode.removeChild(labelsContainer);
       chart.remove();
     };
   }, [candles, theme, events, onDateSelect]);
