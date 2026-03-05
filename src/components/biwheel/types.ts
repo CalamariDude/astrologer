@@ -91,6 +91,20 @@ export interface RelocatedData {
 }
 
 // ============================================================================
+// Return Chart Types (Solar Return / Lunar Return)
+// ============================================================================
+
+// Return chart data (shared by solar and lunar returns)
+export interface ReturnChartData {
+  return_date: string;
+  return_time: string;
+  ascendantSign: string;
+  planets: TransitPlanet[];
+  houses?: CompositeHouses;
+  aspects?: { planet1: string; planet2: string; aspect: string; angle: number; orb: number }[];
+}
+
+// ============================================================================
 // Composite Types
 // ============================================================================
 
@@ -257,6 +271,22 @@ export interface BiWheelSynastryProps {
   onZodiacTypeChange?: (type: 'tropical' | 'sidereal') => void;
   ayanamsaKey?: string;
   onAyanamsaKeyChange?: (key: string) => void;
+  // Solar return props
+  onFetchSolarReturn?: (year: number, chartA: NatalChart) => Promise<ReturnChartData>;
+  initialShowSolarReturn?: boolean;
+  initialSolarReturnYear?: number;
+  onShowSolarReturnChange?: (show: boolean) => void;
+  onSolarReturnYearChange?: (year: number) => void;
+  onSolarReturnLoadingChange?: (loading: boolean) => void;
+  onSolarReturnDataChange?: (data: ReturnChartData | null) => void;
+  // Lunar return props
+  onFetchLunarReturn?: (startDate: string, chartA: NatalChart) => Promise<ReturnChartData>;
+  initialShowLunarReturn?: boolean;
+  initialLunarReturnStartDate?: string;
+  onShowLunarReturnChange?: (show: boolean) => void;
+  onLunarReturnStartDateChange?: (startDate: string) => void;
+  onLunarReturnLoadingChange?: (loading: boolean) => void;
+  onLunarReturnDataChange?: (data: ReturnChartData | null) => void;
 }
 
 // Available asteroid groups - matches constants.ts ASTEROIDS groups
@@ -297,12 +327,13 @@ export interface BiWheelState {
   showDegreeMarkers: boolean;
   showRetrogrades: boolean;
   showDecans: boolean;
-  degreeSymbolMode: 'sign' | 'spark';  // 'sign' = zodiac sign glyph, 'spark' = degree-based parity glyph
+  degreeSymbolMode: 'sign' | 'degree';  // 'sign' = zodiac sign glyph, 'degree' = degree-based sign glyph
   hoveredPlanet: { planet: string; chart: 'A' | 'B' | 'Transit' | 'Progressed' | 'Composite' } | null;
   selectedAspect: SynastryAspect | null;
   selectedPlanet: { planet: string; chart: 'A' | 'B' | 'Transit' | 'Progressed' | 'Composite' } | null;
   selectedSign: { name: string; symbol: string; element: string; modality: string; ruler: string; dates: string } | null;
   tooltipPosition: { x: number; y: number } | null;
+  pinnedTooltipOpen: boolean;
   // Transit state
   showTransits: boolean;
   transitDate: string;
@@ -344,6 +375,16 @@ export interface BiWheelState {
   shiftedChartA: NatalChart | null;
   shiftedChartB: NatalChart | null;
   birthTimeShiftLoading: boolean;
+  // Solar return state
+  showSolarReturn: boolean;
+  solarReturnYear: number;
+  solarReturnData: ReturnChartData | null;
+  solarReturnLoading: boolean;
+  // Lunar return state
+  showLunarReturn: boolean;
+  lunarReturnStartDate: string;
+  lunarReturnData: ReturnChartData | null;
+  lunarReturnLoading: boolean;
 }
 
 // Context value

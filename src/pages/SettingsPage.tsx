@@ -135,7 +135,7 @@ export default function SettingsPage() {
     showDecans: boolean;
     rotateToAscendant: boolean;
     showHouses: boolean;
-    degreeSymbolMode: 'sign' | 'spark';
+    degreeSymbolMode: 'sign' | 'degree';
   }>(() => {
     try {
       const raw = localStorage.getItem('biwheel-chart-defaults');
@@ -1127,7 +1127,7 @@ export default function SettingsPage() {
                         className="h-8 px-2 rounded-md border border-border bg-background text-sm cursor-pointer"
                       >
                         <option value="sign">Zodiac sign</option>
-                        <option value="spark">Degree interpretation</option>
+                        <option value="degree">Sign degree</option>
                       </select>
                     </div>
 

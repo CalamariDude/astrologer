@@ -8,7 +8,7 @@
  */
 
 import { ZODIAC_SIGNS, PLANETS } from '@/components/biwheel/utils/constants';
-import { calculateSpark, calculateDecan } from '@/components/biwheel/utils/chartMath';
+import { calculateDegreeSign, calculateDecan } from '@/components/biwheel/utils/chartMath';
 import { classifySynastryAspectsForPlanet } from './synastryAspectClassification';
 import { classifyAspectsForPlanet } from './aspectClassification';
 import {
@@ -70,11 +70,11 @@ function analyzePlanetInHouseSystem(
   const retrogadeHouse = isHouseRetrograde(house, ascLong, allPlanetsInHouseSystem);
   const fusionCusp = checkFusionCusp(planetData.longitude, house, ascLong, params.fusion_cusp_orb);
 
-  let spark: PlanetAnalysis['spark'];
+  let signDegree: PlanetAnalysis['signDegree'];
   let decan: PlanetAnalysis['decan'];
-  if (params.include_spark) {
-    const s = calculateSpark(planetData.longitude);
-    spark = { sign: s.sparkSign, symbol: s.sparkSymbol };
+  if (params.include_sign_degree) {
+    const s = calculateDegreeSign(planetData.longitude);
+    signDegree = { sign: s.degreeSign, symbol: s.degreeSymbol };
   }
   if (params.include_decan) {
     const d = calculateDecan(planetData.longitude);
@@ -89,7 +89,7 @@ function analyzePlanetInHouseSystem(
     house_natural_sign: naturalSign,
     house_themes: HOUSE_TOPICS[house] || '',
     retrograde,
-    spark,
+    signDegree,
     decan,
     retrograde_house: retrogadeHouse,
     fusion_cusp: fusionCusp,

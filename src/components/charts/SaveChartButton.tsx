@@ -38,6 +38,7 @@ export interface SavedChart {
   person_b_lat?: number | null;
   person_b_lng?: number | null;
   person_b_chart?: any | null;
+  tags?: string[];
   created_at: string;
 }
 
@@ -86,6 +87,7 @@ async function getDbCharts(userId: string): Promise<SavedChart[]> {
     person_b_lat: row.person_b_lat,
     person_b_lng: row.person_b_lng,
     person_b_chart: row.person_b_chart,
+    tags: row.tags || [],
     created_at: row.created_at,
   }));
 }
@@ -141,6 +143,7 @@ async function updateDbChart(chartId: string, chart: Partial<SavedChart>): Promi
       person_b_lat: chart.person_b_lat,
       person_b_lng: chart.person_b_lng,
       person_b_chart: chart.person_b_chart,
+      ...(chart.tags !== undefined && { tags: chart.tags }),
     })
     .eq('id', chartId);
   if (error) {
@@ -233,6 +236,24 @@ export async function bulkDeleteSavedCharts(ids: string[], userId?: string | nul
 export function invalidateChartsCache() {
   _chartsCache = null;
   _chartsCacheUserId = null;
+}
+
+/** Update tags for a saved chart */
+export async function updateChartTags(chartId: string, tags: string[], userId?: string | null): Promise<boolean> {
+  if (userId) {
+    const ok = await updateDbChart(chartId, { tags } as any);
+    if (ok && _chartsCache) {
+      _chartsCache = _chartsCache.map(c => c.id === chartId ? { ...c, tags } : c);
+    }
+    return ok;
+  }
+  // Local storage
+  const charts = getLocalCharts();
+  const idx = charts.findIndex(c => c.id === chartId);
+  if (idx === -1) return false;
+  charts[idx] = { ...charts[idx], tags };
+  setLocalCharts(charts);
+  return true;
 }
 
 // ── Duplicate / name helpers ─────────────────────────────────────────

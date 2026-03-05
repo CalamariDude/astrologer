@@ -56,8 +56,6 @@ const ChartNotes = React.lazy(() => import('@/components/astro-tools/ChartNotes'
 const AIReading = React.lazy(() => import('@/components/astro-tools/AIReading').then(m => ({ default: m.AIReading })));
 const DignityTable = React.lazy(() => import('@/components/astro-tools/DignityTable').then(m => ({ default: m.DignityTable })));
 const FixedStarsPanel = React.lazy(() => import('@/components/astro-tools/FixedStarsPanel').then(m => ({ default: m.FixedStarsPanel })));
-const SolarReturnPanel = React.lazy(() => import('@/components/astro-tools/SolarReturnPanel').then(m => ({ default: m.SolarReturnPanel })));
-const LunarReturnPanel = React.lazy(() => import('@/components/astro-tools/LunarReturnPanel').then(m => ({ default: m.LunarReturnPanel })));
 const TimeFinder = React.lazy(() => import('@/components/astro-tools/TimeFinder').then(m => ({ default: m.TimeFinder })));
 
 const ZODIAC_SIGNS = [
@@ -750,6 +748,7 @@ export default function ChartPage() {
   const [loading, setLoading] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [showTimeFinder, setShowTimeFinder] = useState(false);
   const [pageTheme, setPageTheme] = useState(() => {
     const t = localStorage.getItem('astrologer_theme') || 'classic';
     applyTheme(t as ThemeName); // Set global COLORS immediately so children don't flash
@@ -774,12 +773,25 @@ export default function ChartPage() {
     enabledAsteroidGroups?: Set<AsteroidGroup>;
   } | null>(null);
 
-  const [activeTab, setActiveTab] = useState('aspect-grid');
+  const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || sessionRestore?.activeTab || 'aspect-grid');
   const tabsListRef = useRef<HTMLDivElement>(null);
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (tab === 'aspect-grid') next.delete('tab');
+      else next.set('tab', tab);
+      return next;
+    }, { replace: true });
+    // Save immediately so reload preserves the tab
+    try {
+      const raw = sessionStorage.getItem('astrologer_session');
+      const session = raw ? JSON.parse(raw) : {};
+      session.activeTab = tab;
+      sessionStorage.setItem('astrologer_session', JSON.stringify(session));
+    } catch {}
     analytics.trackToolTabViewed({ tab });
-  }, []);
+  }, [setSearchParams]);
 
   // Scroll active tab into view horizontally + update fade indicators
   const tabInitRef = useRef(true);
@@ -794,15 +806,7 @@ export default function ChartPage() {
       el.scrollTo({ left: center, behavior: tabInitRef.current ? 'instant' : 'smooth' });
       tabInitRef.current = false;
     }
-    const updateFades = () => {
-      const left = el.previousElementSibling as HTMLElement | null;
-      const right = el.nextElementSibling as HTMLElement | null;
-      if (left) left.style.opacity = el.scrollLeft > 4 ? '1' : '0';
-      if (right) right.style.opacity = el.scrollLeft < el.scrollWidth - el.clientWidth - 4 ? '1' : '0';
-    };
-    updateFades();
-    el.addEventListener('scroll', updateFades, { passive: true });
-    return () => el.removeEventListener('scroll', updateFades);
+    // Fade indicators removed — no dedicated fade elements exist as siblings
   }, [activeTab]);
 
   const [showGalactic, setShowGalactic] = useState(false);
@@ -877,8 +881,11 @@ export default function ChartPage() {
         // Restore tabs from profile if available and no route/session override
         if (!profileTabsLoaded.current && data?.chart_tabs && Array.isArray(data.chart_tabs) && data.chart_tabs.length > 0 && !routeState?.personA) {
           setTabs(data.chart_tabs as ChartTab[]);
-          const chartIdx = (data.chart_tabs as ChartTab[]).findIndex(t => t.chartA);
-          if (chartIdx >= 0) setActiveTabIndex(chartIdx);
+          // Preserve session-restored activeTabIndex on reload; only jump if no session
+          if (!sessionRestore?.activeTabIndex) {
+            const chartIdx = (data.chart_tabs as ChartTab[]).findIndex(t => t.chartA);
+            if (chartIdx >= 0) setActiveTabIndex(chartIdx);
+          }
           profileTabsLoaded.current = true;
         }
       });
@@ -921,7 +928,14 @@ export default function ChartPage() {
   // Re-runs on each navigation to /chart (location.key changes per navigate() call)
   useEffect(() => {
     if ((location.state as any)?.activeTab) {
-      setActiveTab((location.state as any).activeTab);
+      const tab = (location.state as any).activeTab;
+      setActiveTab(tab);
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        if (tab === 'aspect-grid') next.delete('tab');
+        else next.set('tab', tab);
+        return next;
+      }, { replace: true });
     }
     if (routeState?.currentTransits) {
       setTimeout(() => handleCurrentTransits(), 0);
@@ -1060,11 +1074,12 @@ export default function ChartPage() {
         sessionStorage.setItem('astrologer_session', JSON.stringify({
           tabs,
           activeTabIndex,
+          activeTab,
         }));
       } catch {}
     }, 500);
     return () => { if (sessionSaveRef.current) clearTimeout(sessionSaveRef.current); };
-  }, [tabs, activeTabIndex]);
+  }, [tabs, activeTabIndex, activeTab]);
 
   // Persist tabs to user profile (debounced)
   const tabsSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1276,6 +1291,66 @@ export default function ChartPage() {
       }
     }
     return { transit_date: date, transit_time: time, transit_planets: transitPlanets, aspects_to_natal: [] };
+  }, [personAData.lat, personAData.lng]);
+
+  const handleFetchSolarReturn = useCallback(async (year: number, chartA: any) => {
+    const planets = Object.entries(chartA.planets || {}).map(([key, val]: [string, any]) => ({
+      planet: key.charAt(0).toUpperCase() + key.slice(1),
+      longitude: val.longitude ?? 0, latitude: val.latitude ?? 0,
+      sign: val.sign ?? '', degree: val.degree ?? 0, minute: val.minute ?? 0,
+      retrograde: val.retrograde ?? false,
+    }));
+    const result = await swissEphemeris.solarReturn({
+      natal_chart: { planets }, year,
+      lat: personAData.lat ?? 33.89, lng: personAData.lng ?? 35.50,
+    });
+    const returnPlanets = (result.planets || []).map((p: any) => {
+      let key = (p.name || p.planet || '').toLowerCase();
+      if (key === 'north node' || key === 'true_node' || key === 'mean_node') key = 'northnode';
+      if (key === 'south node') key = 'southnode';
+      return {
+        planet: key, longitude: p.longitude ?? 0, latitude: p.latitude ?? 0,
+        sign: p.sign || ZODIAC_SIGNS[Math.floor((p.longitude ?? 0) / 30)] || '',
+        degree: p.degree ?? Math.floor((p.longitude ?? 0) % 30),
+        minute: p.minute ?? Math.floor(((p.longitude ?? 0) % 1) * 60),
+        retrograde: p.retrograde ?? false,
+      };
+    });
+    return {
+      return_date: result.return_date, return_time: result.return_time,
+      ascendantSign: result.ascendantSign || '',
+      planets: returnPlanets, aspects: result.aspects || [],
+    };
+  }, [personAData.lat, personAData.lng]);
+
+  const handleFetchLunarReturn = useCallback(async (startDate: string, chartA: any) => {
+    const planets = Object.entries(chartA.planets || {}).map(([key, val]: [string, any]) => ({
+      planet: key.charAt(0).toUpperCase() + key.slice(1),
+      longitude: val.longitude ?? 0, latitude: val.latitude ?? 0,
+      sign: val.sign ?? '', degree: val.degree ?? 0, minute: val.minute ?? 0,
+      retrograde: val.retrograde ?? false,
+    }));
+    const result = await swissEphemeris.lunarReturn({
+      natal_chart: { planets }, start_date: startDate,
+      lat: personAData.lat ?? 33.89, lng: personAData.lng ?? 35.50,
+    });
+    const returnPlanets = (result.planets || []).map((p: any) => {
+      let key = (p.name || p.planet || '').toLowerCase();
+      if (key === 'north node' || key === 'true_node' || key === 'mean_node') key = 'northnode';
+      if (key === 'south node') key = 'southnode';
+      return {
+        planet: key, longitude: p.longitude ?? 0, latitude: p.latitude ?? 0,
+        sign: p.sign || ZODIAC_SIGNS[Math.floor((p.longitude ?? 0) / 30)] || '',
+        degree: p.degree ?? Math.floor((p.longitude ?? 0) % 30),
+        minute: p.minute ?? Math.floor(((p.longitude ?? 0) % 1) * 60),
+        retrograde: p.retrograde ?? false,
+      };
+    });
+    return {
+      return_date: result.return_date, return_time: result.return_time,
+      ascendantSign: result.ascendantSign || '',
+      planets: returnPlanets, aspects: result.aspects || [],
+    };
   }, [personAData.lat, personAData.lng]);
 
   const handleFetchComposite = useCallback(async (
@@ -1730,6 +1805,12 @@ export default function ChartPage() {
                     Save as Client
                   </Button>
                 )}
+                {!hasChart && (
+                  <Button variant="ghost" size="sm" onClick={() => setShowTimeFinder(true)} className="text-muted-foreground gap-1.5">
+                    <Search className="w-3.5 h-3.5" />
+                    Time Finder
+                  </Button>
+                )}
                 {hasChart && (
                   <Button variant="ghost" size="sm" onClick={() => setEditing(false)} className="text-muted-foreground">
                     Cancel
@@ -1793,6 +1874,8 @@ export default function ChartPage() {
                     enableRelocated={true}
                     enableBirthTimeShift={true}
                     onFetchTransits={handleFetchTransits}
+                    onFetchSolarReturn={handleFetchSolarReturn}
+                    onFetchLunarReturn={handleFetchLunarReturn}
                     onFetchComposite={hasSynastry ? handleFetchComposite : undefined}
                     onFetchProgressed={handleFetchProgressed}
                     onFetchRelocated={handleFetchRelocated}
@@ -2105,7 +2188,7 @@ export default function ChartPage() {
           {/* Astro Tools Tabs */}
           <Tabs value={activeTab} onValueChange={handleTabChange}>
             <div ref={tabsListRef as any}>
-              <TabsList className="flex flex-wrap gap-x-1 gap-y-2 w-full bg-transparent rounded-none px-1 pt-2 pb-1 h-auto items-end">
+              <TabsList className="flex flex-wrap gap-x-3 gap-y-2 w-full bg-transparent rounded-none px-1 pt-2 pb-1 h-auto items-start">
               {[
                 { group: 'Analysis', tabs: [
                   { value: 'aspect-grid', icon: Grid3X3, label: 'Aspects' },
@@ -2117,8 +2200,6 @@ export default function ChartPage() {
                   { value: 'profections', icon: RotateCcw, label: 'Profections' },
                   { value: 'age-degree', icon: Gauge, label: 'Activations' },
                   { value: 'transits', icon: CalendarClock, label: 'Transits' },
-                  { value: 'solar-return', icon: Sun, label: 'Solar Return' },
-                  { value: 'lunar-return', icon: Moon, label: 'Lunar Return' },
                 ]},
                 { group: 'Data', tabs: [
                   { value: 'ephemeris', icon: Table2, label: 'Ephemeris' },
@@ -2130,8 +2211,9 @@ export default function ChartPage() {
                   { value: 'notes', icon: StickyNote, label: 'Notes' },
                 ]},
               ].map(group => (
-                <div key={group.group} className="flex items-end gap-0.5">
-                  <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/40 px-1 pb-1.5 select-none">{group.group}</span>
+                <div key={group.group} className="flex flex-col items-center gap-0.5">
+                  <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/40 select-none">{group.group}</span>
+                  <div className="flex items-end gap-0.5">
                   {group.tabs.map(tab => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.value;
@@ -2150,7 +2232,7 @@ export default function ChartPage() {
                       </TabsTrigger>
                     );
                   })}
-                  <div className="w-px h-5 bg-border/40 mx-1 mb-1 last:hidden" />
+                  </div>
                 </div>
               ))}
               </TabsList>
@@ -2188,12 +2270,6 @@ export default function ChartPage() {
             </TabsContent>
             <TabsContent value="fixed-stars" className="mt-4 min-h-[400px]">
               <FixedStarsPanel natalChart={personA.natalChart} birthInfo={{ date: personA.date, time: personA.time, lat: personA.lat ?? 33.89, lng: personA.lng ?? 35.50 }} />
-            </TabsContent>
-            <TabsContent value="solar-return" className="mt-4 min-h-[400px]">
-              <SolarReturnPanel natalChart={personA.natalChart} birthInfo={{ date: personA.date, time: personA.time, lat: personA.lat ?? 33.89, lng: personA.lng ?? 35.50 }} personName={personA.name || 'Person A'} />
-            </TabsContent>
-            <TabsContent value="lunar-return" className="mt-4 min-h-[400px]">
-              <LunarReturnPanel natalChart={personA.natalChart} birthInfo={{ date: personA.date, time: personA.time, lat: personA.lat ?? 33.89, lng: personA.lng ?? 35.50 }} personName={personA.name || 'Person A'} />
             </TabsContent>
             <TabsContent value="ai-reading" className="mt-4 min-h-[400px]">
               <AIReading
@@ -2241,29 +2317,57 @@ export default function ChartPage() {
         )
       ) : (
         <div className="container py-8 md:py-12 px-2 md:px-6">
-          {/* Empty chart placeholder */}
-          <div className="flex flex-col items-center justify-center">
-            <div className="relative w-[300px] h-[300px] md:w-[400px] md:h-[400px] mb-6">
-              {/* Outer circle */}
-              <svg viewBox="0 0 400 400" className="w-full h-full text-muted-foreground/15">
-                <circle cx="200" cy="200" r="190" fill="none" stroke="currentColor" strokeWidth="2" />
-                <circle cx="200" cy="200" r="155" fill="none" stroke="currentColor" strokeWidth="1" />
-                <circle cx="200" cy="200" r="100" fill="none" stroke="currentColor" strokeWidth="1" />
-                {/* House lines */}
-                {Array.from({ length: 12 }, (_, i) => {
-                  const angle = (i * 30 - 90) * (Math.PI / 180);
-                  return <line key={i} x1={200 + 100 * Math.cos(angle)} y1={200 + 100 * Math.sin(angle)} x2={200 + 190 * Math.cos(angle)} y2={200 + 190 * Math.sin(angle)} stroke="currentColor" strokeWidth="1" />;
-                })}
-                {/* Center cross */}
-                <line x1="195" y1="200" x2="205" y2="200" stroke="currentColor" strokeWidth="1.5" />
-                <line x1="200" y1="195" x2="200" y2="205" stroke="currentColor" strokeWidth="1.5" />
-              </svg>
+          {showTimeFinder ? (
+            <div className="max-w-2xl mx-auto">
+              <div className="mb-4">
+                <Button variant="ghost" size="sm" onClick={() => setShowTimeFinder(false)} className="text-xs text-muted-foreground gap-1.5">
+                  <X className="w-3 h-3" /> Close Time Finder
+                </Button>
+              </div>
+              <React.Suspense fallback={<div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
+                <TimeFinder
+                  onUseTime={(data) => {
+                    setPersonAData(prev => ({
+                      ...prev,
+                      date: data.date,
+                      time: data.time,
+                      location: data.location,
+                      lat: data.lat,
+                      lng: data.lng,
+                    }));
+                    setEditing(true);
+                    setShowTimeFinder(false);
+                  }}
+                />
+              </React.Suspense>
             </div>
-            <p className="text-sm text-muted-foreground mb-3">Enter birth data to generate a chart</p>
-            {!editing && (
-              <Button variant="outline" onClick={() => setEditing(true)}>Enter Birth Data</Button>
-            )}
-          </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center">
+              <div className="relative w-[300px] h-[300px] md:w-[400px] md:h-[400px] mb-6">
+                <svg viewBox="0 0 400 400" className="w-full h-full text-muted-foreground/15">
+                  <circle cx="200" cy="200" r="190" fill="none" stroke="currentColor" strokeWidth="2" />
+                  <circle cx="200" cy="200" r="155" fill="none" stroke="currentColor" strokeWidth="1" />
+                  <circle cx="200" cy="200" r="100" fill="none" stroke="currentColor" strokeWidth="1" />
+                  {Array.from({ length: 12 }, (_, i) => {
+                    const angle = (i * 30 - 90) * (Math.PI / 180);
+                    return <line key={i} x1={200 + 100 * Math.cos(angle)} y1={200 + 100 * Math.sin(angle)} x2={200 + 190 * Math.cos(angle)} y2={200 + 190 * Math.sin(angle)} stroke="currentColor" strokeWidth="1" />;
+                  })}
+                  <line x1="195" y1="200" x2="205" y2="200" stroke="currentColor" strokeWidth="1.5" />
+                  <line x1="200" y1="195" x2="200" y2="205" stroke="currentColor" strokeWidth="1.5" />
+                </svg>
+              </div>
+              <p className="text-sm text-muted-foreground mb-3">Enter birth data to generate a chart</p>
+              <div className="flex items-center gap-2">
+                {!editing && (
+                  <Button variant="outline" onClick={() => setEditing(true)}>Enter Birth Data</Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={() => setShowTimeFinder(true)} className="text-xs text-muted-foreground gap-1.5">
+                  <Search className="w-3.5 h-3.5" />
+                  Time Finder
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

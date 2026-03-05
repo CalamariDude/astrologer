@@ -1163,7 +1163,7 @@ const MERCURY_URANUS: NatalInterpretation[] = [
   {
     planets: ['mercury', 'uranus'],
     aspect: 'trine',
-    title: 'Genius Spark',
+    title: 'Genius Insight',
     description: "Your thinking, communication, and mental processing and individuality, sudden change, and unconventional impulses flow together with remarkable ease, representing a natural talent you may take for granted. Your intellectual mind and your capacity for original thinking align effortlessly, gifting you with innate brilliant originality, lightning-fast insight, and the ability to think far outside convention. This harmonious connection often operates so smoothly that you barely notice it, which can lead to complacency. Actively developing this gift brings tremendous rewards and turns passive talent into active mastery.",
     isPositive: true
   },

@@ -338,8 +338,6 @@ export function calculateDegreeSign(longitude: number): { degreeSign: string; de
   };
 }
 
-/** @deprecated Use calculateDegreeSign instead */
-export const calculateSpark = calculateDegreeSign;
 
 /**
  * Get the zodiac sign symbol for a given ecliptic longitude.

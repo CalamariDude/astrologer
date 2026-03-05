@@ -282,7 +282,7 @@ export const ASPECTS: Record<string, AspectInfo> = {
     harmonious: false,
     simpleDesc: 'Tension that creates passion OR friction, depending on the planets',
     expertDesc: '90° separation creating dynamic tension. PASSION squares (Pluto, Mars, Venus) = magnetic attraction. CONFLICT squares (Saturn, Mercury) = real friction that needs work.',
-    inMarriage: 'Passion squares (Pluto/Mars/Venus) keep the spark alive. Conflict squares (Saturn/Mercury) need conscious effort.',
+    inMarriage: 'Passion squares (Pluto/Mars/Venus) keep the passion alive. Conflict squares (Saturn/Mercury) need conscious effort.',
     color: '#ef4444',
     intensity: 'high',
     passionAspect: true // Note: Check planet type to determine if positive or negative
@@ -343,7 +343,7 @@ export const CATEGORIES: Record<string, CategoryInfo> = {
   chemistry: {
     name: 'Physical Chemistry',
     weight: 12,
-    simpleDesc: 'The spark, attraction, and physical connection between you',
+    simpleDesc: 'The chemistry, attraction, and physical connection between you',
     expertDesc: 'Venus-Mars, Mars-Mars, Venus-Pluto, Mars-Pluto aspects governing physical attraction and passion.',
     keyQuestion: 'Is there real attraction and passion?',
     planets: ['venus', 'mars', 'pluto'],
@@ -502,7 +502,7 @@ export const PLANET_PAIR_INTERPRETATIONS: PlanetPairInterpretation[] = [
     title: 'Irresistible Attraction',
     simpleDesc: 'Powerful physical and romantic chemistry',
     expertDesc: 'Venus conjunct Mars is the classic indicator of strong sexual attraction and romantic magnetism.',
-    marriageTip: 'Keep the spark alive - you have natural passion to build on',
+    marriageTip: 'Keep the passion alive - you have natural passion to build on',
     isPositive: true
   },
   {
@@ -703,7 +703,7 @@ export const PLANET_PAIR_INTERPRETATIONS: PlanetPairInterpretation[] = [
     aspect: 'square',
     title: 'Magnetic Tension',
     simpleDesc: 'PASSIONATE, not challenging! This creates irresistible, obsessive attraction through tension.',
-    expertDesc: 'Venus-Pluto square (+8) is magnetic, not conflicting. Creates intense passion that keeps the spark alive.',
+    expertDesc: 'Venus-Pluto square (+8) is magnetic, not conflicting. Creates intense passion that keeps the passion alive.',
     marriageTip: 'This is POSITIVE tension - the passion between you never fades. Embrace it.',
     isPositive: true
   },
@@ -724,7 +724,7 @@ export const PLANET_PAIR_INTERPRETATIONS: PlanetPairInterpretation[] = [
     title: 'Powerful Passion',
     simpleDesc: 'Intense physical and emotional connection. Transformative sexual chemistry.',
     expertDesc: 'Mars-Pluto conjunction (+20) creates powerful physical attraction and shared drive.',
-    marriageTip: 'Channel this intensity constructively - it\'s a gift for keeping the spark alive.',
+    marriageTip: 'Channel this intensity constructively - it\'s a gift for keeping the passion alive.',
     isPositive: true
   },
   {
@@ -1681,7 +1681,7 @@ export const HOUSE_OVERLAYS: Record<string, HouseOverlay> = {
     title: 'Venus in 5th House',
     planet: 'venus',
     house: 5,
-    simpleDesc: 'Playful romance, fun intimacy, creative joy together. The spark stays alive.',
+    simpleDesc: 'Playful romance, fun intimacy, creative joy together. The passion stays alive.',
     expertDesc: 'Venus in 5th brings joyful romance, playful intimacy, and creative connection.',
     isBonus: true,
     scores: { love: 15, chemistry: 12 }
@@ -1723,7 +1723,7 @@ export const HOUSE_OVERLAYS: Record<string, HouseOverlay> = {
     title: 'Mars in 5th House',
     planet: 'mars',
     house: 5,
-    simpleDesc: 'Passionate, energetic romance - keeps the spark alive! Great physical chemistry.',
+    simpleDesc: 'Passionate, energetic romance - keeps the passion alive! Great physical chemistry.',
     expertDesc: 'Mars in 5th brings passionate energy to romance and sexuality. Strong physical attraction.',
     isBonus: true,
     scores: { chemistry: 12 }

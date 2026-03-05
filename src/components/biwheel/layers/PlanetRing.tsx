@@ -33,12 +33,14 @@ interface PlanetRingProps {
   visiblePlanets: Set<string>;
   showRetrogrades: boolean;
   showDecans?: boolean;
-  degreeSymbolMode?: 'sign' | 'spark';
+  degreeSymbolMode?: 'sign' | 'degree';
   hoveredPlanet: { planet: string; chart: 'A' | 'B' | 'Composite' } | null;
+  selectedPlanet?: { planet: string; chart: string } | null;
   selectedAspect?: SynastryAspect | null; // When set, only show planets involved in this aspect
   aspects: SynastryAspect[]; // For highlighting aspect partners
   onPlanetHover: (planet: { planet: string; chart: 'A' | 'B' | 'Composite' } | null, event?: React.MouseEvent) => void;
   onPlanetClick?: (planet: string, chart: 'A' | 'B' | 'Composite', event?: React.MouseEvent) => void;
+  onPlanetDoubleClick?: (planet: string, chart: 'A' | 'B' | 'Composite', event?: React.MouseEvent) => void;
   rotationOffset?: number;
   smoothTransitions?: boolean; // When true, planet positions animate smoothly (for birth time shift)
 }
@@ -355,10 +357,12 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
   showDecans = false,
   degreeSymbolMode = 'sign',
   hoveredPlanet,
+  selectedPlanet,
   selectedAspect,
   aspects,
   onPlanetHover,
   onPlanetClick,
+  onPlanetDoubleClick,
   rotationOffset = 0,
   smoothTransitions = false,
 }) => {
@@ -414,34 +418,32 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
     return preparePlanetsFromComposite(compositeData, visiblePlanets, dimensions, singleRingRadius, rotationOffset);
   }, [compositeData, visiblePlanets, dimensions, singleRingRadius, rotationOffset, mode]);
 
-  // Find planets that have aspects with the hovered planet
+  // Find planets that have aspects with the hovered or selected planet
+  const activePlanet = hoveredPlanet || selectedPlanet as typeof hoveredPlanet;
   const aspectPartners = React.useMemo(() => {
-    if (!hoveredPlanet) return new Set<string>();
+    if (!activePlanet) return new Set<string>();
 
     const partners = new Set<string>();
     for (const asp of aspects) {
-      // For synastry mode: A's planets aspect with B's planets
       if (mode === 'synastry') {
-        if (hoveredPlanet.chart === 'A' && asp.planetA === hoveredPlanet.planet) {
+        if (activePlanet.chart === 'A' && asp.planetA === activePlanet.planet) {
           partners.add(`B-${asp.planetB}`);
-        } else if (hoveredPlanet.chart === 'B' && asp.planetB === hoveredPlanet.planet) {
+        } else if (activePlanet.chart === 'B' && asp.planetB === activePlanet.planet) {
           partners.add(`A-${asp.planetA}`);
         }
       } else {
-        // For single-wheel modes (natal/composite): aspects are within the same chart
-        // In natal aspects, planetA and planetB are both in the same chart
         const chartKey = mode === 'composite' ? 'Composite' : mode === 'personA' ? 'A' : 'B';
-        if (hoveredPlanet.chart === chartKey) {
-          if (asp.planetA === hoveredPlanet.planet) {
+        if (activePlanet.chart === chartKey) {
+          if (asp.planetA === activePlanet.planet) {
             partners.add(`${chartKey}-${asp.planetB}`);
-          } else if (asp.planetB === hoveredPlanet.planet) {
+          } else if (asp.planetB === activePlanet.planet) {
             partners.add(`${chartKey}-${asp.planetA}`);
           }
         }
       }
     }
     return partners;
-  }, [hoveredPlanet, aspects, mode]);
+  }, [activePlanet, aspects, mode]);
 
   // Check if a planet is part of the selected aspect
   const isPartOfSelectedAspect = (planetKey: string, chart: 'A' | 'B' | 'Composite'): boolean => {
@@ -457,25 +459,22 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
     return false;
   };
 
-  // Check if a planet should be highlighted (hovered or has aspect with hovered, or part of selected aspect)
+  // Check if a planet should be highlighted (hovered/selected or has aspect with active planet, or part of selected aspect)
   const isHighlighted = (planetKey: string, chart: 'A' | 'B' | 'Composite'): boolean => {
-    // When an aspect is selected, highlight the planets in that aspect
     if (selectedAspect) {
       return isPartOfSelectedAspect(planetKey, chart);
     }
-    if (!hoveredPlanet) return false;
-    if (hoveredPlanet.planet === planetKey && hoveredPlanet.chart === chart) return true;
+    if (!activePlanet) return false;
+    if (activePlanet.planet === planetKey && activePlanet.chart === chart) return true;
     return aspectPartners.has(`${chart}-${planetKey}`);
   };
 
   // Check if a planet should be dimmed (something is active and this planet is not highlighted)
   const isDimmed = (planetKey: string, chart: 'A' | 'B' | 'Composite'): boolean => {
-    // Dim when an aspect is selected and this planet is not part of it
     if (selectedAspect) {
       return !isPartOfSelectedAspect(planetKey, chart);
     }
-    // Dim when a planet is hovered and this planet is not highlighted
-    if (!hoveredPlanet) return false;
+    if (!activePlanet) return false;
     return !isHighlighted(planetKey, chart);
   };
 
@@ -654,6 +653,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             onMouseEnter={(e) => onPlanetHover({ planet: planet.key, chart: 'A' }, e)}
             onMouseLeave={() => onPlanetHover(null)}
             onClick={(e) => { e.stopPropagation(); onPlanetClick?.(planet.key, 'A', e); }}
+            onDoubleClick={(e) => { e.stopPropagation(); onPlanetDoubleClick?.(planet.key, 'A', e); }}
           >
             {/* Degree (innermost) */}
             {degreePos && (() => {
@@ -797,6 +797,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             onMouseEnter={(e) => onPlanetHover({ planet: planet.key, chart: 'B' }, e)}
             onMouseLeave={() => onPlanetHover(null)}
             onClick={(e) => { e.stopPropagation(); onPlanetClick?.(planet.key, 'B', e); }}
+            onDoubleClick={(e) => { e.stopPropagation(); onPlanetDoubleClick?.(planet.key, 'B', e); }}
           >
             {/* Degree (innermost) */}
             {degreePos && (() => {
@@ -933,6 +934,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             onMouseEnter={(e) => onPlanetHover({ planet: planet.key, chart: 'Composite' }, e)}
             onMouseLeave={() => onPlanetHover(null)}
             onClick={(e) => { e.stopPropagation(); onPlanetClick?.(planet.key, 'Composite', e); }}
+            onDoubleClick={(e) => { e.stopPropagation(); onPlanetDoubleClick?.(planet.key, 'Composite', e); }}
           >
             {/* Degree (innermost) */}
             {degreePos && (() => {

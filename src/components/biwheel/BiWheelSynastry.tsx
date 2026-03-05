@@ -58,7 +58,7 @@ interface SavedChartDefaults {
   showDegreeMarkers: boolean;
   showRetrogrades: boolean;
   showDecans: boolean;
-  degreeSymbolMode?: 'sign' | 'spark';
+  degreeSymbolMode?: 'sign' | 'degree';
   rotateToAscendant: boolean;
   chartTheme: string;
   enabledAsteroidGroups: string[];
@@ -434,6 +434,22 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   onZodiacTypeChange,
   ayanamsaKey,
   onAyanamsaKeyChange,
+  // Solar return
+  onFetchSolarReturn,
+  initialShowSolarReturn,
+  initialSolarReturnYear,
+  onShowSolarReturnChange,
+  onSolarReturnYearChange,
+  onSolarReturnLoadingChange,
+  onSolarReturnDataChange,
+  // Lunar return
+  onFetchLunarReturn,
+  initialShowLunarReturn,
+  initialLunarReturnStartDate,
+  onShowLunarReturnChange,
+  onLunarReturnStartDateChange,
+  onLunarReturnLoadingChange,
+  onLunarReturnDataChange,
 }) => {
   // Subscription gating for astrocartography
   const { user } = useAuth();
@@ -463,6 +479,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     selectedPlanet: null,
     selectedSign: null,
     tooltipPosition: null,
+    pinnedTooltipOpen: false,
     // Transit/Composite state
     showTransits: initialShowTransits,
     transitDate: initialTransitDate || today,
@@ -503,6 +520,16 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     shiftedChartA: null,
     shiftedChartB: null,
     birthTimeShiftLoading: false,
+    // Solar return state
+    showSolarReturn: initialShowSolarReturn ?? false,
+    solarReturnYear: initialSolarReturnYear ?? new Date().getFullYear(),
+    solarReturnData: null,
+    solarReturnLoading: false,
+    // Lunar return state
+    showLunarReturn: initialShowLunarReturn ?? false,
+    lunarReturnStartDate: initialLunarReturnStartDate || today,
+    lunarReturnData: null,
+    lunarReturnLoading: false,
   });
 
   // Sync birth time shift state from external props (mobile knobs in BiWheelMobileWrapper)
@@ -523,6 +550,31 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       setState(prev => ({ ...prev, timeShiftB: initialTimeShiftB }));
     }
   }, [initialTimeShiftB]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync solar/lunar return state from external props (BiWheelMobileWrapper)
+  useEffect(() => {
+    if (initialShowSolarReturn !== undefined && initialShowSolarReturn !== state.showSolarReturn) {
+      setState(prev => ({ ...prev, showSolarReturn: initialShowSolarReturn }));
+    }
+  }, [initialShowSolarReturn]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (initialSolarReturnYear !== undefined && initialSolarReturnYear !== state.solarReturnYear) {
+      setState(prev => ({ ...prev, solarReturnYear: initialSolarReturnYear }));
+    }
+  }, [initialSolarReturnYear]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (initialShowLunarReturn !== undefined && initialShowLunarReturn !== state.showLunarReturn) {
+      setState(prev => ({ ...prev, showLunarReturn: initialShowLunarReturn }));
+    }
+  }, [initialShowLunarReturn]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (initialLunarReturnStartDate !== undefined && initialLunarReturnStartDate !== state.lunarReturnStartDate) {
+      setState(prev => ({ ...prev, lunarReturnStartDate: initialLunarReturnStartDate }));
+    }
+  }, [initialLunarReturnStartDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync display state from parent (preset loads, external state changes)
   useEffect(() => {
@@ -806,6 +858,19 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     setState(prev => ({ ...prev, showRelocated: !!initialRelocatedPerson }));
   }, [initialRelocatedPerson]);
 
+  // Sync transit date/time when parent changes them (e.g. mobile jog wheel)
+  useEffect(() => {
+    if (initialTransitDate) {
+      setState(prev => prev.transitDate === initialTransitDate ? prev : { ...prev, transitDate: initialTransitDate });
+    }
+  }, [initialTransitDate]);
+
+  useEffect(() => {
+    if (initialTransitTime) {
+      setState(prev => prev.transitTime === initialTransitTime ? prev : { ...prev, transitTime: initialTransitTime });
+    }
+  }, [initialTransitTime]);
+
   // Additional tooltip states
   const [hoveredSign, setHoveredSign] = useState<SignData | null>(null);
   const [signTooltipPos, setSignTooltipPos] = useState<{ x: number; y: number } | null>(null);
@@ -816,11 +881,12 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
   // Calculate dimensions based on chart mode (always using fixed VIEWBOX_SIZE coordinate system)
   const isSingleWheel = state.chartMode !== 'synastry';
+  const showOuterRing = state.showTransits || state.showSolarReturn || state.showLunarReturn;
   const dimensions = useMemo(
     () => isSingleWheel
-      ? calculateSingleWheelDimensions(VIEWBOX_SIZE, state.showTransits, state.showProgressed, state.showDecans)
-      : calculateDimensions(VIEWBOX_SIZE, state.showTransits, state.showProgressed, state.showDecans),
-    [state.showTransits, state.showProgressed, state.showDecans, isSingleWheel]
+      ? calculateSingleWheelDimensions(VIEWBOX_SIZE, showOuterRing, state.showProgressed, state.showDecans)
+      : calculateDimensions(VIEWBOX_SIZE, showOuterRing, state.showProgressed, state.showDecans),
+    [showOuterRing, state.showProgressed, state.showDecans, isSingleWheel]
   );
 
   // Calculate rotation offset to place Ascendant at 9 o'clock (left side, traditional East)
@@ -986,7 +1052,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     fetchStars();
   }, [hasAnyVisibleFixedStar, onFetchFixedStarData, fixedStarData]);
 
-  // Fetch transits when showTransits is enabled or transitDate/transitTime changes
+  // Fetch transits — debounced + stale-fetch guard to avoid flicker from rapid jog-wheel scrubbing
+  const transitFetchIdRef = useRef(0);
   useEffect(() => {
     if (!state.showTransits) {
       // Clear transit data when disabled
@@ -1001,27 +1068,83 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       return;
     }
 
-    const fetchData = async () => {
+    const fetchId = ++transitFetchIdRef.current;
+
+    // Debounce 150ms to let rapid jog-wheel steps settle before fetching
+    const timer = setTimeout(async () => {
       setState(prev => ({ ...prev, transitLoading: true }));
       onTransitLoadingChange?.(true);
       try {
-        console.log('Fetching transits for:', state.transitDate, state.transitTime);
         const data = await onFetchTransits(state.transitDate, state.transitTime, chartA, chartB, computedAsteroids);
-        console.log('Transit data received:', data?.transit_planets?.length, 'planets');
-        if (!data?.transit_planets?.length) {
-          console.warn('Transit data received but no planets found');
-        }
+        if (fetchId !== transitFetchIdRef.current) return;
         setState(prev => ({ ...prev, transitData: data, transitLoading: false }));
         onTransitLoadingChange?.(false);
       } catch (error) {
+        if (fetchId !== transitFetchIdRef.current) return;
         console.error('Failed to fetch transits:', error);
-        setState(prev => ({ ...prev, transitLoading: false, transitData: null }));
+        setState(prev => ({ ...prev, transitLoading: false }));
         onTransitLoadingChange?.(false);
       }
-    };
+    }, 150);
 
-    fetchData();
+    return () => clearTimeout(timer);
   }, [state.showTransits, state.transitDate, state.transitTime, chartA, chartB, onFetchTransits, computedAsteroids, onTransitLoadingChange]);
+
+  // Fetch solar return when showSolarReturn is enabled or year changes
+  useEffect(() => {
+    if (!state.showSolarReturn) {
+      if (state.solarReturnData) {
+        setState(prev => ({ ...prev, solarReturnData: null }));
+      }
+      return;
+    }
+    if (!onFetchSolarReturn) return;
+
+    const fetchData = async () => {
+      setState(prev => ({ ...prev, solarReturnLoading: true }));
+      onSolarReturnLoadingChange?.(true);
+      try {
+        const data = await onFetchSolarReturn(state.solarReturnYear, chartA);
+        setState(prev => ({ ...prev, solarReturnData: data, solarReturnLoading: false }));
+        onSolarReturnLoadingChange?.(false);
+        onSolarReturnDataChange?.(data);
+      } catch (error) {
+        console.error('Failed to fetch solar return:', error);
+        setState(prev => ({ ...prev, solarReturnLoading: false, solarReturnData: null }));
+        onSolarReturnLoadingChange?.(false);
+        onSolarReturnDataChange?.(null);
+      }
+    };
+    fetchData();
+  }, [state.showSolarReturn, state.solarReturnYear, chartA, onFetchSolarReturn, onSolarReturnLoadingChange]);
+
+  // Fetch lunar return when showLunarReturn is enabled or startDate changes
+  useEffect(() => {
+    if (!state.showLunarReturn) {
+      if (state.lunarReturnData) {
+        setState(prev => ({ ...prev, lunarReturnData: null }));
+      }
+      return;
+    }
+    if (!onFetchLunarReturn) return;
+
+    const fetchData = async () => {
+      setState(prev => ({ ...prev, lunarReturnLoading: true }));
+      onLunarReturnLoadingChange?.(true);
+      try {
+        const data = await onFetchLunarReturn(state.lunarReturnStartDate, chartA);
+        setState(prev => ({ ...prev, lunarReturnData: data, lunarReturnLoading: false }));
+        onLunarReturnLoadingChange?.(false);
+        onLunarReturnDataChange?.(data);
+      } catch (error) {
+        console.error('Failed to fetch lunar return:', error);
+        setState(prev => ({ ...prev, lunarReturnLoading: false, lunarReturnData: null }));
+        onLunarReturnLoadingChange?.(false);
+        onLunarReturnDataChange?.(null);
+      }
+    };
+    fetchData();
+  }, [state.showLunarReturn, state.lunarReturnStartDate, chartA, onFetchLunarReturn, onLunarReturnLoadingChange]);
 
   // Fetch composite when chartMode is 'composite'
   useEffect(() => {
@@ -1148,10 +1271,16 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     setState(prev => ({
       ...prev,
       showTransits: show,
+      // Disable SR/LR when enabling transits (mutually exclusive outer ring)
+      ...(show ? { showSolarReturn: false, showLunarReturn: false } : {}),
     }));
-    if (show) analytics.trackTransitsEnabled();
+    if (show) {
+      analytics.trackTransitsEnabled();
+      onShowSolarReturnChange?.(false);
+      onShowLunarReturnChange?.(false);
+    }
     onShowTransitsChange?.(show);
-  }, [onShowTransitsChange]);
+  }, [onShowTransitsChange, onShowSolarReturnChange, onShowLunarReturnChange]);
 
   const setTransitDate = useCallback((date: string) => {
     setState(prev => ({ ...prev, transitDate: date }));
@@ -1162,6 +1291,45 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     setState(prev => ({ ...prev, transitTime: time }));
     onTransitTimeChange?.(time);
   }, [onTransitTimeChange]);
+
+  // Solar return setters (mutually exclusive with transits and lunar return)
+  const setShowSolarReturn = useCallback((show: boolean) => {
+    setState(prev => ({
+      ...prev,
+      showSolarReturn: show,
+      // Disable transits and lunar return when enabling solar return
+      ...(show ? { showTransits: false, showLunarReturn: false } : {}),
+    }));
+    onShowSolarReturnChange?.(show);
+    if (show) {
+      onShowTransitsChange?.(false);
+      onShowLunarReturnChange?.(false);
+    }
+  }, [onShowSolarReturnChange, onShowTransitsChange, onShowLunarReturnChange]);
+
+  const setSolarReturnYear = useCallback((year: number) => {
+    setState(prev => ({ ...prev, solarReturnYear: year }));
+    onSolarReturnYearChange?.(year);
+  }, [onSolarReturnYearChange]);
+
+  // Lunar return setters (mutually exclusive with transits and solar return)
+  const setShowLunarReturn = useCallback((show: boolean) => {
+    setState(prev => ({
+      ...prev,
+      showLunarReturn: show,
+      ...(show ? { showTransits: false, showSolarReturn: false } : {}),
+    }));
+    onShowLunarReturnChange?.(show);
+    if (show) {
+      onShowTransitsChange?.(false);
+      onShowSolarReturnChange?.(false);
+    }
+  }, [onShowLunarReturnChange, onShowTransitsChange, onShowSolarReturnChange]);
+
+  const setLunarReturnStartDate = useCallback((date: string) => {
+    setState(prev => ({ ...prev, lunarReturnStartDate: date }));
+    onLunarReturnStartDateChange?.(date);
+  }, [onLunarReturnStartDateChange]);
 
   const setChartMode = useCallback((mode: ChartMode) => {
     setState(prev => ({
@@ -1934,25 +2102,32 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     return map;
   }, [state.chartMode, placedPlanetsA, placedPlanetsB, compositeWithAngles]);
 
-  // Transit display positions (map planet name to longitude)
+  // Outer ring planets: transits, solar return, or lunar return (mutually exclusive)
+  const outerRingPlanets = useMemo(() => {
+    if (state.showSolarReturn && state.solarReturnData?.planets) return state.solarReturnData.planets;
+    if (state.showLunarReturn && state.lunarReturnData?.planets) return state.lunarReturnData.planets;
+    if (state.showTransits && state.transitData?.transit_planets) return state.transitData.transit_planets;
+    return null;
+  }, [state.showSolarReturn, state.solarReturnData, state.showLunarReturn, state.lunarReturnData, state.showTransits, state.transitData]);
+
+  // Outer ring display positions (map planet name to longitude) — works for transits, SR, LR
   const transitDisplayPositions: PlanetDisplayPositions = useMemo(() => {
     const map = new Map<string, number>();
-    if (state.transitData?.transit_planets) {
-      for (const planet of state.transitData.transit_planets) {
+    if (outerRingPlanets) {
+      for (const planet of outerRingPlanets) {
         map.set(planet.planet, planet.longitude);
       }
     }
     return map;
-  }, [state.transitData]);
+  }, [outerRingPlanets]);
 
-  // Calculate transit aspects to natal chart(s)
-  // Returns aspects with info about which natal chart they aspect (A, B, or composite)
+  // Calculate outer ring aspects to natal chart(s) (transits, SR, or LR)
   const transitAspects = useMemo(() => {
-    if (!state.transitData?.transit_planets) return [];
+    if (!outerRingPlanets) return [];
 
-    // Build transit planets object for aspect calculation
+    // Build outer ring planets object for aspect calculation
     const transitPlanets: Record<string, { longitude: number }> = {};
-    for (const tp of state.transitData.transit_planets) {
+    for (const tp of outerRingPlanets) {
       transitPlanets[tp.planet] = { longitude: tp.longitude };
     }
 
@@ -2013,7 +2188,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     // Sort by orb tightness
     return allAspects.sort((a, b) => a.aspect.exactOrb - b.aspect.exactOrb);
   }, [
-    state.transitData,
+    outerRingPlanets,
     state.chartMode,
     state.compositeData,
     state.visiblePlanets,
@@ -2063,7 +2238,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     setState((prev) => ({ ...prev, showDecans: show }));
   }, []);
 
-  const setDegreeSymbolMode = useCallback((mode: 'sign' | 'spark') => {
+  const setDegreeSymbolMode = useCallback((mode: 'sign' | 'degree') => {
     setState((prev) => ({ ...prev, degreeSymbolMode: mode }));
   }, []);
 
@@ -2077,12 +2252,10 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
   const handlePlanetHover = useCallback(
     (planet: { planet: string; chart: 'A' | 'B' | 'Transit' | 'Composite' } | null, event?: React.MouseEvent) => {
-      // Anchor tooltip to the planet group's visual center (not cursor position)
-      // so the tooltip appears next to the planet, not wherever the cursor entered
+      // Position tooltip at cursor
       let pos: { x: number; y: number } | null = null;
       if (event) {
-        const rect = (event.currentTarget as SVGElement).getBoundingClientRect();
-        pos = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+        pos = { x: event.clientX, y: event.clientY };
       }
       setState((prev) => ({
         ...prev,
@@ -2147,24 +2320,40 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
   const handlePlanetClick = useCallback(
     (planet: string, chart: 'A' | 'B' | 'Transit' | 'Composite', event?: React.MouseEvent) => {
-      let pos: { x: number; y: number } | undefined;
-      if (event) {
-        const rect = (event.currentTarget as SVGElement).getBoundingClientRect();
-        pos = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-      }
+      // Single click: highlight only (dim non-relevant planets/aspects), no tooltip
       setState((prev) => ({
         ...prev,
         selectedPlanet: prev.selectedPlanet?.planet === planet && prev.selectedPlanet?.chart === chart
           ? null
           : { planet, chart },
-        hoveredPlanet: null, // Clear hover state
-        selectedAspect: null, // Clear other selections
+        hoveredPlanet: null,
+        selectedAspect: null,
         selectedSign: null,
-        tooltipPosition: pos ?? prev.tooltipPosition,
+        pinnedTooltipOpen: false,
       }));
       onPlanetClick?.(planet, chart);
     },
     [onPlanetClick]
+  );
+
+  const handlePlanetDoubleClick = useCallback(
+    (planet: string, chart: 'A' | 'B' | 'Transit' | 'Composite', event?: React.MouseEvent) => {
+      // Double click: open pinned tooltip
+      let pos: { x: number; y: number } | undefined;
+      if (event) {
+        pos = { x: event.clientX, y: event.clientY };
+      }
+      setState((prev) => ({
+        ...prev,
+        selectedPlanet: { planet, chart },
+        hoveredPlanet: null,
+        selectedAspect: null,
+        selectedSign: null,
+        tooltipPosition: pos ?? prev.tooltipPosition,
+        pinnedTooltipOpen: true,
+      }));
+    },
+    []
   );
 
   const handleSignClick = useCallback(
@@ -2177,6 +2366,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         selectedSign: prev.selectedSign?.name === sign.name ? null : sign,
         selectedAspect: null, // Clear other selections
         selectedPlanet: null,
+        pinnedTooltipOpen: false,
         tooltipPosition: event ? { x: event.clientX, y: event.clientY } : prev.tooltipPosition,
       }));
     },
@@ -2263,8 +2453,13 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       showBirthTimeShift: state.showBirthTimeShift,
       timeShiftA: state.timeShiftA,
       timeShiftB: state.timeShiftB,
+      // Solar/Lunar return state
+      showSolarReturn: state.showSolarReturn,
+      solarReturnYear: state.solarReturnYear,
+      showLunarReturn: state.showLunarReturn,
+      lunarReturnStartDate: state.lunarReturnStartDate,
     });
-  }, [state.chartMode, state.visiblePlanets, state.visibleAspects, state.showHouses, state.showDegreeMarkers, state.showTransits, state.transitDate, state.transitTime, state.showProgressed, progressedPerson, state.progressedDate, state.showSolarArc, state.showRelocated, relocatedPerson, state.relocatedLocationA, state.relocatedLocationB, state.enabledAsteroidGroups, state.enabledFixedStarGroups, chartTheme, rotateToAscendant, zodiacVantage, state.straightAspects, state.showEffects, state.showRetrogrades, state.showDecans, state.showBirthTimeShift, state.timeShiftA, state.timeShiftB]);
+  }, [state.chartMode, state.visiblePlanets, state.visibleAspects, state.showHouses, state.showDegreeMarkers, state.showTransits, state.transitDate, state.transitTime, state.showProgressed, progressedPerson, state.progressedDate, state.showSolarArc, state.showRelocated, relocatedPerson, state.relocatedLocationA, state.relocatedLocationB, state.enabledAsteroidGroups, state.enabledFixedStarGroups, chartTheme, rotateToAscendant, zodiacVantage, state.straightAspects, state.showEffects, state.showRetrogrades, state.showDecans, state.showBirthTimeShift, state.timeShiftA, state.timeShiftB, state.showSolarReturn, state.solarReturnYear, state.showLunarReturn, state.lunarReturnStartDate]);
 
   // Get hovered planet data for tooltip
   const hoveredPlanetData = React.useMemo(() => {
@@ -2323,10 +2518,42 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         selectedPlanet: null,
         selectedAspect: null,
         selectedSign: null,
+        pinnedTooltipOpen: false,
       }))}
     >
       {/* SVG Chart - wrapper keeps square aspect ratio, SVG scales via viewBox */}
       <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+
+      {/* Birth time shift knobs — above chart */}
+      {enableBirthTimeShift && state.showBirthTimeShift && state.chartMode !== 'composite' && (
+        <div style={{
+          display: 'flex',
+          justifyContent: birthTimeB && (state.chartMode === 'synastry' || state.chartMode === 'personB')
+            ? 'space-between' : 'center',
+          alignItems: 'flex-start',
+          padding: '0 48px 8px',
+        }}>
+          <BirthTimeShiftKnob
+            label="A"
+            timeShiftMinutes={state.timeShiftA}
+            onTimeShiftChange={setTimeShiftA}
+            onReset={resetTimeShiftA}
+            loading={state.birthTimeShiftLoading && state.timeShiftA !== 0}
+            size={88}
+          />
+          {birthTimeB && (state.chartMode === 'synastry' || state.chartMode === 'personB') && (
+            <BirthTimeShiftKnob
+              label="B"
+              timeShiftMinutes={state.timeShiftB}
+              onTimeShiftChange={setTimeShiftB}
+              onReset={resetTimeShiftB}
+              loading={state.birthTimeShiftLoading && state.timeShiftB !== 0}
+              size={88}
+            />
+          )}
+        </div>
+      )}
+
       <svg
         ref={svgRef}
         width="100%"
@@ -2475,32 +2702,35 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           showDecans={state.showDecans}
           degreeSymbolMode={state.degreeSymbolMode}
           hoveredPlanet={state.hoveredPlanet}
+          selectedPlanet={state.selectedPlanet}
           selectedAspect={state.selectedAspect}
           aspects={aspects}
           onPlanetHover={handlePlanetHover}
           onPlanetClick={handlePlanetClick}
+          onPlanetDoubleClick={handlePlanetDoubleClick}
           rotationOffset={rotationOffset}
           smoothTransitions={state.showBirthTimeShift && (state.timeShiftA !== 0 || state.timeShiftB !== 0)}
         />
 
-        {/* Transit ring (outermost when enabled) */}
-        {state.showTransits && state.transitData && (
+        {/* Outer ring: transits, solar return, or lunar return (mutually exclusive) */}
+        {outerRingPlanets && (
           <TransitRing
             dimensions={dimensions}
-            transitPlanets={state.transitData.transit_planets}
+            transitPlanets={outerRingPlanets}
             visiblePlanets={state.visiblePlanets}
             showRetrogrades={state.showRetrogrades}
             hoveredPlanet={state.hoveredPlanet}
             onPlanetHover={handlePlanetHover}
             onPlanetClick={handlePlanetClick}
+            onPlanetDoubleClick={handlePlanetDoubleClick}
             rotationOffset={rotationOffset}
           />
         )}
 
         {/* Progressed planets are now integrated into effectiveChart (no separate outer ring) */}
 
-        {/* Transit loading indicator — only shows if loading takes >500ms */}
-        {state.showTransits && transitLoadingSlow && (
+        {/* Outer ring loading indicator — only shows if loading takes >500ms */}
+        {(state.showTransits && transitLoadingSlow || state.showSolarReturn && state.solarReturnLoading || state.showLunarReturn && state.lunarReturnLoading) && (
           <g>
             <rect
               x={dimensions.cx - 80}
@@ -2509,21 +2739,21 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
               height={40}
               rx={8}
               fill={COLORS.background}
-              stroke="#228B22"
+              stroke={state.showSolarReturn ? '#DAA520' : state.showLunarReturn ? '#8B8BCD' : '#228B22'}
               strokeWidth={1.5}
               fillOpacity={0.95}
             />
             <text
               x={dimensions.cx}
               y={dimensions.cy}
-              fill="#228B22"
+              fill={state.showSolarReturn ? '#DAA520' : state.showLunarReturn ? '#8B8BCD' : '#228B22'}
               fontSize={12}
               fontFamily="Arial, sans-serif"
               fontWeight="bold"
               textAnchor="middle"
               dominantBaseline="central"
             >
-              Loading Transits...
+              {state.showSolarReturn ? 'Loading Solar Return...' : state.showLunarReturn ? 'Loading Lunar Return...' : 'Loading Transits...'}
             </text>
           </g>
         )}
@@ -2708,7 +2938,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         {(() => {
           // Calculate legend height dynamically
           const baseItems = state.chartMode === 'synastry' ? 2 : 1;
-          const transitItem = state.showTransits && state.transitData ? 1 : 0;
+          const transitItem = outerRingPlanets ? 1 : 0;
           const progressedItem = state.showProgressed && state.progressedData ? 1 : 0;
           const totalItems = baseItems + transitItem + progressedItem;
           const legendHeight = totalItems * 18 + 14;
@@ -2747,11 +2977,11 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
                   </text>
                 </>
               ) : null}
-              {state.showTransits && state.transitData && (
+              {outerRingPlanets && (
                 <>
-                  <circle cx={10} cy={state.chartMode === 'synastry' ? 46 : 28} r={6} fill="#228B22" />
+                  <circle cx={10} cy={state.chartMode === 'synastry' ? 46 : 28} r={6} fill={state.showSolarReturn ? '#DAA520' : state.showLunarReturn ? '#8B8BCD' : '#228B22'} />
                   <text x={22} y={state.chartMode === 'synastry' ? 50 : 32} fill={COLORS.textSecondary} fontSize={10}>
-                    Transits
+                    {state.showSolarReturn ? `${state.solarReturnYear} Solar Return` : state.showLunarReturn ? 'Lunar Return' : 'Transits'}
                   </text>
                 </>
               )}
@@ -2941,8 +3171,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         />
       )}
 
-      {/* Planet Tooltip (on click - with close button) */}
-      {state.selectedPlanet && selectedPlanetData && state.tooltipPosition && (
+      {/* Planet Tooltip (on double-click - with close button) */}
+      {state.selectedPlanet && selectedPlanetData && state.tooltipPosition && state.pinnedTooltipOpen && (
         <PlanetTooltip
           planet={state.selectedPlanet.planet}
           chart={state.selectedPlanet.chart}
@@ -2965,7 +3195,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           visibleAspects={state.visibleAspects}
           position={state.tooltipPosition}
           visible={true}
-          onClose={() => setState((prev) => ({ ...prev, selectedPlanet: null }))}
+          onClose={() => setState((prev) => ({ ...prev, selectedPlanet: null, pinnedTooltipOpen: false }))}
           partnerChart={isSingleWheel || state.selectedPlanet.chart === 'Transit' ? undefined : state.selectedPlanet.chart === 'A' ? displayChartB : displayChartA}
           transitDate={state.selectedPlanet.chart === 'Transit' ? state.transitDate : undefined}
           transitAspects={state.selectedPlanet.chart === 'Transit' ? transitAspects : undefined}
@@ -3033,34 +3263,52 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           />
         </div>
       )}
-
-      {/* Birth time shift knobs — desktop overlay */}
-      {showTogglePanel && enableBirthTimeShift && state.showBirthTimeShift && state.chartMode !== 'composite' && (
-        <>
-          <div style={{ position: 'absolute', top: 88, left: 48, zIndex: 999 }}>
-            <BirthTimeShiftKnob
-              label="A"
-              timeShiftMinutes={state.timeShiftA}
-              onTimeShiftChange={setTimeShiftA}
-              onReset={resetTimeShiftA}
-              loading={state.birthTimeShiftLoading && state.timeShiftA !== 0}
-              size={88}
-            />
+      {/* Solar/Lunar return year/month nav — bottom-left overlay (desktop only) */}
+      {showTogglePanel && (state.showSolarReturn || state.showLunarReturn) && (
+        <div style={{
+          position: 'absolute', bottom: 80, left: 16, zIndex: 999,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+          background: COLORS.background, borderRadius: 12, padding: '8px 12px',
+          border: `1px solid ${COLORS.gridLineFaint}`, boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+        }}>
+          <span style={{ fontSize: 10, fontWeight: 600, color: COLORS.textMuted, opacity: 0.7 }}>
+            {state.showSolarReturn ? 'Solar Return' : 'Lunar Return'}
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              onClick={() => state.showSolarReturn
+                ? setSolarReturnYear(state.solarReturnYear - 1)
+                : setLunarReturnStartDate((() => { const d = new Date(state.lunarReturnStartDate + 'T12:00:00'); d.setDate(d.getDate() - 28); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })())
+              }
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLORS.textPrimary, fontSize: 18, fontWeight: 'bold', padding: '0 4px' }}
+            >
+              ◀
+            </button>
+            <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.textPrimary, minWidth: 60, textAlign: 'center' }}>
+              {state.showSolarReturn
+                ? state.solarReturnYear
+                : state.lunarReturnData?.return_date
+                  ? new Date(state.lunarReturnData.return_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                  : '...'
+              }
+            </span>
+            <button
+              onClick={() => state.showSolarReturn
+                ? setSolarReturnYear(state.solarReturnYear + 1)
+                : setLunarReturnStartDate((() => { const d = new Date(state.lunarReturnStartDate + 'T12:00:00'); d.setDate(d.getDate() + 28); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })())
+              }
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLORS.textPrimary, fontSize: 18, fontWeight: 'bold', padding: '0 4px' }}
+            >
+              ▶
+            </button>
           </div>
-          {birthTimeB && (state.chartMode === 'synastry' || state.chartMode === 'personB') && (
-            <div style={{ position: 'absolute', top: 88, right: 48, zIndex: 999 }}>
-              <BirthTimeShiftKnob
-                label="B"
-                timeShiftMinutes={state.timeShiftB}
-                onTimeShiftChange={setTimeShiftB}
-                onReset={resetTimeShiftB}
-                loading={state.birthTimeShiftLoading && state.timeShiftB !== 0}
-                size={88}
-              />
-            </div>
+          {(state.solarReturnLoading || state.lunarReturnLoading) && (
+            <span style={{ fontSize: 10, color: state.showSolarReturn ? '#DAA520' : '#8B8BCD' }}>Loading...</span>
           )}
-        </>
+        </div>
       )}
+
+      {/* Birth time shift knobs are now rendered above the chart SVG */}
       </div>
 
 
@@ -3099,6 +3347,20 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             onSetShowTransits={setShowTransits}
             onSetTransitDate={setTransitDate}
             onSetTransitTime={setTransitTime}
+            // Solar/Lunar return controls
+            enableSolarReturn={!!onFetchSolarReturn}
+            showSolarReturn={state.showSolarReturn}
+            solarReturnYear={state.solarReturnYear}
+            solarReturnLoading={state.solarReturnLoading}
+            solarReturnData={state.solarReturnData}
+            onSetShowSolarReturn={setShowSolarReturn}
+            onSetSolarReturnYear={setSolarReturnYear}
+            enableLunarReturn={!!onFetchLunarReturn}
+            showLunarReturn={state.showLunarReturn}
+            lunarReturnLoading={state.lunarReturnLoading}
+            lunarReturnData={state.lunarReturnData}
+            onSetShowLunarReturn={setShowLunarReturn}
+            onSetLunarReturnStartDate={setLunarReturnStartDate}
             enableComposite={enableComposite}
             chartMode={state.chartMode}
             compositeLoading={state.compositeLoading}

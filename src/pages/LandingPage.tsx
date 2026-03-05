@@ -11,7 +11,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { SavedChartsList } from '@/components/charts/SavedChartsList';
 import { AuthModal } from '@/components/auth/AuthModal';
-import { AstroComImport, type ParsedPerson } from '@/components/charts/AstroComImport';
+import type { ParsedPerson } from '@/components/charts/AstroComImport';
+import { ChartImport } from '@/components/charts/AstroSeekImport';
 
 const ZODIAC_SIGNS = [
   'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
@@ -170,7 +171,7 @@ export default function LandingPage() {
   const [loading, setLoading] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
-  const [showAstroImport, setShowAstroImport] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const handleLoadChart = (chart: any) => {
     navigate('/chart', {
@@ -222,7 +223,7 @@ export default function LandingPage() {
     } else {
       setPersonB(null);
     }
-    setShowAstroImport(false);
+    setShowImport(false);
     toast.success(`Imported ${persons.length} profile${persons.length !== 1 ? 's' : ''}`);
   }, []);
 
@@ -283,7 +284,7 @@ export default function LandingPage() {
         {/* Import / Load Buttons */}
         <div className="flex gap-2">
           <button
-            onClick={() => setShowAstroImport(true)}
+            onClick={() => setShowImport(true)}
             className="flex-1 flex items-center justify-center gap-2 py-3 border rounded-sm text-sm text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
           >
             <ClipboardPaste className="w-4 h-4" />
@@ -348,7 +349,7 @@ export default function LandingPage() {
 
       <SavedChartsList isOpen={showSaved} onClose={() => setShowSaved(false)} onLoad={handleLoadChart} />
       <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} />
-      <AstroComImport isOpen={showAstroImport} onClose={() => setShowAstroImport(false)} onImport={handleAstroImport} />
+      <ChartImport isOpen={showImport} onClose={() => setShowImport(false)} onImport={handleAstroImport} />
     </div>
   );
 }

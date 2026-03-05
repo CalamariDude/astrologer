@@ -7,7 +7,7 @@
  */
 
 import { ZODIAC_SIGNS, PLANETS } from '@/components/biwheel/utils/constants';
-import { calculateSpark, calculateDecan } from '@/components/biwheel/utils/chartMath';
+import { calculateDegreeSign, calculateDecan } from '@/components/biwheel/utils/chartMath';
 import { calculateProfections } from '@/lib/profections';
 import { classifyAspectsForPlanet } from './aspectClassification';
 import type {
@@ -113,12 +113,12 @@ export function analyzePlanet(
   const retrogadeHouse = isHouseRetrograde(house, ascLong, allPlanetsEnriched);
   const fusionCusp = checkFusionCusp(planet.longitude, house, ascLong, params.fusion_cusp_orb);
 
-  let spark: PlanetAnalysis['spark'];
+  let signDegree: PlanetAnalysis['signDegree'];
   let decan: PlanetAnalysis['decan'];
 
-  if (params.include_spark) {
-    const s = calculateSpark(planet.longitude);
-    spark = { sign: s.sparkSign, symbol: s.sparkSymbol };
+  if (params.include_sign_degree) {
+    const s = calculateDegreeSign(planet.longitude);
+    signDegree = { sign: s.degreeSign, symbol: s.degreeSymbol };
   }
 
   if (params.include_decan) {
@@ -142,7 +142,7 @@ export function analyzePlanet(
     house_natural_sign: naturalSign,
     house_themes: HOUSE_TOPICS[house] || '',
     retrograde,
-    spark,
+    signDegree,
     decan,
     retrograde_house: retrogadeHouse,
     fusion_cusp: fusionCusp,

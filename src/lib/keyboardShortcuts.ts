@@ -20,8 +20,6 @@ export const TAB_VALUES = [
   'declination',
   'dignities',
   'fixed-stars',
-  'solar-return',
-  'lunar-return',
   'ai-reading',
   'time-finder',
   'notes',

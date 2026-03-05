@@ -61,7 +61,7 @@ export interface ChartReadingParams {
   depth_backward: number;
   depth_forward: number;
   include_outer_planets: boolean;
-  include_spark: boolean;
+  include_sign_degree: boolean;
   include_decan: boolean;
   fusion_cusp_orb: number;
 }
@@ -70,7 +70,7 @@ export const DEFAULT_PARAMS: ChartReadingParams = {
   depth_backward: 1,
   depth_forward: 1,
   include_outer_planets: false,
-  include_spark: true,
+  include_sign_degree: true,
   include_decan: true,
   fusion_cusp_orb: 2,
 };
@@ -145,7 +145,7 @@ export interface PlanetAnalysis {
   house_natural_sign: string;
   house_themes: string;
   retrograde: boolean;
-  spark?: { sign: string; symbol: string };
+  signDegree?: { sign: string; symbol: string };
   decan?: { number: number; sign: string };
   retrograde_house: boolean;
   fusion_cusp?: { from_house: number; to_house: number };

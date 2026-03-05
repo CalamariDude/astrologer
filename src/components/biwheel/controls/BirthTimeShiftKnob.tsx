@@ -3,7 +3,7 @@
  *
  * Uses the exact same interaction and intervals as TransitJogWheel:
  * drag the dot clockwise to advance, counter-clockwise to go back.
- * Tap center to cycle interval: 1h → 1d → 1w → 1mo
+ * Tap center to cycle interval: 1mi → 10mi → 1h → 1d → 1w → 1mo → 1y
  */
 
 import React, { useState, useRef, useCallback } from 'react';
@@ -18,10 +18,10 @@ interface BirthTimeShiftKnobProps {
   size?: number;                         // Default 88
 }
 
-type Interval = '1h' | '1d' | '1w' | '1mo';
-const INTERVALS: Interval[] = ['1h', '1d', '1w', '1mo'];
+type Interval = '1mi' | '10mi' | '1h' | '1d' | '1w' | '1mo' | '1y';
+const INTERVALS: Interval[] = ['1mi', '10mi', '1h', '1d', '1w', '1mo', '1y'];
 const INTERVAL_MINUTES: Record<Interval, number> = {
-  '1h': 60, '1d': 1440, '1w': 10080, '1mo': 43200,
+  '1mi': 1, '10mi': 10, '1h': 60, '1d': 1440, '1w': 10080, '1mo': 43200, '1y': 525600,
 };
 const STEP_DEGREES = 360; // full rotation = 1 step
 

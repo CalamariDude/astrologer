@@ -1374,7 +1374,7 @@ const VENUS_MARS: CompositeInterpretation[] = [
   {
     planets: ['venus', 'mars'],
     aspect: 'sextile',
-    title: 'Creative Spark',
+    title: 'Creative Chemistry',
     description: "The composite chart shows The relationship\'s love expression and its passionate energy working together in supportive harmony. The relationship has a natural aptitude for powerful personal magnetism, creative passion, and the integration of desire with love that emerges through mutual effort and honest communication. This gentle cooperation creates steady opportunities for the partnership to deepen and strengthen. With conscious attention, this aspect becomes one of the relationship\'s most reliable assets.",
     isPositive: true
   },

@@ -2,12 +2,13 @@
  * TransitJogWheel — circular jog dial for scrubbing transit dates
  *
  * Drag the dot clockwise to advance time, counter-clockwise to go back.
- * Tap center label to cycle interval: 1h → 1d → 1w → 1mo
+ * Tap center label to cycle interval: 1mi → 1h → 1d → 1w → 1mo
  * Adapts to the current chart theme via COLORS.
  */
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { COLORS } from '../utils/constants';
+import { TimeInput } from '@/components/ui/TimeInput';
 
 interface TransitJogWheelProps {
   transitDate: string;                        // YYYY-MM-DD
@@ -18,8 +19,8 @@ interface TransitJogWheelProps {
   size?: number;                              // diameter in px (default 96)
 }
 
-type Interval = '1h' | '1d' | '1w' | '1mo';
-const INTERVALS: Interval[] = ['1h', '1d', '1w', '1mo'];
+type Interval = '1mi' | '10mi' | '1h' | '1d' | '1w' | '1mo' | '1y';
+const INTERVALS: Interval[] = ['1mi', '10mi', '1h', '1d', '1w', '1mo', '1y'];
 const STEP_DEGREES = 30; // 12 steps per full rotation
 
 /** Angle (0°=top, clockwise positive) from center of element to pointer. */
@@ -62,6 +63,7 @@ export const TransitJogWheel: React.FC<TransitJogWheelProps> = ({
 }) => {
   const [interval, setInterval_] = useState<Interval>('1d');
   const [isDragging, setIsDragging] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const accumulatedRef = useRef(0);
   const lastAngleRef = useRef(0);
   const currentAngleRef = useRef(0);
@@ -85,9 +87,10 @@ export const TransitJogWheel: React.FC<TransitJogWheelProps> = ({
       const curDate = dateRef.current;
       const curTime = timeRef.current;
 
-      if (iv === '1h') {
+      if (iv === '1mi' || iv === '10mi' || iv === '1h') {
         const [hh, mm] = curTime.split(':').map(Number);
-        let totalMinutes = hh * 60 + mm + steps * 60;
+        const minuteStep = iv === '1mi' ? 1 : iv === '10mi' ? 10 : 60;
+        let totalMinutes = hh * 60 + mm + steps * minuteStep;
         const d = new Date(curDate + 'T12:00:00');
         const dayShift = Math.floor(totalMinutes / 1440);
         totalMinutes = ((totalMinutes % 1440) + 1440) % 1440;
@@ -110,6 +113,8 @@ export const TransitJogWheel: React.FC<TransitJogWheelProps> = ({
           if (d.getDate() !== origDay) {
             d.setDate(0);
           }
+        } else if (iv === '1y') {
+          d.setFullYear(d.getFullYear() + steps);
         }
         onTransitDateChange(fmtDate(d));
       }
@@ -364,6 +369,96 @@ export const TransitJogWheel: React.FC<TransitJogWheelProps> = ({
         }
       `}</style>
     </div>
+
+      {/* Compact date/time label — tap to expand */}
+      <button
+        onClick={(e) => { e.stopPropagation(); setShowDatePicker(p => !p); }}
+        style={{
+          background: 'none',
+          border: 'none',
+          padding: '2px 0',
+          cursor: 'pointer',
+          color: textMuted,
+          fontSize: Math.max(9, size * 0.1),
+          fontFamily: "'Inter', system-ui, sans-serif",
+          fontWeight: 500,
+          opacity: 0.65,
+          lineHeight: 1,
+        }}
+      >
+        {transitDate} · {transitTime || '12:00'}
+      </button>
+
+      {/* Expanded date/time picker */}
+      {showDatePicker && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4,
+            width: Math.max(size, 130),
+          }}
+        >
+          <input
+            type="date"
+            value={transitDate}
+            onChange={(e) => {
+              const v = e.target.value;
+              const year = v.split('-')[0];
+              if (year && year.length >= 4) onTransitDateChange(v);
+            }}
+            style={{
+              width: '100%',
+              padding: '3px 5px',
+              fontSize: 11,
+              border: `1px solid ${border}`,
+              borderRadius: 5,
+              background: bgAlt2,
+              color: text,
+              colorScheme: bg.charAt(1) < '8' ? 'dark' : 'light',
+            }}
+          />
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <TimeInput
+              value={transitTime}
+              onChange={(v) => onTransitTimeChange(v)}
+              unstyled
+              style={{
+                flex: 1,
+                padding: '3px 5px',
+                fontSize: 11,
+                border: `1px solid ${border}`,
+                borderRadius: 5,
+                background: bgAlt2,
+                color: text,
+              }}
+            />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const n = new Date();
+                onTransitDateChange(fmtDate(n));
+                onTransitTimeChange(fmtTime(n.getHours(), n.getMinutes()));
+              }}
+              style={{
+                padding: '3px 6px',
+                fontSize: 10,
+                fontWeight: 600,
+                border: `1px solid ${border}`,
+                borderRadius: 5,
+                background: bgAlt2,
+                color: textMuted,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Now
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

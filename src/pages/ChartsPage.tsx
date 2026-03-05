@@ -5,7 +5,8 @@ import { toast } from 'sonner';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { SavedChartsInline } from '@/components/charts/SavedChartsList';
-import { AstroComImport, type ParsedPerson } from '@/components/charts/AstroComImport';
+import type { ParsedPerson } from '@/components/charts/AstroComImport';
+import { ChartImport } from '@/components/charts/AstroSeekImport';
 import { getSavedChartsAsync, invalidateChartsCache } from '@/components/charts/SaveChartButton';
 import { getThemeCSSVariables, isThemeDark } from '@/lib/chartThemeCSS';
 import { supabase } from '@/lib/supabase';
@@ -15,7 +16,8 @@ export default function ChartsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [showAstroImport, setShowAstroImport] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [chartsRefreshKey, setChartsRefreshKey] = useState(0);
   const [pageTheme, setPageTheme] = useState(() => localStorage.getItem('astrologer_theme') || 'classic');
   const themeVars = useMemo(() => getThemeCSSVariables(pageTheme) as React.CSSProperties, [pageTheme]);
 
@@ -48,9 +50,9 @@ export default function ChartsPage() {
     toast.success(`Exported ${charts.length} chart${charts.length === 1 ? '' : 's'}`);
   }, [user?.id]);
 
-  const handleAstroImport = useCallback(async (persons: ParsedPerson[]) => {
+  const handleChartImport = useCallback(async (persons: ParsedPerson[]) => {
     if (persons.length === 0) return;
-    setShowAstroImport(false);
+    setShowImport(false);
 
     let savedCount = 0;
     for (const person of persons) {
@@ -91,6 +93,7 @@ export default function ChartsPage() {
     }
     if (savedCount > 0) {
       invalidateChartsCache();
+      setChartsRefreshKey(k => k + 1);
     }
     toast.success(`Saved ${savedCount} chart${savedCount !== 1 ? 's' : ''}`);
   }, [user]);
@@ -114,17 +117,17 @@ export default function ChartsPage() {
       </div>
 
       <div className="container px-4 md:px-6 py-6 max-w-4xl space-y-4">
-        <SavedChartsInline onLoad={(chart) => {
+        <SavedChartsInline refreshKey={chartsRefreshKey} onLoad={(chart) => {
           navigate('/chart', { state: { loadChart: chart } });
         }} />
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowAstroImport(true)}
+            onClick={() => setShowImport(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 border transition-colors"
           >
             <ClipboardPaste className="w-3.5 h-3.5" />
-            Import from Astro.com
+            Import Charts
           </button>
           <button
             onClick={handleExportCharts}
@@ -136,7 +139,7 @@ export default function ChartsPage() {
         </div>
       </div>
 
-      <AstroComImport isOpen={showAstroImport} onClose={() => setShowAstroImport(false)} onImport={handleAstroImport} />
+      <ChartImport isOpen={showImport} onClose={() => setShowImport(false)} onImport={handleChartImport} />
     </div>
   );
 }

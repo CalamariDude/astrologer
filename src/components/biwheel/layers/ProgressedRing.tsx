@@ -24,6 +24,7 @@ interface ProgressedRingProps {
   hoveredPlanet: { planet: string; chart: 'A' | 'B' | 'Transit' | 'Progressed' | 'Composite' } | null;
   onPlanetHover: (planet: { planet: string; chart: 'Progressed' } | null, event?: React.MouseEvent) => void;
   onPlanetClick?: (planet: string, chart: 'Progressed', event?: React.MouseEvent) => void;
+  onPlanetDoubleClick?: (planet: string, chart: 'Progressed', event?: React.MouseEvent) => void;
   rotationOffset?: number;
 }
 
@@ -213,6 +214,7 @@ export const ProgressedRing: React.FC<ProgressedRingProps> = ({
   hoveredPlanet,
   onPlanetHover,
   onPlanetClick,
+  onPlanetDoubleClick,
   rotationOffset = 0,
 }) => {
   const {
@@ -312,6 +314,7 @@ export const ProgressedRing: React.FC<ProgressedRingProps> = ({
             onMouseEnter={(e) => onPlanetHover({ planet: planet.key, chart: 'Progressed' }, e)}
             onMouseLeave={() => onPlanetHover(null)}
             onClick={(e) => { e.stopPropagation(); onPlanetClick?.(planet.key, 'Progressed', e); }}
+            onDoubleClick={(e) => { e.stopPropagation(); onPlanetDoubleClick?.(planet.key, 'Progressed', e); }}
           >
             {/* Degree (innermost) */}
             {degreePos && (

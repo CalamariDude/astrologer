@@ -98,13 +98,28 @@ interface TogglePanelContentProps {
   // Display toggles
   showDecans?: boolean;
   onSetShowDecans?: (show: boolean) => void;
-  degreeSymbolMode?: 'sign' | 'spark';
-  onSetDegreeSymbolMode?: (mode: 'sign' | 'spark') => void;
+  degreeSymbolMode?: 'sign' | 'degree';
+  onSetDegreeSymbolMode?: (mode: 'sign' | 'degree') => void;
   // Aspect line display options
   straightAspects?: boolean;
   onSetStraightAspects?: (straight: boolean) => void;
   showEffects?: boolean;
   onSetShowEffects?: (show: boolean) => void;
+  // Solar return controls
+  enableSolarReturn?: boolean;
+  showSolarReturn?: boolean;
+  solarReturnYear?: number;
+  solarReturnLoading?: boolean;
+  solarReturnData?: { return_date: string; return_time: string; ascendantSign: string } | null;
+  onSetShowSolarReturn?: (show: boolean) => void;
+  onSetSolarReturnYear?: (year: number) => void;
+  // Lunar return controls
+  enableLunarReturn?: boolean;
+  showLunarReturn?: boolean;
+  lunarReturnLoading?: boolean;
+  lunarReturnData?: { return_date: string; return_time: string; ascendantSign: string } | null;
+  onSetShowLunarReturn?: (show: boolean) => void;
+  onSetLunarReturnStartDate?: (date: string) => void;
   // Birth time shift (wheel-time knobs)
   enableBirthTimeShift?: boolean;
   showBirthTimeShift?: boolean;
@@ -459,6 +474,21 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
   onSetStraightAspects,
   showEffects = true,
   onSetShowEffects,
+  // Solar return controls
+  enableSolarReturn = false,
+  showSolarReturn = false,
+  solarReturnYear = new Date().getFullYear(),
+  solarReturnLoading = false,
+  solarReturnData = null,
+  onSetShowSolarReturn,
+  onSetSolarReturnYear,
+  // Lunar return controls
+  enableLunarReturn = false,
+  showLunarReturn = false,
+  lunarReturnLoading = false,
+  lunarReturnData = null,
+  onSetShowLunarReturn,
+  onSetLunarReturnStartDate,
   // Birth time shift (wheel-time knobs)
   enableBirthTimeShift = false,
   showBirthTimeShift = false,
@@ -522,7 +552,7 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
       )}
 
       {/* Chart Mode - Transit, Wheel-Time Knobs, and Composite controls */}
-      {(enableTransits || enableComposite || enableBirthTimeShift) && (
+      {(enableTransits || enableSolarReturn || enableLunarReturn || enableComposite || enableBirthTimeShift) && (
         <Section title="Chart Mode" defaultOpen={true} isMobile={isMobile}>
           {/* Transit toggle with date picker */}
           {enableTransits && (
@@ -639,9 +669,90 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
             </div>
           )}
 
+          {/* Solar Return toggle with year navigation */}
+          {enableSolarReturn && (
+            <div style={{ marginBottom: 8, marginTop: enableTransits ? 8 : 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Checkbox
+                  label="Solar Return"
+                  checked={showSolarReturn}
+                  onChange={() => onSetShowSolarReturn?.(!showSolarReturn)}
+                  color="#DAA520"
+                  isMobile={isMobile}
+                />
+                {solarReturnLoading && (
+                  <span style={{ fontSize: isMobile ? 14 : 10, color: '#DAA520' }}>Loading...</span>
+                )}
+              </div>
+              {showSolarReturn && onSetSolarReturnYear && (
+                <div style={{ marginTop: 8, marginLeft: isMobile ? 0 : 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <button
+                      onClick={() => onSetSolarReturnYear(solarReturnYear - 1)}
+                      style={{
+                        ...buttonStyle,
+                        color: '#DAA520',
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      ◀
+                    </button>
+                    <span style={{
+                      flex: 1,
+                      textAlign: 'center',
+                      fontSize: isMobile ? 14 : 12,
+                      fontWeight: 600,
+                      color: COLORS.textPrimary,
+                    }}>
+                      {solarReturnYear}
+                    </span>
+                    <button
+                      onClick={() => onSetSolarReturnYear(solarReturnYear + 1)}
+                      style={{
+                        ...buttonStyle,
+                        color: '#DAA520',
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      ▶
+                    </button>
+                  </div>
+                  {solarReturnData && (
+                    <div style={{ marginTop: 4, fontSize: isMobile ? 12 : 10, color: COLORS.textMuted }}>
+                      {solarReturnData.return_date} · {solarReturnData.ascendantSign} Rising
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Lunar Return toggle with navigation */}
+          {enableLunarReturn && (
+            <div style={{ marginBottom: 8, marginTop: (enableTransits || enableSolarReturn) ? 8 : 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Checkbox
+                  label="Lunar Return"
+                  checked={showLunarReturn}
+                  onChange={() => onSetShowLunarReturn?.(!showLunarReturn)}
+                  color="#8B8BCD"
+                  isMobile={isMobile}
+                />
+                {lunarReturnLoading && (
+                  <span style={{ fontSize: isMobile ? 14 : 10, color: '#8B8BCD' }}>Loading...</span>
+                )}
+              </div>
+              {showLunarReturn && onSetLunarReturnStartDate && lunarReturnData && (
+                <div style={{ marginTop: 4, marginLeft: isMobile ? 0 : 20, fontSize: isMobile ? 12 : 10, color: COLORS.textMuted }}>
+                  {lunarReturnData.return_date} · {lunarReturnData.ascendantSign} Rising
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Birth time shift (wheel-time knobs) toggle */}
           {enableBirthTimeShift && (
-            <div style={{ marginBottom: 8, marginTop: enableTransits ? 8 : 0 }}>
+            <div style={{ marginBottom: 8, marginTop: (enableTransits || enableSolarReturn || enableLunarReturn) ? 8 : 0 }}>
               <Checkbox
                 label="Show Wheel-Time Knobs"
                 checked={showBirthTimeShift}
@@ -1052,8 +1163,8 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
         {onSetDegreeSymbolMode && (
           <Checkbox
             label="Degree Glyphs"
-            checked={degreeSymbolMode === 'spark'}
-            onChange={() => onSetDegreeSymbolMode(degreeSymbolMode === 'spark' ? 'sign' : 'spark')}
+            checked={degreeSymbolMode === 'degree'}
+            onChange={() => onSetDegreeSymbolMode(degreeSymbolMode === 'degree' ? 'sign' : 'degree')}
             isMobile={isMobile}
           />
         )}

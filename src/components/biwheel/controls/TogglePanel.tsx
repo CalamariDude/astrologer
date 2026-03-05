@@ -35,8 +35,8 @@ interface TogglePanelProps {
   showDegreeMarkers: boolean;
   showRetrogrades: boolean;
   showDecans: boolean;
-  degreeSymbolMode?: 'sign' | 'spark';
-  onSetDegreeSymbolMode?: (mode: 'sign' | 'spark') => void;
+  degreeSymbolMode?: 'sign' | 'degree';
+  onSetDegreeSymbolMode?: (mode: 'sign' | 'degree') => void;
   onTogglePlanet: (planet: string) => void;
   onToggleAspect: (aspect: AspectType) => void;
   onSetShowHouses: (show: boolean) => void;
@@ -114,6 +114,21 @@ interface TogglePanelProps {
   onSetStraightAspects?: (straight: boolean) => void;
   showEffects?: boolean;
   onSetShowEffects?: (show: boolean) => void;
+  // Solar return controls
+  enableSolarReturn?: boolean;
+  showSolarReturn?: boolean;
+  solarReturnYear?: number;
+  solarReturnLoading?: boolean;
+  solarReturnData?: { return_date: string; return_time: string; ascendantSign: string } | null;
+  onSetShowSolarReturn?: (show: boolean) => void;
+  onSetSolarReturnYear?: (year: number) => void;
+  // Lunar return controls
+  enableLunarReturn?: boolean;
+  showLunarReturn?: boolean;
+  lunarReturnLoading?: boolean;
+  lunarReturnData?: { return_date: string; return_time: string; ascendantSign: string } | null;
+  onSetShowLunarReturn?: (show: boolean) => void;
+  onSetLunarReturnStartDate?: (date: string) => void;
   // Birth time shift (wheel-time knobs)
   enableBirthTimeShift?: boolean;
   showBirthTimeShift?: boolean;
@@ -492,6 +507,21 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
   onSetStraightAspects,
   showEffects = true,
   onSetShowEffects,
+  // Solar return controls
+  enableSolarReturn = false,
+  showSolarReturn = false,
+  solarReturnYear = new Date().getFullYear(),
+  solarReturnLoading = false,
+  solarReturnData = null,
+  onSetShowSolarReturn,
+  onSetSolarReturnYear,
+  // Lunar return controls
+  enableLunarReturn = false,
+  showLunarReturn = false,
+  lunarReturnLoading = false,
+  lunarReturnData = null,
+  onSetShowLunarReturn,
+  onSetLunarReturnStartDate,
   // Birth time shift (wheel-time knobs)
   enableBirthTimeShift = false,
   showBirthTimeShift = false,
@@ -672,7 +702,7 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
       )}
 
       {/* Chart Mode - Transit, Wheel-Time Knobs, Composite, Progressed, Relocated controls */}
-      {(enableTransits || enableComposite || enableProgressed || enableRelocated || enableBirthTimeShift) && (
+      {(enableTransits || enableSolarReturn || enableLunarReturn || enableComposite || enableProgressed || enableRelocated || enableBirthTimeShift) && (
         <Section title="Chart Mode" defaultOpen={true}>
           {/* Transit toggle with date picker */}
           {enableTransits && (
@@ -816,9 +846,82 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
             </div>
           )}
 
+          {/* Solar Return toggle with year navigation */}
+          {enableSolarReturn && (
+            <div style={{ marginBottom: 8, marginTop: enableTransits ? 8 : 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Checkbox
+                  label="Solar Return"
+                  checked={showSolarReturn}
+                  onChange={() => onSetShowSolarReturn?.(!showSolarReturn)}
+                  color="#DAA520"
+                />
+                {solarReturnLoading && (
+                  <span style={{ fontSize: 10, color: '#DAA520' }}>Loading...</span>
+                )}
+              </div>
+              {showSolarReturn && onSetSolarReturnYear && (
+                <div style={{ marginTop: 6, marginLeft: 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <button
+                      onClick={() => onSetSolarReturnYear(solarReturnYear - 1)}
+                      style={{
+                        padding: '4px 8px', fontSize: 12,
+                        background: COLORS.backgroundAlt2, border: `1px solid ${COLORS.gridLineFaint}`,
+                        borderRadius: 4, cursor: 'pointer', color: '#DAA520', fontWeight: 'bold',
+                      }}
+                    >
+                      ◀
+                    </button>
+                    <span style={{ flex: 1, textAlign: 'center', fontSize: 12, fontWeight: 600, color: COLORS.textPrimary }}>
+                      {solarReturnYear}
+                    </span>
+                    <button
+                      onClick={() => onSetSolarReturnYear(solarReturnYear + 1)}
+                      style={{
+                        padding: '4px 8px', fontSize: 12,
+                        background: COLORS.backgroundAlt2, border: `1px solid ${COLORS.gridLineFaint}`,
+                        borderRadius: 4, cursor: 'pointer', color: '#DAA520', fontWeight: 'bold',
+                      }}
+                    >
+                      ▶
+                    </button>
+                  </div>
+                  {solarReturnData && (
+                    <div style={{ marginTop: 4, fontSize: 10, color: COLORS.textMuted }}>
+                      {solarReturnData.return_date} · {solarReturnData.ascendantSign} Rising
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Lunar Return toggle */}
+          {enableLunarReturn && (
+            <div style={{ marginBottom: 8, marginTop: (enableTransits || enableSolarReturn) ? 8 : 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Checkbox
+                  label="Lunar Return"
+                  checked={showLunarReturn}
+                  onChange={() => onSetShowLunarReturn?.(!showLunarReturn)}
+                  color="#8B8BCD"
+                />
+                {lunarReturnLoading && (
+                  <span style={{ fontSize: 10, color: '#8B8BCD' }}>Loading...</span>
+                )}
+              </div>
+              {showLunarReturn && lunarReturnData && (
+                <div style={{ marginTop: 4, marginLeft: 20, fontSize: 10, color: COLORS.textMuted }}>
+                  {lunarReturnData.return_date} · {lunarReturnData.ascendantSign} Rising
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Birth time shift (wheel-time knobs) toggle */}
           {enableBirthTimeShift && (
-            <div style={{ marginBottom: 8, marginTop: enableTransits ? 8 : 0 }}>
+            <div style={{ marginBottom: 8, marginTop: (enableTransits || enableSolarReturn || enableLunarReturn) ? 8 : 0 }}>
               <Checkbox
                 label="Show Wheel-Time Knobs"
                 checked={showBirthTimeShift}
@@ -910,6 +1013,7 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
                 <span style={{ color: PROGRESSED_COLOR, fontWeight: 'bold' }}>P</span> Progressed
                 {progressedLoading && <span style={{ fontSize: 10, color: PROGRESSED_COLOR }}>⏳</span>}
               </div>
+              {enableComposite ? (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginBottom: 8 }}>
                 <button
                   onClick={handleProgressedA}
@@ -922,6 +1026,9 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
                     borderRadius: 4,
                     cursor: 'pointer',
                     fontWeight: isProgressedA ? 600 : 400,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}
                   title={`${nameA}'s progressed chart`}
                 >
@@ -938,12 +1045,39 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
                     borderRadius: 4,
                     cursor: 'pointer',
                     fontWeight: isProgressedB ? 600 : 400,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}
                   title={`${nameB}'s progressed chart`}
                 >
                   P {nameB.split(' ')[0]}
                 </button>
               </div>
+              ) : (
+              <div style={{ marginBottom: 8 }}>
+                <button
+                  onClick={() => {
+                    onSetProgressedPerson?.(progressedPerson ? null : 'A');
+                    onSetShowProgressed?.(!progressedPerson);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '5px 8px',
+                    fontSize: 10,
+                    background: isProgressedA ? PROGRESSED_COLOR : COLORS.backgroundAlt2,
+                    color: isProgressedA ? '#1a1a1a' : COLORS.textSecondary,
+                    border: `1px solid ${isProgressedA ? PROGRESSED_COLOR : COLORS.gridLineFaint}`,
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    fontWeight: isProgressedA ? 600 : 400,
+                  }}
+                  title={`${nameA}'s progressed chart`}
+                >
+                  P {nameA.split(' ')[0]}
+                </button>
+              </div>
+              )}
               {isProgressedActive && onSetProgressedDate && (
                 <div>
                   <div style={{ fontSize: 9, color: COLORS.textMuted, marginBottom: 4 }}>
@@ -1076,6 +1210,7 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
                 <span style={{ color: COLORS.personA, fontWeight: 'bold' }}>R</span> Relocated
                 {relocatedLoading && <span style={{ fontSize: 10, color: COLORS.personA }}>⏳</span>}
               </div>
+              {enableComposite ? (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginBottom: 8 }}>
                 <button
                   onClick={handleRelocatedA}
@@ -1088,6 +1223,9 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
                     borderRadius: 4,
                     cursor: 'pointer',
                     fontWeight: isRelocatedA ? 600 : 400,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}
                   title={`Relocate ${nameA} to their current location`}
                 >
@@ -1104,12 +1242,42 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
                     borderRadius: 4,
                     cursor: 'pointer',
                     fontWeight: isRelocatedB ? 600 : 400,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}
                   title={`Relocate ${nameB} to their current location`}
                 >
                   R {nameB.split(' ')[0]}
                 </button>
               </div>
+              ) : (
+              <div style={{ marginBottom: 8 }}>
+                <button
+                  onClick={() => {
+                    if (relocatedPerson) {
+                      onSetRelocatedPerson?.(null);
+                    } else {
+                      onSetRelocatedPerson?.('A');
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '5px 8px',
+                    fontSize: 10,
+                    background: isRelocatedA ? COLORS.personA : COLORS.backgroundAlt2,
+                    color: isRelocatedA ? '#ffffff' : COLORS.textSecondary,
+                    border: `1px solid ${isRelocatedA ? COLORS.personA : COLORS.gridLineFaint}`,
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    fontWeight: isRelocatedA ? 600 : 400,
+                  }}
+                  title={`Relocate ${nameA} to their current location`}
+                >
+                  R {nameA.split(' ')[0]}
+                </button>
+              </div>
+              )}
               {isRelocatedActive && (
                 <div>
                   {relocatedLoading ? (
@@ -1235,8 +1403,8 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
         {onSetDegreeSymbolMode && (
           <Checkbox
             label="Degree Glyphs"
-            checked={degreeSymbolMode === 'spark'}
-            onChange={() => onSetDegreeSymbolMode(degreeSymbolMode === 'spark' ? 'sign' : 'spark')}
+            checked={degreeSymbolMode === 'degree'}
+            onChange={() => onSetDegreeSymbolMode(degreeSymbolMode === 'degree' ? 'sign' : 'degree')}
           />
         )}
         {onSetStraightAspects && (

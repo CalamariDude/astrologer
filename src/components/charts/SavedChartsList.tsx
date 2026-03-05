@@ -1,20 +1,357 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { Trash2, BarChart3, Heart, X, Loader2, Search, CheckSquare, Square } from 'lucide-react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { Trash2, BarChart3, Heart, X, Loader2, Search, CheckSquare, Square, Filter, Tag, Plus, MapPin, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { getSavedChartsAsync, deleteSavedChart, bulkDeleteSavedCharts, type SavedChart } from './SaveChartButton';
+import { getSavedChartsAsync, deleteSavedChart, bulkDeleteSavedCharts, updateChartTags, type SavedChart } from './SaveChartButton';
 import { useAuth } from '@/contexts/AuthContext';
+import { ZODIAC_SIGNS, PLANETS } from '@/components/biwheel/utils/constants';
+
+// ─── Filter types & helpers ───────────────────────────────────────────
+
+interface PlacementFilter {
+  planet: string;
+  sign: string;
+}
+
+interface ChartFilters {
+  placements: PlacementFilter[];
+  dateFrom: string;
+  dateTo: string;
+  location: string;
+  tags: string[];
+}
+
+const EMPTY_FILTERS: ChartFilters = { placements: [], dateFrom: '', dateTo: '', location: '', tags: [] };
+
+function hasActiveFilters(f: ChartFilters): boolean {
+  return f.placements.length > 0 || !!f.dateFrom || !!f.dateTo || !!f.location || f.tags.length > 0;
+}
+
+function countActiveFilters(f: ChartFilters): number {
+  let n = f.placements.length;
+  if (f.dateFrom) n++;
+  if (f.dateTo) n++;
+  if (f.location) n++;
+  n += f.tags.length;
+  return n;
+}
+
+const FILTER_PLANETS = [
+  'sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn',
+  'uranus', 'neptune', 'pluto', 'northnode', 'chiron', 'ascendant', 'midheaven',
+] as const;
+
+function getSignFromLongitude(longitude: number): string {
+  return ZODIAC_SIGNS[Math.floor(longitude / 30) % 12].name;
+}
+
+function chartMatchesFilters(chart: SavedChart, filters: ChartFilters): boolean {
+  // Placement filters
+  if (filters.placements.length > 0) {
+    const planets = chart.person_a_chart?.planets;
+    if (!planets) return false;
+    const ok = filters.placements.every(f => {
+      const p = planets[f.planet];
+      if (!p) return false;
+      const sign = p.sign || (p.longitude !== undefined ? getSignFromLongitude(p.longitude) : '');
+      return sign.toLowerCase() === f.sign.toLowerCase();
+    });
+    if (!ok) return false;
+  }
+  // Date filters (birth date of person A)
+  if (filters.dateFrom && chart.person_a_date < filters.dateFrom) return false;
+  if (filters.dateTo && chart.person_a_date > filters.dateTo) return false;
+  // Location filter
+  if (filters.location) {
+    const q = filters.location.toLowerCase();
+    const loc = (chart.person_a_location || '').toLowerCase();
+    if (!loc.includes(q)) return false;
+  }
+  // Tags filter
+  if (filters.tags.length > 0) {
+    const chartTags = chart.tags || [];
+    if (!filters.tags.every(t => chartTags.includes(t))) return false;
+  }
+  return true;
+}
+
+const ELEMENT_BG: Record<string, string> = {
+  fire: 'bg-red-500/12 border-red-500/25 text-red-600 dark:text-red-400',
+  earth: 'bg-green-500/12 border-green-500/25 text-green-600 dark:text-green-400',
+  air: 'bg-yellow-500/12 border-yellow-500/25 text-yellow-600 dark:text-yellow-400',
+  water: 'bg-blue-500/12 border-blue-500/25 text-blue-600 dark:text-blue-400',
+};
+const ELEMENT_BG_ACTIVE: Record<string, string> = {
+  fire: 'bg-red-500 border-red-600 text-white',
+  earth: 'bg-green-500 border-green-600 text-white',
+  air: 'bg-yellow-500 border-yellow-600 text-white dark:text-black',
+  water: 'bg-blue-500 border-blue-600 text-white',
+};
+
+// ─── Section header inside filter panel ──────────────────────────────
+
+function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
+  return (
+    <div className="flex items-center gap-1.5 px-3 pt-3 pb-1.5">
+      <Icon className="w-3.5 h-3.5 text-muted-foreground/60" />
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">{label}</span>
+    </div>
+  );
+}
+
+// ─── Comprehensive Filter Panel ──────────────────────────────────────
+
+function FilterPanel({ filters, onChange, matchCount, totalCount, allTags }: {
+  filters: ChartFilters;
+  onChange: (f: ChartFilters) => void;
+  matchCount: number;
+  totalCount: number;
+  allTags: string[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [newTag, setNewTag] = useState('');
+  const activeCount = countActiveFilters(filters);
+
+  const placementMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const f of filters.placements) m.set(f.planet, f.sign);
+    return m;
+  }, [filters.placements]);
+
+  const togglePlacement = (planet: string, sign: string) => {
+    const existing = placementMap.get(planet);
+    let next: PlacementFilter[];
+    if (existing === sign) {
+      next = filters.placements.filter(f => f.planet !== planet);
+    } else {
+      next = [...filters.placements.filter(f => f.planet !== planet), { planet, sign }];
+    }
+    onChange({ ...filters, placements: next });
+  };
+
+  const toggleTag = (tag: string) => {
+    const next = filters.tags.includes(tag)
+      ? filters.tags.filter(t => t !== tag)
+      : [...filters.tags, tag];
+    onChange({ ...filters, tags: next });
+  };
+
+  const clearAll = () => onChange(EMPTY_FILTERS);
+
+  // Summary pills for collapsed state
+  const summaryPills: React.ReactNode[] = [];
+  for (const f of filters.placements) {
+    const pInfo = PLANETS[f.planet as keyof typeof PLANETS];
+    const sInfo = ZODIAC_SIGNS.find(s => s.name === f.sign);
+    summaryPills.push(
+      <span key={`p-${f.planet}`} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-muted/60 text-[10px] font-medium border border-border/30">
+        <span style={{ color: pInfo?.color }}>{pInfo?.symbol}</span>
+        <span>{sInfo?.symbol}</span>
+      </span>
+    );
+  }
+  for (const t of filters.tags) {
+    summaryPills.push(
+      <span key={`t-${t}`} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-400 text-[10px] font-medium border border-violet-500/20">
+        <Tag className="w-2.5 h-2.5" />{t}
+      </span>
+    );
+  }
+  if (filters.dateFrom || filters.dateTo) {
+    summaryPills.push(
+      <span key="date" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-muted/60 text-[10px] font-medium border border-border/30">
+        <Calendar className="w-2.5 h-2.5 text-muted-foreground" />
+        {filters.dateFrom || '...'} — {filters.dateTo || '...'}
+      </span>
+    );
+  }
+  if (filters.location) {
+    summaryPills.push(
+      <span key="loc" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-muted/60 text-[10px] font-medium border border-border/30">
+        <MapPin className="w-2.5 h-2.5 text-muted-foreground" />{filters.location}
+      </span>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {/* Toggle row */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button
+          onClick={() => setOpen(v => !v)}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${
+            open
+              ? 'bg-foreground/5 text-foreground border-border shadow-sm'
+              : activeCount > 0
+                ? 'bg-primary/10 text-primary border-primary/20'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 border-border/50'
+          }`}
+        >
+          <Filter className="w-3.5 h-3.5" />
+          Filters
+          {activeCount > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold leading-none">
+              {activeCount}
+            </span>
+          )}
+        </button>
+        {!open && summaryPills}
+        {!open && activeCount > 0 && (
+          <button onClick={clearAll} className="text-[11px] text-muted-foreground/60 hover:text-destructive transition-colors px-1">
+            Clear
+          </button>
+        )}
+      </div>
+
+      {/* Expanded panel */}
+      {open && (
+        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+          {/* ── Tags section ────────────────────────────── */}
+          <SectionHeader icon={Tag} label="Tags" />
+          <div className="px-3 pb-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {allTags.map(tag => {
+                const active = filters.tags.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => toggleTag(tag)}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all ${
+                      active
+                        ? 'bg-violet-500 text-white border-violet-600 shadow-sm'
+                        : 'bg-violet-500/8 text-violet-600 dark:text-violet-400 border-violet-500/20 hover:bg-violet-500/15'
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                );
+              })}
+              {allTags.length === 0 && (
+                <span className="text-[11px] text-muted-foreground/50 italic">No tags yet — add tags to charts below</span>
+              )}
+            </div>
+          </div>
+
+          {/* ── Date & Location section ─────────────────── */}
+          <SectionHeader icon={Calendar} label="Birth date range" />
+          <div className="px-3 pb-2 flex items-center gap-2">
+            <input
+              type="date"
+              value={filters.dateFrom}
+              onChange={e => onChange({ ...filters, dateFrom: e.target.value })}
+              className="flex-1 text-xs bg-background border rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-ring"
+              placeholder="From"
+            />
+            <span className="text-xs text-muted-foreground/50">to</span>
+            <input
+              type="date"
+              value={filters.dateTo}
+              onChange={e => onChange({ ...filters, dateTo: e.target.value })}
+              className="flex-1 text-xs bg-background border rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-ring"
+              placeholder="To"
+            />
+          </div>
+
+          <SectionHeader icon={MapPin} label="Location" />
+          <div className="px-3 pb-2">
+            <input
+              type="text"
+              value={filters.location}
+              onChange={e => onChange({ ...filters, location: e.target.value })}
+              placeholder="City, country..."
+              className="w-full text-xs bg-background border rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
+            />
+          </div>
+
+          {/* ── Placements grid ────────────────────────── */}
+          <SectionHeader icon={BarChart3} label="Placements" />
+          <div className="overflow-x-auto">
+            {/* Sign header row */}
+            <div className="flex items-center border-y bg-muted/30 min-w-[540px]">
+              <div className="w-[72px] shrink-0 px-2 py-1.5" />
+              <div className="flex-1 grid grid-cols-12 gap-0">
+                {ZODIAC_SIGNS.map(s => (
+                  <div key={s.name} className="flex flex-col items-center py-1">
+                    <span className="text-sm leading-none">{s.symbol}</span>
+                    <span className="text-[7px] text-muted-foreground/50 mt-0.5">{s.short}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Planet rows */}
+            {FILTER_PLANETS.map(planetKey => {
+              const pInfo = PLANETS[planetKey as keyof typeof PLANETS];
+              const activeSign = placementMap.get(planetKey);
+              return (
+                <div key={planetKey} className="flex items-center border-b last:border-b-0 hover:bg-muted/20 transition-colors min-w-[540px]">
+                  <div className="w-[72px] shrink-0 px-2 py-0.5 flex items-center gap-1.5">
+                    <span className="text-base leading-none" style={{ color: pInfo?.color }}>{pInfo?.symbol}</span>
+                    <span className="text-[10px] font-medium text-muted-foreground truncate">{pInfo?.name}</span>
+                  </div>
+                  <div className="flex-1 grid grid-cols-12 gap-0">
+                    {ZODIAC_SIGNS.map(s => {
+                      const isActive = activeSign === s.name;
+                      const elClasses = isActive ? ELEMENT_BG_ACTIVE[s.element] : ELEMENT_BG[s.element];
+                      return (
+                        <button
+                          key={s.name}
+                          onClick={() => togglePlacement(planetKey, s.name)}
+                          className={`mx-auto my-0.5 w-7 h-7 md:w-8 md:h-8 rounded-lg border text-xs font-bold flex items-center justify-center transition-all ${elClasses} ${
+                            isActive ? 'scale-110 shadow-sm ring-1 ring-offset-1 ring-offset-background' : 'opacity-30 hover:opacity-70 hover:scale-105'
+                          }`}
+                          title={`${pInfo?.name} in ${s.name}`}
+                        >
+                          {s.symbol}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between px-3 py-2.5 bg-muted/20 border-t">
+            <span className="text-[11px] text-muted-foreground">
+              {activeCount === 0
+                ? `${totalCount} chart${totalCount !== 1 ? 's' : ''}`
+                : `${matchCount} of ${totalCount} match`
+              }
+            </span>
+            <div className="flex items-center gap-2">
+              {activeCount > 0 && (
+                <button onClick={clearAll} className="text-[11px] text-muted-foreground hover:text-destructive transition-colors">
+                  Clear all
+                </button>
+              )}
+              <button
+                onClick={() => setOpen(false)}
+                className="px-3 py-1 rounded-md text-[11px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Inline variant (used in Settings page, like SessionsList) ────────
 
 interface SavedChartsInlineProps {
   onLoad?: (chart: SavedChart) => void;
+  refreshKey?: number;
 }
 
-export function SavedChartsInline({ onLoad }: SavedChartsInlineProps) {
+export function SavedChartsInline({ onLoad, refreshKey }: SavedChartsInlineProps) {
   const [charts, setCharts] = useState<SavedChart[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [placementFilters, setPlacementFilters] = useState<PlacementFilter[]>([]);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
@@ -22,18 +359,25 @@ export function SavedChartsInline({ onLoad }: SavedChartsInlineProps) {
   const userId = user?.id || null;
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return charts;
-    const q = search.toLowerCase();
-    return charts.filter(c => c.name.toLowerCase().includes(q));
-  }, [charts, search]);
+    let result = charts;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(c => c.name.toLowerCase().includes(q));
+    }
+    if (placementFilters.length > 0) {
+      result = result.filter(c => chartMatchesFilters(c, placementFilters));
+    }
+    return result;
+  }, [charts, search, placementFilters]);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     getSavedChartsAsync(userId).then((loaded) => {
       if (!cancelled) { setCharts(loaded); setLoading(false); }
     });
     return () => { cancelled = true; };
-  }, [userId]);
+  }, [userId, refreshKey]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -90,7 +434,12 @@ export function SavedChartsInline({ onLoad }: SavedChartsInlineProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">My Charts</h2>
+        <h2 className="text-sm font-semibold">
+          My Charts
+          {(search || placementFilters.length > 0) && charts.length > 0 && (
+            <span className="ml-2 text-xs font-normal text-muted-foreground">{filtered.length} of {charts.length}</span>
+          )}
+        </h2>
         <div className="flex items-center gap-2">
           {charts.length > 3 && (
             <div className="flex items-center gap-2 px-2 py-1 rounded-lg border bg-muted/30">
@@ -120,6 +469,11 @@ export function SavedChartsInline({ onLoad }: SavedChartsInlineProps) {
         </div>
       </div>
 
+      {/* Placement filter */}
+      {charts.length > 0 && (
+        <PlacementFilterPanel filters={placementFilters} onChange={setPlacementFilters} matchCount={filtered.length} totalCount={charts.length} />
+      )}
+
       {/* Select all at top */}
       {selectMode && filtered.length > 0 && (
         <div className="flex items-center justify-between">
@@ -140,7 +494,9 @@ export function SavedChartsInline({ onLoad }: SavedChartsInlineProps) {
       {charts.length === 0 ? (
         <p className="text-xs text-muted-foreground text-center py-6">No saved charts yet</p>
       ) : filtered.length === 0 ? (
-        <p className="text-xs text-muted-foreground text-center py-6">No charts matching "{search}"</p>
+        <p className="text-xs text-muted-foreground text-center py-6">
+          No charts matching {search ? `"${search}"` : ''}{search && placementFilters.length > 0 ? ' with ' : ''}{placementFilters.length > 0 ? 'those placements' : ''}
+        </p>
       ) : (
         <div className="space-y-2">
           {filtered.map((chart) => (
@@ -167,6 +523,24 @@ export function SavedChartsInline({ onLoad }: SavedChartsInlineProps) {
                   <span className="opacity-40">&middot;</span>
                   <span>{chart.chart_type === 'synastry' ? 'Synastry' : 'Natal'}</span>
                 </div>
+                {placementFilters.length > 0 && chart.person_a_chart?.planets && (
+                  <div className="flex flex-wrap items-center gap-1 mt-1">
+                    {placementFilters.map(f => {
+                      const p = chart.person_a_chart.planets[f.planet];
+                      if (!p) return null;
+                      const sign = p.sign || (p.longitude !== undefined ? getSignFromLongitude(p.longitude) : '');
+                      const pInfo = PLANETS[f.planet as keyof typeof PLANETS];
+                      const sInfo = ZODIAC_SIGNS.find(s => s.name.toLowerCase() === sign.toLowerCase());
+                      const deg = p.longitude !== undefined ? Math.floor(p.longitude % 30) : null;
+                      return (
+                        <span key={f.planet} className="text-[10px] text-muted-foreground/80">
+                          <span style={{ color: pInfo?.color }}>{pInfo?.symbol}</span>
+                          {' '}{sInfo?.symbol} {deg !== null ? `${deg}°` : ''}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               {!selectMode && (
                 <div className="flex items-center gap-1 shrink-0">

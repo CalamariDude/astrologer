@@ -3,10 +3,10 @@
  * Renders transit planets as the outermost ring with green color scheme
  * Layout (inside to out): degree → sign → minutes → planet
  * Follows exact same pattern as PlanetRing.tsx
- * Smooth CSS transitions for premium animation when date changes
+ * Uses rotation-based CSS transforms so planets animate around the arc (not through center)
  */
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { PLANETS, ZODIAC_SIGNS, COLORS, ASTEROIDS, getElementColor } from '../utils/constants';
 import { longitudeToXY } from '../utils/chartMath';
 import type { ChartDimensions, TransitPlanet, PlacedPlanet, PlanetData } from '../types';
@@ -31,6 +31,7 @@ interface TransitRingProps {
   hoveredPlanet: { planet: string; chart: 'A' | 'B' | 'Transit' } | null;
   onPlanetHover: (planet: { planet: string; chart: 'Transit' } | null, event?: React.MouseEvent) => void;
   onPlanetClick?: (planet: string, chart: 'Transit', event?: React.MouseEvent) => void;
+  onPlanetDoubleClick?: (planet: string, chart: 'Transit', event?: React.MouseEvent) => void;
   rotationOffset?: number;
 }
 
@@ -147,6 +148,38 @@ function getSignColor(longitude: number): string {
   return getElementColor(element);
 }
 
+/**
+ * Compute CSS rotation angle (degrees, CW from top) for a given longitude + rotationOffset.
+ * Matches the position produced by longitudeToXY.
+ */
+function longitudeToCssAngle(longitude: number, rotationOffset: number): number {
+  // longitudeToAngle gives radians: (90 + longitude + rotationOffset) * π/180
+  // SVG position: x = cx + r*cos(a), y = cy - r*sin(a)
+  // CSS rotate(θ) from top: x = cx + r*sin(θ_rad), y = cy - r*cos(θ_rad)
+  // So θ = -(longitude + rotationOffset)
+  return -(longitude + rotationOffset);
+}
+
+/**
+ * Given a new angle and the previously tracked angle, return the adjusted
+ * angle that takes the shortest path (within ±180° of previous).
+ */
+function shortestPathAngle(newAngle: number, prevAngle: number): number {
+  let delta = newAngle - prevAngle;
+  // Normalize delta to -180..180
+  delta = ((delta + 180) % 360 + 360) % 360 - 180;
+  return prevAngle + delta;
+}
+
+/**
+ * Build a CSS transform string that positions an element at (angle, radius)
+ * around center (cx, cy) while keeping text upright.
+ * Uses rotate-translate-counterRotate so CSS transition follows the arc.
+ */
+function arcTransform(angle: number, radius: number, cx: number, cy: number): string {
+  return `translate(${cx}px, ${cy}px) rotate(${angle}deg) translateY(${-radius}px) rotate(${-angle}deg)`;
+}
+
 export const TransitRing: React.FC<TransitRingProps> = ({
   dimensions,
   transitPlanets,
@@ -155,6 +188,7 @@ export const TransitRing: React.FC<TransitRingProps> = ({
   hoveredPlanet,
   onPlanetHover,
   onPlanetClick,
+  onPlanetDoubleClick,
   rotationOffset = 0,
 }) => {
   const {
@@ -166,6 +200,9 @@ export const TransitRing: React.FC<TransitRingProps> = ({
     transitRingOuter,
     outerHouseRingOuter,
   } = dimensions;
+
+  // Track cumulative rotation angles per planet to ensure shortest-path transitions
+  const trackedAnglesRef = useRef<Map<string, number>>(new Map());
 
   // Don't render if transit dimensions aren't calculated
   if (!transitPlanetRing) return null;
@@ -186,6 +223,16 @@ export const TransitRing: React.FC<TransitRingProps> = ({
   const isDimmed = (planetKey: string): boolean => {
     if (!hoveredPlanet) return false;
     return !isHighlighted(planetKey);
+  };
+
+  // Compute tracked angle for a planet (shortest-path, no jumps through center)
+  const getTrackedAngle = (key: string, displayLongitude: number): number => {
+    const rawAngle = longitudeToCssAngle(displayLongitude, rotationOffset);
+    const map = trackedAnglesRef.current;
+    const prev = map.get(key);
+    const tracked = prev !== undefined ? shortestPathAngle(rawAngle, prev) : rawAngle;
+    map.set(key, tracked);
+    return tracked;
   };
 
   // Font sizes — sized for readability on the outermost ring
@@ -300,7 +347,7 @@ export const TransitRing: React.FC<TransitRingProps> = ({
         </>
       )}
 
-      {/* Degree pointer lines — smooth transitions via CSS */}
+      {/* Degree pointer lines */}
       {placedPlanets.map((planet) => {
         if (!transitRingOuter) return null;
         const from = longitudeToXY(planet.displayLongitude, cx, cy, transitPlanetRing, rotationOffset);
@@ -314,14 +361,11 @@ export const TransitRing: React.FC<TransitRingProps> = ({
             stroke={highlighted ? TRANSIT_COLOR_ACCENT : TRANSIT_COLOR_LIGHT}
             strokeWidth={highlighted ? 1.5 : 0.75}
             strokeOpacity={highlighted ? 0.8 : 0.4}
-            style={{
-              transition: `all ${TRANSIT_DURATION} ${TRANSIT_EASE}`,
-            }}
           />
         );
       })}
 
-      {/* Transit planets — positioned via CSS transform for smooth animation */}
+      {/* Transit planets — positioned via rotation-based CSS transform for arc animation */}
       {placedPlanets.map((planet) => {
         const highlighted = isHighlighted(planet.key);
         const dimmed = isDimmed(planet.key);
@@ -329,11 +373,8 @@ export const TransitRing: React.FC<TransitRingProps> = ({
         const minutes = Math.floor((planet.longitude % 1) * 60);
         const signSymbol = getSignSymbol(planet.longitude);
 
-        // Calculate positions at different radii
-        const degreePos = transitDegreeRing ? longitudeToXY(planet.displayLongitude, cx, cy, transitDegreeRing, rotationOffset) : null;
-        const signPos = transitSignRing ? longitudeToXY(planet.displayLongitude, cx, cy, transitSignRing, rotationOffset) : null;
-        const minutePos = transitMinuteRing ? longitudeToXY(planet.displayLongitude, cx, cy, transitMinuteRing, rotationOffset) : null;
-        const planetPos = longitudeToXY(planet.displayLongitude, cx, cy, transitPlanetRing, rotationOffset);
+        // Get tracked angle for smooth shortest-path arc transitions
+        const angle = getTrackedAngle(planet.key, planet.displayLongitude);
 
         return (
           <g
@@ -348,6 +389,7 @@ export const TransitRing: React.FC<TransitRingProps> = ({
             onMouseEnter={(e) => onPlanetHover({ planet: planet.key, chart: 'Transit' }, e)}
             onMouseLeave={() => onPlanetHover(null)}
             onClick={(e) => { e.stopPropagation(); onPlanetClick?.(planet.key, 'Transit', e); }}
+            onDoubleClick={(e) => { e.stopPropagation(); onPlanetDoubleClick?.(planet.key, 'Transit', e); }}
           >
             {/* Backdrop circle behind planet symbol */}
             <circle
@@ -358,13 +400,13 @@ export const TransitRing: React.FC<TransitRingProps> = ({
               strokeWidth={highlighted ? 1 : 0}
               strokeOpacity={0.4}
               style={{
-                transform: `translate(${planetPos.x}px, ${planetPos.y}px)`,
+                transform: arcTransform(angle, transitPlanetRing, cx, cy),
                 transition: `transform ${TRANSIT_DURATION} ${TRANSIT_EASE}, r 0.15s ease-out`,
               }}
             />
 
             {/* Degree (innermost) */}
-            {degreePos && (
+            {transitDegreeRing && (
               <text
                 fill={TRANSIT_COLOR_LIGHT}
                 fontSize={degreeSize}
@@ -374,7 +416,7 @@ export const TransitRing: React.FC<TransitRingProps> = ({
                 dominantBaseline="central"
                 style={{
                   userSelect: 'none',
-                  transform: `translate(${degreePos.x}px, ${degreePos.y}px)`,
+                  transform: arcTransform(angle, transitDegreeRing, cx, cy),
                   transition: `transform ${TRANSIT_DURATION} ${TRANSIT_EASE}`,
                 }}
               >
@@ -383,7 +425,7 @@ export const TransitRing: React.FC<TransitRingProps> = ({
             )}
 
             {/* Sign symbol (colored by element) */}
-            {signPos && (
+            {transitSignRing && (
               <text
                 fill={getSignColor(planet.longitude)}
                 fontSize={highlighted ? signSize * highlightScale : signSize}
@@ -393,7 +435,7 @@ export const TransitRing: React.FC<TransitRingProps> = ({
                 dominantBaseline="central"
                 style={{
                   userSelect: 'none',
-                  transform: `translate(${signPos.x}px, ${signPos.y}px)`,
+                  transform: arcTransform(angle, transitSignRing, cx, cy),
                   transition: `transform ${TRANSIT_DURATION} ${TRANSIT_EASE}, font-size 0.15s ease-out`,
                 }}
               >
@@ -402,7 +444,7 @@ export const TransitRing: React.FC<TransitRingProps> = ({
             )}
 
             {/* Minutes */}
-            {minutePos && (
+            {transitMinuteRing && (
               <text
                 fill={TRANSIT_COLOR_LIGHT}
                 fontSize={minuteSize}
@@ -412,7 +454,7 @@ export const TransitRing: React.FC<TransitRingProps> = ({
                 fillOpacity={0.8}
                 style={{
                   userSelect: 'none',
-                  transform: `translate(${minutePos.x}px, ${minutePos.y}px)`,
+                  transform: arcTransform(angle, transitMinuteRing, cx, cy),
                   transition: `transform ${TRANSIT_DURATION} ${TRANSIT_EASE}`,
                 }}
               >
@@ -430,7 +472,7 @@ export const TransitRing: React.FC<TransitRingProps> = ({
               dominantBaseline="central"
               style={{
                 userSelect: 'none',
-                transform: `translate(${planetPos.x}px, ${planetPos.y}px)`,
+                transform: arcTransform(angle, transitPlanetRing, cx, cy),
                 transition: `transform ${TRANSIT_DURATION} ${TRANSIT_EASE}, font-size 0.15s ease-out, fill 0.15s ease-out`,
               }}
             >
@@ -438,23 +480,27 @@ export const TransitRing: React.FC<TransitRingProps> = ({
             </text>
 
             {/* Retrograde indicator */}
-            {showRetrogrades && planet.data.retrograde && (
-              <text
-                fill="#ef4444"
-                fontSize={11}
-                fontFamily="Arial, sans-serif"
-                fontWeight="bold"
-                textAnchor="middle"
-                dominantBaseline="central"
-                style={{
-                  userSelect: 'none',
-                  transform: `translate(${planetPos.x + 16}px, ${planetPos.y - 14}px)`,
-                  transition: `transform ${TRANSIT_DURATION} ${TRANSIT_EASE}`,
-                }}
-              >
-                ℞
-              </text>
-            )}
+            {showRetrogrades && planet.data.retrograde && (() => {
+              // Position retrograde symbol slightly offset from planet position
+              const retroPos = longitudeToXY(planet.displayLongitude, cx, cy, transitPlanetRing, rotationOffset);
+              return (
+                <text
+                  fill="#ef4444"
+                  fontSize={11}
+                  fontFamily="Arial, sans-serif"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  style={{
+                    userSelect: 'none',
+                    transform: `translate(${retroPos.x + 16}px, ${retroPos.y - 14}px)`,
+                    transition: `transform ${TRANSIT_DURATION} ${TRANSIT_EASE}`,
+                  }}
+                >
+                  ℞
+                </text>
+              );
+            })()}
           </g>
         );
       })}
