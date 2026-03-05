@@ -340,6 +340,93 @@ function FilterPanel({ filters, onChange, matchCount, totalCount, allTags }: {
   );
 }
 
+// ─── Chart Tag Row (inline tag management on each card) ──────────────
+
+function ChartTagRow({ chartId, tags, allTags, onAdd, onRemove }: {
+  chartId: string;
+  tags: string[];
+  allTags: string[];
+  onAdd: (chartId: string, tag: string) => void;
+  onRemove: (chartId: string, tag: string) => void;
+}) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [input, setInput] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (showAdd) inputRef.current?.focus();
+  }, [showAdd]);
+
+  useEffect(() => {
+    if (!showAdd) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setShowAdd(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showAdd]);
+
+  const submit = () => {
+    const val = input.trim().toLowerCase();
+    if (!val) return;
+    onAdd(chartId, val);
+    setInput('');
+    setShowAdd(false);
+  };
+
+  // Suggestions: tags that exist on other charts but not on this one
+  const suggestions = allTags.filter(t => !tags.includes(t));
+
+  return (
+    <div className="flex flex-wrap items-center gap-1 mt-0.5" ref={containerRef} onClick={e => e.stopPropagation()}>
+      {tags.map(t => (
+        <span key={t} className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-400 text-[10px] font-medium border border-violet-500/15">
+          {t}
+          <button onClick={() => onRemove(chartId, t)} className="hover:text-destructive ml-0.5">
+            <X className="w-2.5 h-2.5" />
+          </button>
+        </span>
+      ))}
+      {showAdd ? (
+        <div className="relative">
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') setShowAdd(false); }}
+            placeholder="tag name"
+            className="w-20 text-[10px] bg-background border rounded-md px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+          {/* Quick suggestions */}
+          {suggestions.length > 0 && !input && (
+            <div className="absolute top-full left-0 mt-0.5 z-10 bg-popover border rounded-md shadow-md p-1 flex flex-wrap gap-0.5 max-w-[200px]">
+              {suggestions.slice(0, 8).map(s => (
+                <button
+                  key={s}
+                  onClick={() => { onAdd(chartId, s); setShowAdd(false); }}
+                  className="px-1.5 py-0.5 rounded text-[10px] text-muted-foreground hover:bg-muted transition-colors"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <button
+          onClick={() => setShowAdd(true)}
+          className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[10px] text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+          title="Add tag"
+        >
+          <Plus className="w-2.5 h-2.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── Inline variant (used in Settings page, like SessionsList) ────────
 
 interface SavedChartsInlineProps {
@@ -351,12 +438,19 @@ export function SavedChartsInline({ onLoad, refreshKey }: SavedChartsInlineProps
   const [charts, setCharts] = useState<SavedChart[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [placementFilters, setPlacementFilters] = useState<PlacementFilter[]>([]);
+  const [filters, setFilters] = useState<ChartFilters>(EMPTY_FILTERS);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const { user } = useAuth();
   const userId = user?.id || null;
+
+  // Collect all unique tags across charts
+  const allTags = useMemo(() => {
+    const s = new Set<string>();
+    for (const c of charts) for (const t of (c.tags || [])) s.add(t);
+    return [...s].sort();
+  }, [charts]);
 
   const filtered = useMemo(() => {
     let result = charts;
@@ -364,11 +458,28 @@ export function SavedChartsInline({ onLoad, refreshKey }: SavedChartsInlineProps
       const q = search.toLowerCase();
       result = result.filter(c => c.name.toLowerCase().includes(q));
     }
-    if (placementFilters.length > 0) {
-      result = result.filter(c => chartMatchesFilters(c, placementFilters));
+    if (hasActiveFilters(filters)) {
+      result = result.filter(c => chartMatchesFilters(c, filters));
     }
     return result;
-  }, [charts, search, placementFilters]);
+  }, [charts, search, filters]);
+
+  // Tag management
+  const handleAddTag = useCallback(async (chartId: string, tag: string) => {
+    const chart = charts.find(c => c.id === chartId);
+    if (!chart) return;
+    const tags = [...new Set([...(chart.tags || []), tag])];
+    await updateChartTags(chartId, tags, userId);
+    setCharts(prev => prev.map(c => c.id === chartId ? { ...c, tags } : c));
+  }, [charts, userId]);
+
+  const handleRemoveTag = useCallback(async (chartId: string, tag: string) => {
+    const chart = charts.find(c => c.id === chartId);
+    if (!chart) return;
+    const tags = (chart.tags || []).filter(t => t !== tag);
+    await updateChartTags(chartId, tags, userId);
+    setCharts(prev => prev.map(c => c.id === chartId ? { ...c, tags } : c));
+  }, [charts, userId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -436,7 +547,7 @@ export function SavedChartsInline({ onLoad, refreshKey }: SavedChartsInlineProps
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold">
           My Charts
-          {(search || placementFilters.length > 0) && charts.length > 0 && (
+          {(search || hasActiveFilters(filters)) && charts.length > 0 && (
             <span className="ml-2 text-xs font-normal text-muted-foreground">{filtered.length} of {charts.length}</span>
           )}
         </h2>
@@ -469,9 +580,9 @@ export function SavedChartsInline({ onLoad, refreshKey }: SavedChartsInlineProps
         </div>
       </div>
 
-      {/* Placement filter */}
+      {/* Filters */}
       {charts.length > 0 && (
-        <PlacementFilterPanel filters={placementFilters} onChange={setPlacementFilters} matchCount={filtered.length} totalCount={charts.length} />
+        <FilterPanel filters={filters} onChange={setFilters} matchCount={filtered.length} totalCount={charts.length} allTags={allTags} />
       )}
 
       {/* Select all at top */}
@@ -495,7 +606,7 @@ export function SavedChartsInline({ onLoad, refreshKey }: SavedChartsInlineProps
         <p className="text-xs text-muted-foreground text-center py-6">No saved charts yet</p>
       ) : filtered.length === 0 ? (
         <p className="text-xs text-muted-foreground text-center py-6">
-          No charts matching {search ? `"${search}"` : ''}{search && placementFilters.length > 0 ? ' with ' : ''}{placementFilters.length > 0 ? 'those placements' : ''}
+          No charts matching your {search ? 'search' : ''}{search && hasActiveFilters(filters) ? ' and ' : ''}{hasActiveFilters(filters) ? 'filters' : ''}
         </p>
       ) : (
         <div className="space-y-2">
@@ -522,10 +633,19 @@ export function SavedChartsInline({ onLoad, refreshKey }: SavedChartsInlineProps
                   <span>{new Date(chart.created_at).toLocaleDateString()}</span>
                   <span className="opacity-40">&middot;</span>
                   <span>{chart.chart_type === 'synastry' ? 'Synastry' : 'Natal'}</span>
+                  {chart.person_a_location && (
+                    <>
+                      <span className="opacity-40">&middot;</span>
+                      <span className="truncate max-w-[120px]">{chart.person_a_location}</span>
+                    </>
+                  )}
                 </div>
-                {placementFilters.length > 0 && chart.person_a_chart?.planets && (
-                  <div className="flex flex-wrap items-center gap-1 mt-1">
-                    {placementFilters.map(f => {
+                {/* Tags */}
+                <ChartTagRow chartId={chart.id} tags={chart.tags || []} allTags={allTags} onAdd={handleAddTag} onRemove={handleRemoveTag} />
+                {/* Matched placements */}
+                {filters.placements.length > 0 && chart.person_a_chart?.planets && (
+                  <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                    {filters.placements.map(f => {
                       const p = chart.person_a_chart.planets[f.planet];
                       if (!p) return null;
                       const sign = p.sign || (p.longitude !== undefined ? getSignFromLongitude(p.longitude) : '');

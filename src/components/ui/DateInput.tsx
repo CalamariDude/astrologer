@@ -35,12 +35,17 @@ export function DateInput({ value, onChange, className }: DateInputProps) {
   const ddRef = React.useRef<HTMLInputElement>(null);
   const yyyyRef = React.useRef<HTMLInputElement>(null);
 
+  // Refs to track latest values (so blur always sees current value, not stale state)
+  const mmVal = React.useRef(mm);
+  const ddVal = React.useRef(dd);
+  const yyyyVal = React.useRef(yyyy);
+
   // Sync from external value changes
   React.useEffect(() => {
     const p = parseDateValue(value);
-    setMm(p.mm);
-    setDd(p.dd);
-    setYyyy(p.yyyy);
+    setMm(p.mm); mmVal.current = p.mm;
+    setDd(p.dd); ddVal.current = p.dd;
+    setYyyy(p.yyyy); yyyyVal.current = p.yyyy;
   }, [value]);
 
   const emitChange = (newMm: string, newDd: string, newYyyy: string) => {
@@ -53,10 +58,10 @@ export function DateInput({ value, onChange, className }: DateInputProps) {
     const maxLen = segment === 'yyyy' ? 4 : 2;
     const clamped = digits.slice(0, maxLen);
 
-    let newMm = mm, newDd = dd, newYyyy = yyyy;
-    if (segment === 'mm') { newMm = clamped; setMm(clamped); }
-    if (segment === 'dd') { newDd = clamped; setDd(clamped); }
-    if (segment === 'yyyy') { newYyyy = clamped; setYyyy(clamped); }
+    let newMm = mmVal.current, newDd = ddVal.current, newYyyy = yyyyVal.current;
+    if (segment === 'mm') { newMm = clamped; setMm(clamped); mmVal.current = clamped; }
+    if (segment === 'dd') { newDd = clamped; setDd(clamped); ddVal.current = clamped; }
+    if (segment === 'yyyy') { newYyyy = clamped; setYyyy(clamped); yyyyVal.current = clamped; }
 
     // Auto-advance
     if (segment === 'mm' && clamped.length === 2) ddRef.current?.focus();
@@ -77,22 +82,22 @@ export function DateInput({ value, onChange, className }: DateInputProps) {
   };
 
   const handleBlur = (segment: 'mm' | 'dd' | 'yyyy') => {
-    let newMm = mm, newDd = dd, newYyyy = yyyy;
+    let newMm = mmVal.current, newDd = ddVal.current, newYyyy = yyyyVal.current;
 
-    if (segment === 'mm' && mm) {
-      const n = clamp(parseInt(mm, 10), 1, 12);
+    if (segment === 'mm' && newMm) {
+      const n = clamp(parseInt(newMm, 10), 1, 12);
       newMm = String(n).padStart(2, '0');
-      setMm(newMm);
+      setMm(newMm); mmVal.current = newMm;
     }
-    if (segment === 'dd' && dd) {
-      const n = clamp(parseInt(dd, 10), 1, 31);
+    if (segment === 'dd' && newDd) {
+      const n = clamp(parseInt(newDd, 10), 1, 31);
       newDd = String(n).padStart(2, '0');
-      setDd(newDd);
+      setDd(newDd); ddVal.current = newDd;
     }
-    if (segment === 'yyyy' && yyyy && yyyy.length === 4) {
-      const n = clamp(parseInt(yyyy, 10), 1900, 2100);
+    if (segment === 'yyyy' && newYyyy && newYyyy.length === 4) {
+      const n = clamp(parseInt(newYyyy, 10), 1900, 2100);
       newYyyy = String(n);
-      setYyyy(newYyyy);
+      setYyyy(newYyyy); yyyyVal.current = newYyyy;
     }
 
     emitChange(newMm, newDd, newYyyy);
