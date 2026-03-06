@@ -309,6 +309,8 @@ export function AIReading({ chartA, chartB, nameA, nameB, birthInfoA, birthInfoB
   const pendingSubmitRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const readingRef = useRef<HTMLDivElement>(null);
+  const lastQuestionRef = useRef<string>('');
+  const retryCountRef = useRef(0);
 
   const hasTwoCharts = !!chartB && !!nameB;
   const [readingFocus, setReadingFocus] = useState<ReadingFocus>(hasTwoCharts ? 'synastry' : 'personA');
@@ -340,6 +342,7 @@ export function AIReading({ chartA, chartB, nameA, nameB, birthInfoA, birthInfoB
 
   const handleSubmit = useCallback(async (q?: string) => {
     const userQuestion = q || question || 'Give me a comprehensive chart reading';
+    lastQuestionRef.current = userQuestion;
 
     if (!user) {
       pendingSubmitRef.current = userQuestion;
@@ -365,6 +368,12 @@ export function AIReading({ chartA, chartB, nameA, nameB, birthInfoA, birthInfoB
 
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
+    // Abort if connection not established within 30s
+    const connectTimeout = setTimeout(() => {
+      if (abortControllerRef.current === abortController) {
+        abortController.abort(new Error('timeout'));
+      }
+    }, 30_000);
 
     try {
       // Step 1: Build vantage trees client-side
@@ -493,6 +502,7 @@ export function AIReading({ chartA, chartB, nameA, nameB, birthInfoA, birthInfoB
         }),
         signal: abortController.signal,
       });
+      clearTimeout(connectTimeout);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
@@ -530,12 +540,23 @@ export function AIReading({ chartA, chartB, nameA, nameB, birthInfoA, birthInfoB
 
         const decoder = new TextDecoder();
         let buffer = '';
+        const INACTIVITY_TIMEOUT = 45_000; // 45s with no data = stuck
 
         while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+          // Race the read against an inactivity timeout
+          const timeoutPromise = new Promise<{ done: true; value: undefined; timedOut: true }>((resolve) =>
+            setTimeout(() => resolve({ done: true, value: undefined, timedOut: true }), INACTIVITY_TIMEOUT)
+          );
+          const readPromise = reader.read().then(r => ({ ...r, timedOut: false as const }));
+          const result = await Promise.race([readPromise, timeoutPromise]);
 
-          buffer += decoder.decode(value, { stream: true });
+          if (result.timedOut) {
+            reader.cancel();
+            throw new Error('timeout');
+          }
+          if (result.done) break;
+
+          buffer += decoder.decode(result.value, { stream: true });
           const lines = buffer.split('\n');
           // Keep last incomplete line in buffer
           buffer = lines.pop() || '';
@@ -582,13 +603,29 @@ export function AIReading({ chartA, chartB, nameA, nameB, birthInfoA, birthInfoB
 
       await useAiCredit();
       analytics.trackAIReadingUsed({ reading_type: readingFocus });
+      retryCountRef.current = 0;
       setQuestion('');
     } catch (err: any) {
-      if (err.name === 'AbortError') {
+      clearTimeout(connectTimeout);
+      const isAbort = err.name === 'AbortError';
+      const isTimeout = err.message === 'timeout' || (isAbort && err.cause?.message === 'timeout');
+      if (isAbort && !isTimeout) {
         // User cancelled
         return;
       }
-      setError(err.message || 'Failed to generate reading');
+      // Auto-retry once on timeout
+      if (isTimeout && retryCountRef.current === 0) {
+        retryCountRef.current = 1;
+        setLoading(false);
+        setLoadingPhase('');
+        abortControllerRef.current = null;
+        // Small delay before retry
+        setTimeout(() => handleSubmit(lastQuestionRef.current), 500);
+        return;
+      }
+      setError(isTimeout
+        ? 'The reading timed out — the AI may be overloaded. Please try again.'
+        : (err.message || 'Failed to generate reading'));
     } finally {
       setLoading(false);
       setLoadingPhase('');
@@ -747,8 +784,18 @@ export function AIReading({ chartA, chartB, nameA, nameB, birthInfoA, birthInfoB
 
       {/* Error */}
       {error && (
-        <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-600 dark:text-red-400">
-          {error}
+        <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-600 dark:text-red-400 flex items-center justify-between gap-3">
+          <span>{error}</span>
+          {lastQuestionRef.current && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs shrink-0"
+              onClick={() => { setError(null); retryCountRef.current = 0; handleSubmit(lastQuestionRef.current); }}
+            >
+              Retry
+            </Button>
+          )}
         </div>
       )}
 

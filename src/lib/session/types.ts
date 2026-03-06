@@ -64,6 +64,13 @@ export interface ChartStateSnapshot {
   showEffects?: boolean;
   showRetrogrades?: boolean;
   showDecans?: boolean;
+  degreeSymbolMode?: 'sign' | 'degree';
+  enabledFixedStarGroups?: string[];
+  showBirthTimeShift?: boolean;
+  timeShiftA?: number;
+  timeShiftB?: number;
+  houseSystem?: string;
+  harmonicNumber?: number;
   scale?: number;
   translateX?: number;
   translateY?: number;

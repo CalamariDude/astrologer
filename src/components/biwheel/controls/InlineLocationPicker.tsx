@@ -12,6 +12,9 @@ import 'leaflet/dist/leaflet.css';
 import type { LocationData } from '../types';
 import { swissEphemeris } from '@/api/swissEphemeris';
 
+// Line type abbreviations for edge labels
+const LINE_TYPE_ABBR: Record<string, string> = { MC: 'M', IC: 'I', ASC: 'A', DSC: 'D' };
+
 // Astrocartography line types
 interface AstroLine {
   planet: string;
@@ -108,23 +111,25 @@ const blueMarkerIcon = L.divIcon({
   iconAnchor: [12, 12],
 });
 
-// Create a line label icon
+// Create a line label icon with planet glyph + line type letter
 function createLineLabelIcon(text: string, color: string): L.DivIcon {
   return L.divIcon({
     className: 'astro-line-label',
     html: `<div style="
-      font-size: 11px;
+      font-size: 13px;
       font-weight: bold;
       color: ${color};
-      text-shadow: 0 0 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7), 0 1px 2px rgba(0,0,0,0.9);
+      text-shadow: 0 0 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.8), 0 1px 2px rgba(0,0,0,0.95);
       white-space: nowrap;
       pointer-events: none;
-      background: rgba(0,0,0,0.45);
-      padding: 1px 5px;
-      border-radius: 3px;
+      background: rgba(0,0,0,0.5);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid ${color}40;
+      font-family: 'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif;
     ">${text}</div>`,
-    iconSize: [70, 18],
-    iconAnchor: [35, 9],
+    iconSize: [60, 22],
+    iconAnchor: [30, 11],
   });
 }
 
@@ -208,7 +213,7 @@ export const InlineLocationPicker: React.FC<InlineLocationPickerProps> = ({
   const [expanded, setExpanded] = useState(false);
   const [maximized, setMaximized] = useState(false);
   const [selectedPlanets, setSelectedPlanets] = useState<Set<string>>(
-    new Set(['Sun', 'Moon', 'Venus', 'Mars'])
+    new Set(ALL_PLANETS)
   );
   const [selectedLineTypes, setSelectedLineTypes] = useState<Set<string>>(
     new Set(['MC', 'IC', 'ASC', 'DSC'])
@@ -279,23 +284,73 @@ export const InlineLocationPicker: React.FC<InlineLocationPickerProps> = ({
     );
   }, [showLines, astroLines, selectedPlanets, selectedLineTypes]);
 
-  // Generate label markers for visible lines (placed near the middle of each line)
+  // Generate edge labels: planet glyphs at top/bottom of MC/IC lines and equator crossings for ASC/DSC
   const lineLabels = useMemo(() => {
     if (!showLabels || !showLines) return [];
-    return visibleLines.map(line => {
-      // Pick a label point near the middle of the line
-      const midIdx = Math.floor(line.points.length / 2);
-      const point = line.points[midIdx];
-      if (!point) return null;
+    const labels: { key: string; position: [number, number]; icon: L.DivIcon; tooltip: string }[] = [];
+
+    for (const line of visibleLines) {
       const symbol = PLANET_SYMBOLS[line.planet] || line.planet.slice(0, 2);
-      const label = `${symbol} ${line.lineType}`;
-      return {
-        key: `label-${line.planet}-${line.lineType}`,
-        position: [point.lat, point.lng] as [number, number],
-        icon: createLineLabelIcon(label, line.color),
-        tooltip: `${line.planet} ${LINE_TYPE_NAMES[line.lineType] || line.lineType}`,
-      };
-    }).filter(Boolean) as { key: string; position: [number, number]; icon: L.DivIcon; tooltip: string }[];
+      const abbr = LINE_TYPE_ABBR[line.lineType] || line.lineType;
+      const labelText = `${symbol} ${abbr}`;
+      const pts = line.points;
+      if (pts.length === 0) continue;
+
+      if (line.lineType === 'MC' || line.lineType === 'IC') {
+        // Top edge label
+        const top = pts[pts.length - 1];
+        if (top) labels.push({
+          key: `top-${line.planet}-${line.lineType}`,
+          position: [top.lat + 2, top.lng],
+          icon: createLineLabelIcon(labelText, line.color),
+          tooltip: `${line.planet} ${LINE_TYPE_NAMES[line.lineType]}`,
+        });
+        // Bottom edge label
+        const bot = pts[0];
+        if (bot) labels.push({
+          key: `bot-${line.planet}-${line.lineType}`,
+          position: [bot.lat - 2, bot.lng],
+          icon: createLineLabelIcon(labelText, line.color),
+          tooltip: `${line.planet} ${LINE_TYPE_NAMES[line.lineType]}`,
+        });
+      } else {
+        // ASC/DSC: label at equator crossing + top/bottom edges
+        // Find point closest to equator
+        let eqIdx = 0;
+        let minAbsLat = 999;
+        for (let i = 0; i < pts.length; i++) {
+          if (Math.abs(pts[i].lat) < minAbsLat) {
+            minAbsLat = Math.abs(pts[i].lat);
+            eqIdx = i;
+          }
+        }
+        const eqPt = pts[eqIdx];
+        if (eqPt) labels.push({
+          key: `eq-${line.planet}-${line.lineType}`,
+          position: [eqPt.lat, eqPt.lng],
+          icon: createLineLabelIcon(labelText, line.color),
+          tooltip: `${line.planet} ${LINE_TYPE_NAMES[line.lineType]}`,
+        });
+        // Top edge
+        const topPt = pts[pts.length - 1];
+        if (topPt && topPt.lat > 30) labels.push({
+          key: `top-${line.planet}-${line.lineType}`,
+          position: [topPt.lat, topPt.lng],
+          icon: createLineLabelIcon(labelText, line.color),
+          tooltip: `${line.planet} ${LINE_TYPE_NAMES[line.lineType]}`,
+        });
+        // Bottom edge
+        const botPt = pts[0];
+        if (botPt && botPt.lat < -30) labels.push({
+          key: `bot-${line.planet}-${line.lineType}`,
+          position: [botPt.lat, botPt.lng],
+          icon: createLineLabelIcon(labelText, line.color),
+          tooltip: `${line.planet} ${LINE_TYPE_NAMES[line.lineType]}`,
+        });
+      }
+    }
+
+    return labels;
   }, [visibleLines, showLabels, showLines]);
 
   // Toggle a planet
@@ -472,7 +527,7 @@ export const InlineLocationPicker: React.FC<InlineLocationPickerProps> = ({
         <MapContainer
           key={`${mapCenter.lat}-${mapCenter.lng}-${mapStyle}`}
           center={[mapCenter.lat, mapCenter.lng]}
-          zoom={maximized ? 3 : expanded ? 3 : 4}
+          zoom={maximized ? 2 : expanded ? 2 : 3}
           style={{ height: '100%', width: '100%' }}
           zoomControl={true}
         >
@@ -508,8 +563,8 @@ export const InlineLocationPicker: React.FC<InlineLocationPickerProps> = ({
               positions={line.points.map(p => [p.lat, p.lng] as [number, number])}
               pathOptions={{
                 color: line.color,
-                weight: 8,
-                opacity: 0.25,
+                weight: 6,
+                opacity: 0.15,
                 lineCap: 'round',
                 dashArray: undefined,
               }}
@@ -517,22 +572,29 @@ export const InlineLocationPicker: React.FC<InlineLocationPickerProps> = ({
             />
           ))}
           {/* Astrocartography lines - main layer */}
-          {visibleLines.map((line, index) => (
-            <Polyline
-              key={`${line.planet}-${line.lineType}-${index}`}
-              positions={line.points.map(p => [p.lat, p.lng] as [number, number])}
-              pathOptions={{
-                color: line.color,
-                weight: line.lineType === 'MC' || line.lineType === 'IC' ? 4 : 3,
-                opacity: 0.9,
-                dashArray: line.lineType === 'IC' || line.lineType === 'DSC' ? '8, 6' : undefined,
-              }}
-            >
-              <Tooltip sticky>
-                {PLANET_SYMBOLS[line.planet]} {line.planet} {LINE_TYPE_NAMES[line.lineType] || line.lineType}
-              </Tooltip>
-            </Polyline>
-          ))}
+          {visibleLines.map((line, index) => {
+            // MC = solid, IC = long dash, ASC = solid, DSC = short dash
+            const dashArray =
+              line.lineType === 'IC' ? '10, 6' :
+              line.lineType === 'DSC' ? '6, 4' :
+              undefined;
+            return (
+              <Polyline
+                key={`${line.planet}-${line.lineType}-${index}`}
+                positions={line.points.map(p => [p.lat, p.lng] as [number, number])}
+                pathOptions={{
+                  color: line.color,
+                  weight: 2.5,
+                  opacity: 0.9,
+                  dashArray,
+                }}
+              >
+                <Tooltip sticky>
+                  {PLANET_SYMBOLS[line.planet]} {line.planet} {LINE_TYPE_NAMES[line.lineType] || line.lineType}
+                </Tooltip>
+              </Polyline>
+            );
+          })}
 
           {/* Line labels (placed at midpoint of each line) */}
           {lineLabels.map(label => (

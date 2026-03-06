@@ -48,8 +48,8 @@ interface TransitRingProps {
  *
  * Multiple iterations let cascading pushes settle.
  */
-const MIN_SPACING = 3;   // target spacing in degrees
-const REPEL_ZONE = 6;    // planets further apart than this don't interact
+const MIN_SPACING = 8;   // target spacing in degrees (wide glyphs need more room)
+const REPEL_ZONE = 14;   // planets further apart than this don't interact
 
 /** Signed angular difference (handles 0°/360° wrap), result in -180..180 */
 function signedDiff(a: number, b: number): number {

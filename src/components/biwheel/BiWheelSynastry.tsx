@@ -2463,8 +2463,9 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       solarReturnYear: state.solarReturnYear,
       showLunarReturn: state.showLunarReturn,
       lunarReturnStartDate: state.lunarReturnStartDate,
+      degreeSymbolMode: state.degreeSymbolMode,
     });
-  }, [state.chartMode, state.visiblePlanets, state.visibleAspects, state.showHouses, state.showDegreeMarkers, state.showTransits, state.transitDate, state.transitTime, state.showProgressed, progressedPerson, state.progressedDate, state.showSolarArc, state.showRelocated, relocatedPerson, state.relocatedLocationA, state.relocatedLocationB, state.enabledAsteroidGroups, state.enabledFixedStarGroups, chartTheme, rotateToAscendant, zodiacVantage, state.straightAspects, state.showEffects, state.showRetrogrades, state.showDecans, state.showBirthTimeShift, state.timeShiftA, state.timeShiftB, state.showSolarReturn, state.solarReturnYear, state.showLunarReturn, state.lunarReturnStartDate]);
+  }, [state.chartMode, state.visiblePlanets, state.visibleAspects, state.showHouses, state.showDegreeMarkers, state.showTransits, state.transitDate, state.transitTime, state.showProgressed, progressedPerson, state.progressedDate, state.showSolarArc, state.showRelocated, relocatedPerson, state.relocatedLocationA, state.relocatedLocationB, state.enabledAsteroidGroups, state.enabledFixedStarGroups, chartTheme, rotateToAscendant, zodiacVantage, state.straightAspects, state.showEffects, state.showRetrogrades, state.showDecans, state.showBirthTimeShift, state.timeShiftA, state.timeShiftB, state.showSolarReturn, state.solarReturnYear, state.showLunarReturn, state.lunarReturnStartDate, state.degreeSymbolMode]);
 
   // Get hovered planet data for tooltip
   const hoveredPlanetData = React.useMemo(() => {

@@ -74,6 +74,13 @@ interface BiWheelMobileWrapperProps extends Omit<BiWheelSynastryProps, 'size' | 
     showEffects: boolean;
     showRetrogrades: boolean;
     showDecans: boolean;
+    degreeSymbolMode: 'sign' | 'degree';
+    enabledFixedStarGroups: string[];
+    showBirthTimeShift: boolean;
+    timeShiftA: number;
+    timeShiftB: number;
+    houseSystem: string;
+    harmonicNumber: number;
     showSolarReturn: boolean;
     solarReturnYear: number;
     showLunarReturn: boolean;
@@ -351,6 +358,11 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     if (externalState.showLunarReturn !== undefined) setShowLunarReturn(externalState.showLunarReturn);
     if (externalState.lunarReturnStartDate !== undefined) setLunarReturnStartDate(externalState.lunarReturnStartDate);
     if (externalState.showBirthTimeShift !== undefined) setShowBirthTimeShift(externalState.showBirthTimeShift);
+    if (externalState.timeShiftA !== undefined) setTimeShiftA(externalState.timeShiftA);
+    if (externalState.timeShiftB !== undefined) setTimeShiftB(externalState.timeShiftB);
+    if (externalState.degreeSymbolMode !== undefined) setDegreeSymbolMode(externalState.degreeSymbolMode);
+    if (externalState.houseSystem !== undefined) setHouseSystem(externalState.houseSystem);
+    if (externalState.harmonicNumber !== undefined) setHarmonicNumber(externalState.harmonicNumber);
     if (externalState.scale !== undefined) setScale(externalState.scale);
     if (externalState.translateX !== undefined && externalState.translateY !== undefined) setTranslate({ x: externalState.translateX, y: externalState.translateY });
   }, [externalState]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -432,6 +444,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
       showBirthTimeShift,
       timeShiftA,
       timeShiftB,
+      degreeSymbolMode,
       houseSystem,
       harmonicNumber,
       showSolarReturn,
@@ -445,7 +458,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     console.log('[BiWheelWrapper] Broadcasting via lifted-state effect', { chartMode, planets: visiblePlanets.size, asteroids: enabledAsteroidGroups.size });
     onStateChangeRef.current('state_snapshot' as any, snapshot);
     if (stateRef) stateRef.current = snapshot;
-  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, showTransits, transitDate, transitTime, progressedPerson, progressedDate, showSolarArc, relocatedPerson, relocatedLocationA, relocatedLocationB, enabledAsteroidGroups, enabledFixedStarGroups, chartTheme, rotateToAscendant, zodiacVantage, straightAspects, mobileShowEffects, showRetrogrades, showDecans, showBirthTimeShift, timeShiftA, timeShiftB, houseSystem, harmonicNumber, showSolarReturn, solarReturnYear, showLunarReturn, lunarReturnStartDate, scale, translate.x, translate.y, externalState, stateRef]);
+  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, showTransits, transitDate, transitTime, progressedPerson, progressedDate, showSolarArc, relocatedPerson, relocatedLocationA, relocatedLocationB, enabledAsteroidGroups, enabledFixedStarGroups, chartTheme, rotateToAscendant, zodiacVantage, straightAspects, mobileShowEffects, showRetrogrades, showDecans, degreeSymbolMode, showBirthTimeShift, timeShiftA, timeShiftB, houseSystem, harmonicNumber, showSolarReturn, solarReturnYear, showLunarReturn, lunarReturnStartDate, scale, translate.x, translate.y, externalState, stateRef]);
 
   // Calculate responsive chart size
   const chartSize = useMemo(() => {
@@ -1220,7 +1233,9 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
             onMouseMove: (e: React.MouseEvent<HTMLDivElement>) => {
               handleMouseMove(e);
               if (onCursorMove) {
-                const rect = e.currentTarget.getBoundingClientRect();
+                // Use the SVG element's bounds (not the container, which may include the toggle panel)
+                const svg = e.currentTarget.querySelector('svg');
+                const rect = svg ? svg.getBoundingClientRect() : e.currentTarget.getBoundingClientRect();
                 onCursorMove(
                   (e.clientX - rect.left) / rect.width,
                   (e.clientY - rect.top) / rect.height,
