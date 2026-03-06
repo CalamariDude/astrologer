@@ -242,12 +242,57 @@ function VantageTreeViewer({ trees }: { trees: ChartReadingTree[] }) {
   );
 }
 
+/** Parse citations text like "[^1] Venus in Aq...\n[^2] Moon in Gem..." into a map */
+function parseCitationsText(text: string): Record<string, string> {
+  const map: Record<string, string> = {};
+  const lines = text.split('\n');
+  for (const line of lines) {
+    const match = line.match(/^\[\^(\d+)\]\s*(.+)/);
+    if (match) {
+      map[match[1]] = match[2].trim();
+    }
+  }
+  return map;
+}
+
+/** Render reading text with inline citation tooltips */
+function ReadingWithCitations({ text, citations }: { text: string; citations: Record<string, string> }) {
+  const hasCitations = Object.keys(citations).length > 0;
+  if (!hasCitations) return <>{text}</>;
+
+  // Split text on [^N] markers
+  const parts = text.split(/(\[\^\d+\])/g);
+
+  return (
+    <>
+      {parts.map((part, i) => {
+        const citMatch = part.match(/^\[\^(\d+)\]$/);
+        if (citMatch) {
+          const num = citMatch[1];
+          const tooltip = citations[num];
+          if (!tooltip) return <sup key={i} className="text-[9px] text-amber-600/70">{num}</sup>;
+          return (
+            <span key={i} className="relative group/cite inline">
+              <sup className="text-[9px] font-semibold text-amber-600 cursor-help px-[1px] hover:text-amber-500 transition-colors">{num}</sup>
+              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1.5 rounded-lg bg-foreground text-background text-[10px] leading-snug whitespace-pre-wrap max-w-[280px] w-max opacity-0 pointer-events-none group-hover/cite:opacity-100 group-hover/cite:pointer-events-auto transition-opacity duration-150 z-50 shadow-lg font-mono">
+                {tooltip}
+              </span>
+            </span>
+          );
+        }
+        return <Fragment key={i}>{part}</Fragment>;
+      })}
+    </>
+  );
+}
+
 export function AIReading({ chartA, chartB, nameA, nameB, birthInfoA, birthInfoB }: AIReadingProps) {
   const { user } = useAuth();
   const { isPaid, aiCreditsRemaining, aiCreditsLimit, useAiCredit } = useSubscription();
   const [question, setQuestion] = useState('');
   const [reading, setReading] = useState('');
   const [technical, setTechnical] = useState('');
+  const [citations, setCitations] = useState<Record<string, string>>({});
   const [showTechnical, setShowTechnical] = useState(false);
   const [treeData, setTreeData] = useState<ChartReadingTree[]>([]);
   const [showTreeData, setShowTreeData] = useState(false);
@@ -315,6 +360,7 @@ export function AIReading({ chartA, chartB, nameA, nameB, birthInfoA, birthInfoB
     setError(null);
     setReading('');
     setTechnical('');
+    setCitations({});
     setVantageAnalyses([]);
 
     const abortController = new AbortController();
@@ -465,8 +511,13 @@ export function AIReading({ chartA, chartB, nameA, nameB, birthInfoA, birthInfoB
         const data = await response.json();
         if (data.error) throw new Error(data.error);
         const fullText = data.reading || '';
+        const citIdx = fullText.indexOf('---CITATIONS---');
         const sepIdx = fullText.indexOf(SEPARATOR);
-        if (sepIdx !== -1) {
+        if (citIdx !== -1 && sepIdx !== -1) {
+          setReading(fullText.substring(0, citIdx).trim());
+          setCitations(parseCitationsText(fullText.substring(citIdx + 15, sepIdx).trim()));
+          setTechnical(fullText.substring(sepIdx + SEPARATOR.length).trim());
+        } else if (sepIdx !== -1) {
           setReading(fullText.substring(0, sepIdx).trim());
           setTechnical(fullText.substring(sepIdx + SEPARATOR.length).trim());
         } else {
@@ -509,6 +560,8 @@ export function AIReading({ chartA, chartB, nameA, nameB, birthInfoA, birthInfoB
                 setLoadingStep(prev => prev + 1);
               } else if (parsed.phase === 'technical') {
                 // Reading is complete, technical section starting
+              } else if (parsed.citations) {
+                setCitations(parseCitationsText(parsed.citations));
               } else if (parsed.content) {
                 setReading(prev => prev + parsed.content);
               } else if (parsed.technical) {
@@ -749,7 +802,7 @@ export function AIReading({ chartA, chartB, nameA, nameB, birthInfoA, birthInfoB
             Reading in progress...
           </div>
           <div ref={readingRef} className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap max-h-[500px] overflow-y-auto">
-            {reading}
+            <ReadingWithCitations text={reading} citations={citations} />
             <span className="inline-block w-1 h-4 bg-amber-500 animate-pulse ml-0.5 align-text-bottom" />
           </div>
         </div>
@@ -777,7 +830,7 @@ export function AIReading({ chartA, chartB, nameA, nameB, birthInfoA, birthInfoB
 
           {/* Plain Language Reading */}
           <div className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
-            {reading}
+            <ReadingWithCitations text={reading} citations={citations} />
           </div>
 
           {/* Technical Section */}
@@ -837,7 +890,7 @@ export function AIReading({ chartA, chartB, nameA, nameB, birthInfoA, birthInfoB
               variant="ghost"
               size="sm"
               className="h-6 text-[10px]"
-              onClick={() => { setReading(''); setTechnical(''); setTreeData([]); setShowTreeData(false); setQuestion(''); setVantageAnalyses([]); setShowAnalyses(false); }}
+              onClick={() => { setReading(''); setTechnical(''); setCitations({}); setTreeData([]); setShowTreeData(false); setQuestion(''); setVantageAnalyses([]); setShowAnalyses(false); }}
             >
               New Reading
             </Button>

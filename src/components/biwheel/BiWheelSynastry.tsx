@@ -310,14 +310,19 @@ function calculateSingleWheelDimensions(size: number, showTransits: boolean = fa
 
 /**
  * Calculate which house a planet falls into based on its longitude and the chart's ascendant.
- * Uses equal house system (30° per house).
+ * Supports whole-sign (sign-based) and equal house (30° from ASC degree) systems.
  */
-function calculateHouseFromLongitude(longitude: number, ascendant: number): number {
-  // Normalize the difference to 0-360 range
+function calculateHouseFromLongitude(longitude: number, ascendant: number, wholeSign: boolean = false): number {
+  if (wholeSign) {
+    // Whole-sign: house boundaries are at sign boundaries
+    const planetSign = Math.floor(longitude / 30) % 12;
+    const ascSign = Math.floor(ascendant / 30) % 12;
+    return ((planetSign - ascSign + 12) % 12) + 1;
+  }
+  // Equal house: each house is 30° from ASC degree
   let diff = longitude - ascendant;
   while (diff < 0) diff += 360;
   while (diff >= 360) diff -= 360;
-  // Each house is 30 degrees, house 1 starts at ascendant
   return Math.floor(diff / 30) + 1;
 }
 
@@ -3151,13 +3156,15 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             hoveredPlanetData.longitude !== undefined ?
               calculateHouseFromLongitude(
                 hoveredPlanetData.longitude,
-                state.hoveredPlanet.chart === 'A' ? (displayChartA.angles?.ascendant ?? 0) : (displayChartB.angles?.ascendant ?? 0)
+                state.hoveredPlanet.chart === 'A' ? (displayChartA.angles?.ascendant ?? 0) : (displayChartB.angles?.ascendant ?? 0),
+                houseSystem === 'whole_sign'
               ) : undefined}
           partnerHouse={isSingleWheel || state.hoveredPlanet.chart === 'Transit' ? undefined :
             hoveredPlanetData.longitude !== undefined ?
               calculateHouseFromLongitude(
                 hoveredPlanetData.longitude,
-                state.hoveredPlanet.chart === 'A' ? (displayChartB.angles?.ascendant ?? 0) : (displayChartA.angles?.ascendant ?? 0)
+                state.hoveredPlanet.chart === 'A' ? (displayChartB.angles?.ascendant ?? 0) : (displayChartA.angles?.ascendant ?? 0),
+                houseSystem === 'whole_sign'
               ) : undefined}
           aspects={state.hoveredPlanet.chart === 'Transit' ? [] : aspects}
           visibleAspects={state.visibleAspects}
@@ -3183,13 +3190,15 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             selectedPlanetData.longitude !== undefined ?
               calculateHouseFromLongitude(
                 selectedPlanetData.longitude,
-                state.selectedPlanet.chart === 'A' ? (displayChartA.angles?.ascendant ?? 0) : (displayChartB.angles?.ascendant ?? 0)
+                state.selectedPlanet.chart === 'A' ? (displayChartA.angles?.ascendant ?? 0) : (displayChartB.angles?.ascendant ?? 0),
+                houseSystem === 'whole_sign'
               ) : undefined}
           partnerHouse={isSingleWheel || state.selectedPlanet.chart === 'Transit' ? undefined :
             selectedPlanetData.longitude !== undefined ?
               calculateHouseFromLongitude(
                 selectedPlanetData.longitude,
-                state.selectedPlanet.chart === 'A' ? (displayChartB.angles?.ascendant ?? 0) : (displayChartA.angles?.ascendant ?? 0)
+                state.selectedPlanet.chart === 'A' ? (displayChartB.angles?.ascendant ?? 0) : (displayChartA.angles?.ascendant ?? 0),
+                houseSystem === 'whole_sign'
               ) : undefined}
           aspects={state.selectedPlanet.chart === 'Transit' ? [] : aspects}
           visibleAspects={state.visibleAspects}

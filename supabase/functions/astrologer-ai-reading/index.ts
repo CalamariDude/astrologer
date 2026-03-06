@@ -14,6 +14,7 @@ const TIER_AI_LIMITS: Record<string, number> = {
   professional: 300,
 };
 const SEPARATOR = "---TECHNICAL---";
+const CITATIONS_SEPARATOR = "---CITATIONS---";
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -137,6 +138,8 @@ INTERPRETATION ORDER — follow this EXACT sequence:
 
 9. CO-TENANTS — other relationship energies in the same domain
 
+IMPORTANT: Do NOT use essential dignities (domicile, exaltation, detriment, fall) in your analysis. Skip dignity entirely.
+
 Be specific and analytical. Frame everything as "the relationship" or "together they" — never as one individual.`;
   } else if (synastryContext && (synastryContext.mode === 'a_in_b' || synastryContext.mode === 'b_in_a')) {
     // ── Synastry (A in B / B in A) mode prompt ──
@@ -164,6 +167,8 @@ INTERPRETATION ORDER — follow this EXACT sequence:
 6. BACKWARD TRACE — What themes ${sourceName} brings from their own chart
 
 7. CO-TENANTS — ${hostName}'s planets that share this house
+
+IMPORTANT: Do NOT use essential dignities (domicile, exaltation, detriment, fall) in your analysis. Skip dignity entirely.
 
 Be specific and interpersonal. Every observation should be about the DYNAMIC BETWEEN these two people.`;
   } else {
@@ -199,6 +204,8 @@ INTERPRETATION ORDER — follow this EXACT sequence:
 8. BACKWARD TRACE — what feeds into this energy
 
 9. CO-TENANTS — who shares this space
+
+IMPORTANT: Do NOT use essential dignities (domicile, exaltation, detriment, fall) in your analysis. Skip dignity entirely.
 
 Be specific and analytical. Every detail you note will help create a better reading.`;
   }
@@ -524,10 +531,15 @@ serve(async (req) => {
 
       synthesisSystemPrompt = `You are a wise, perceptive relationship advisor. You have detailed analysis of the dynamic BETWEEN ${nameA} and ${nameB} — how they affect each other, what they trigger in one another, and what their relationship creates as its own entity.
 
-You produce TWO sections in this exact format:
+You produce THREE sections in this exact format:
 
-[Plain language reading about their relationship dynamic — all the rules below apply.
+[Plain language reading with inline citation markers like [^1], [^2], etc.
 Write in flowing paragraphs with behavioral micro-scenarios involving BOTH people by name.]
+
+${CITATIONS_SEPARATOR}
+
+[^1] Brief technical note — e.g. "A's Venus conjunct B's Descendant (1.2° orb)"
+[^2] Another citation...
 
 ${SEPARATOR}
 
@@ -535,7 +547,14 @@ ${SEPARATOR}
 sign names, house overlays, cross-chart aspects with orbs, and composite positions.
 Structure with markdown headers per perspective (A in B, B in A, Composite).]
 
-RULES FOR THE READING SECTION (before ${SEPARATOR}):
+CITATION RULES:
+- Place [^N] markers inline in the reading text at key claims or insights
+- Each citation should map to a specific cross-chart aspect, house overlay, or composite placement
+- Keep citation text SHORT (1-2 lines max)
+- Use 5-12 citations per reading
+- Citations go in sentences naturally: "...magnetic pull between them[^1] that..."
+
+RULES FOR THE READING SECTION (before ${CITATIONS_SEPARATOR}):
 - NEVER use astrology terminology — no planet names, sign names, house numbers, aspect names, "retrograde", "chart", "synastry", "composite", "natal"
 - Describe the DYNAMIC between ${nameA} and ${nameB} using their actual names
 - Show how they interact, what they bring out in each other, where they clash, where they flow
@@ -549,14 +568,20 @@ RULES FOR THE TECHNICAL SECTION (after ${SEPARATOR}):
 - Use full synastry/composite terminology
 - Structure with ## headers per perspective
 - Note tight cross-chart aspects with orbs
+- Do NOT mention essential dignities (domicile, exaltation, detriment, fall)
 - Be concise but thorough`;
     } else if (isCompanyChart) {
       synthesisSystemPrompt = `You are a sharp business/financial astrology analyst. You have access to detailed analysis of ${entityNameA}'s incorporation/founding chart — the planetary patterns that reveal the company's DNA, strengths, vulnerabilities, and timing cycles.
 
-You produce TWO sections in this exact format:
+You produce THREE sections in this exact format:
 
-[Plain language business analysis — all the rules below apply to this section.
+[Plain language business analysis with inline citation markers like [^1], [^2], etc.
 Write in flowing paragraphs about the company's nature, strategy, and outlook.]
+
+${CITATIONS_SEPARATOR}
+
+[^1] Brief technical note — e.g. "Sun in Taurus H10 trine Jupiter in Virgo H2 (2.1° orb)"
+[^2] Another citation...
 
 ${SEPARATOR}
 
@@ -564,7 +589,13 @@ ${SEPARATOR}
 sign names, house numbers (with business meanings), aspect types.
 Structure with markdown headers per major theme. Be concise but precise.]
 
-RULES FOR THE READING SECTION (before ${SEPARATOR}):
+CITATION RULES:
+- Place [^N] markers inline in the reading text at key claims or insights
+- Each citation should map to a specific placement, aspect, or pattern
+- Keep citation text SHORT (1-2 lines max)
+- Use 5-12 citations per reading
+
+RULES FOR THE READING SECTION (before ${CITATIONS_SEPARATOR}):
 - NEVER use astrology terminology: no planet names, no sign names, no house numbers, no aspect names
 - Translate everything into business/corporate language about ${entityNameA}
 - Reference the company by name: "${entityNameA}" — NOT "you" or "this person"
@@ -579,14 +610,20 @@ RULES FOR THE TECHNICAL SECTION (after ${SEPARATOR}):
 - Structure with ## headers per major theme
 - Include specific placements mapped to business meaning
 - Note significant aspects with orbs
+- Do NOT mention essential dignities (domicile, exaltation, detriment, fall)
 - Be concise but thorough`;
     } else {
       synthesisSystemPrompt = `You are a wise, perceptive advisor who understands people deeply. You have access to detailed analysis of this person's inner patterns — personality layers, emotional tendencies, relationship dynamics, career drives, and life timing.
 
-You produce TWO sections in this exact format:
+You produce THREE sections in this exact format:
 
-[Plain language reading — all the rules below apply to this section.
+[Plain language reading with inline citation markers like [^1], [^2], etc.
 Write in flowing paragraphs with behavioral micro-scenarios.]
+
+${CITATIONS_SEPARATOR}
+
+[^1] Brief technical note for this citation — e.g. "Venus in Aquarius H6 trine Moon in Gemini H10 (3.85° orb)"
+[^2] Another citation...
 
 ${SEPARATOR}
 
@@ -594,7 +631,14 @@ ${SEPARATOR}
 sign names, house numbers, aspect types. Structure with markdown headers
 per major theme. Be concise but precise.]
 
-RULES FOR THE READING SECTION (before ${SEPARATOR}):
+CITATION RULES:
+- Place [^N] markers inline in the reading text at key claims or insights, where the reader might wonder "where does this come from?"
+- Each citation should map to a specific astrological placement, aspect, or pattern from the analysis data
+- Keep citation text SHORT (1-2 lines max) — just the key placement/aspect with orb
+- Use 5-12 citations per reading — enough to cover major points without cluttering
+- Citations go in sentences naturally: "...witty charm[^1] that keeps things light..."
+
+RULES FOR THE READING SECTION (before ${CITATIONS_SEPARATOR}):
 - NEVER use astrology terminology: no planet names, no sign names, no house numbers, no aspect names, no "retrograde", no "cusp", no "natal", no "chart", no "transit", no "decan", no "ruling planet"
 - Translate everything into plain human language
 - Use the analysis data to inform your answer but the reader should never know the source is astrology
@@ -614,6 +658,7 @@ RULES FOR THE TECHNICAL SECTION (after ${SEPARATOR}):
 - Structure with markdown headers (##) per major theme
 - Include specific placements
 - Note significant aspects with orbs
+- Do NOT mention essential dignities (domicile, exaltation, detriment, fall)
 - Be concise but thorough`;
     }
 
@@ -807,11 +852,13 @@ NOTE: Current timing data is included in the analyses. Ground your answer in wha
 
           const decoder = new TextDecoder();
 
-          // Separator-based stream splitting state
+          // Three-section stream: reading → ---CITATIONS--- → citations → ---TECHNICAL--- → technical
+          // We stream reading content in real-time, buffer citations, then stream technical.
           let fullBuffer = "";
-          let separatorFound = false;
-          let separatorSent = false;
+          // 0 = reading, 1 = citations (buffered), 2 = technical
+          let section = 0;
           let readingContentSent = 0;
+          const HOLD_BACK = Math.max(CITATIONS_SEPARATOR.length, SEPARATOR.length) + 5;
 
           while (true) {
             const { done, value } = await grokReader.read();
@@ -821,73 +868,104 @@ NOTE: Current timing data is included in the analyses. Ground your answer in wha
             const lines = chunk.split('\n').filter(line => line.trim() !== '');
 
             for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                const data = line.slice(6);
-                if (data === '[DONE]') continue;
+              if (!line.startsWith('data: ')) continue;
+              const data = line.slice(6);
+              if (data === '[DONE]') continue;
 
-                try {
-                  const parsed = JSON.parse(data);
-                  const content = parsed.choices?.[0]?.delta?.content;
-                  if (content) {
-                    fullBuffer += content;
+              try {
+                const parsed = JSON.parse(data);
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (!content) continue;
 
-                    if (!separatorFound) {
-                      const sepIdx = fullBuffer.indexOf(SEPARATOR);
-                      if (sepIdx !== -1) {
-                        separatorFound = true;
-                        const readingPart = fullBuffer.substring(readingContentSent, sepIdx).trimEnd();
-                        if (readingPart) {
-                          controller.enqueue(
-                            encoder.encode(`data: ${JSON.stringify({ content: readingPart })}\n\n`)
-                          );
-                        }
-                        readingContentSent = fullBuffer.length;
+                fullBuffer += content;
 
-                        if (!separatorSent) {
-                          separatorSent = true;
-                          controller.enqueue(
-                            encoder.encode(`data: ${JSON.stringify({ phase: "technical" })}\n\n`)
-                          );
-                        }
+                // Check for section transitions
+                if (section === 0) {
+                  const citIdx = fullBuffer.indexOf(CITATIONS_SEPARATOR);
+                  const techIdx = fullBuffer.indexOf(SEPARATOR);
 
-                        const techPart = fullBuffer.substring(sepIdx + SEPARATOR.length);
-                        if (techPart.trim()) {
-                          controller.enqueue(
-                            encoder.encode(`data: ${JSON.stringify({ technical: techPart })}\n\n`)
-                          );
-                        }
-                      } else {
-                        // Stream reading content, keep last 20 chars as buffer for separator detection
-                        const safeEnd = Math.max(readingContentSent, fullBuffer.length - 20);
-                        const safePart = fullBuffer.substring(readingContentSent, safeEnd);
-                        if (safePart) {
-                          controller.enqueue(
-                            encoder.encode(`data: ${JSON.stringify({ content: safePart })}\n\n`)
-                          );
-                          readingContentSent = safeEnd;
-                        }
-                      }
-                    } else {
-                      controller.enqueue(
-                        encoder.encode(`data: ${JSON.stringify({ technical: content })}\n\n`)
-                      );
+                  if (citIdx !== -1) {
+                    // Found citations separator — flush reading, move to section 1
+                    const readingPart = fullBuffer.substring(readingContentSent, citIdx).trimEnd();
+                    if (readingPart) {
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: readingPart })}\n\n`));
+                    }
+                    section = 1;
+                  } else if (techIdx !== -1) {
+                    // No citations, straight to technical
+                    const readingPart = fullBuffer.substring(readingContentSent, techIdx).trimEnd();
+                    if (readingPart) {
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: readingPart })}\n\n`));
+                    }
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ phase: "technical" })}\n\n`));
+                    section = 2;
+                    // Send any tech content already buffered
+                    const techPart = fullBuffer.substring(techIdx + SEPARATOR.length);
+                    if (techPart.trim()) {
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ technical: techPart })}\n\n`));
+                    }
+                  } else {
+                    // Stream reading content, hold back for separator detection
+                    const safeEnd = Math.max(readingContentSent, fullBuffer.length - HOLD_BACK);
+                    const safePart = fullBuffer.substring(readingContentSent, safeEnd);
+                    if (safePart) {
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: safePart })}\n\n`));
+                      readingContentSent = safeEnd;
                     }
                   }
-                } catch {
-                  // Skip invalid JSON
                 }
+
+                if (section === 1) {
+                  // Buffering citations — look for TECHNICAL separator
+                  const techIdx = fullBuffer.indexOf(SEPARATOR);
+                  if (techIdx !== -1) {
+                    const citStart = fullBuffer.indexOf(CITATIONS_SEPARATOR) + CITATIONS_SEPARATOR.length;
+                    const citationsText = fullBuffer.substring(citStart, techIdx).trim();
+                    if (citationsText) {
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ citations: citationsText })}\n\n`));
+                    }
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ phase: "technical" })}\n\n`));
+                    section = 2;
+                    const techPart = fullBuffer.substring(techIdx + SEPARATOR.length);
+                    if (techPart.trim()) {
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ technical: techPart })}\n\n`));
+                    }
+                  }
+                }
+
+                if (section === 2) {
+                  // Stream technical content — only send the new delta if we're past separator
+                  const techIdx = fullBuffer.indexOf(SEPARATOR);
+                  if (techIdx < fullBuffer.length - content.length) {
+                    // This content chunk is entirely within the technical section
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ technical: content })}\n\n`));
+                  }
+                }
+              } catch {
+                // Skip invalid JSON
               }
             }
           }
 
-          // Flush remaining buffered reading content
-          if (!separatorFound && readingContentSent < fullBuffer.length) {
-            const remaining = fullBuffer.substring(readingContentSent);
-            if (remaining.trim()) {
-              controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ content: remaining })}\n\n`)
-              );
+          // Flush any remaining content based on final section state
+          if (section === 0) {
+            // Never found any separator
+            const techIdx = fullBuffer.indexOf(SEPARATOR);
+            if (techIdx !== -1) {
+              const readingPart = fullBuffer.substring(readingContentSent, techIdx).trimEnd();
+              if (readingPart) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: readingPart })}\n\n`));
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ phase: "technical" })}\n\n`));
+              const techPart = fullBuffer.substring(techIdx + SEPARATOR.length).trim();
+              if (techPart) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ technical: techPart })}\n\n`));
+            } else if (readingContentSent < fullBuffer.length) {
+              const remaining = fullBuffer.substring(readingContentSent).trim();
+              if (remaining) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: remaining })}\n\n`));
             }
+          } else if (section === 1) {
+            // Found citations but never found technical separator
+            const citStart = fullBuffer.indexOf(CITATIONS_SEPARATOR) + CITATIONS_SEPARATOR.length;
+            const citationsText = fullBuffer.substring(citStart).trim();
+            if (citationsText) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ citations: citationsText })}\n\n`));
           }
 
           // ── Increment usage ──
