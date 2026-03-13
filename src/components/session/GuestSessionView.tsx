@@ -412,7 +412,7 @@ export const GuestSessionView: React.FC<GuestSessionViewProps> = ({ session }) =
     const body: Record<string, unknown> = { birth_date: src.date, birth_time: src.time || '12:00', lat: src.lat, lng: src.lng, progressed_to: progressedTo };
     if (asteroids) body.asteroids = asteroids;
     const data = await swissEphemeris.progressed(body);
-    return { natal_date: data.natal_date || '', progressed_to: data.progressed_to || progressedTo, progressed_chart_date: data.progressed_chart_date || '', years_progressed: data.years_progressed || 0, progressed_planets: data.progressed_planets || [], houses: data.houses, aspects_to_natal: data.aspects_to_natal || [], ascendantSign: data.ascendantSign || '' };
+    return { natal_date: data.natal_date || '', progressed_to: data.progressed_to || progressedTo, progressed_chart_date: data.progressed_chart_date || '', years_progressed: data.years_progressed || 0, progressed_planets: data.progressed_planets || data.planets || [], houses: data.houses, aspects_to_natal: data.aspects_to_natal || [], ascendantSign: data.ascendantSign || '' };
   }, [birthA, birthB]);
 
   const handleFetchRelocated = useCallback(async (

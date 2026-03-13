@@ -97,6 +97,8 @@ export function PlanetInfoPanel({ planet, aspects, onClose }: PlanetInfoPanelPro
             alt={planet.name}
             className="w-full h-full object-cover"
             loading="lazy"
+            referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
           />
           <div
             className="absolute inset-0"

@@ -32,6 +32,7 @@ interface GalacticModeProps {
   visiblePlanets?: Set<string>;
   visibleAspects?: Set<string>;
   onFetchAsteroidData?: (asteroids: string[]) => Promise<{ chartA: Record<string, any>; chartB: Record<string, any> }>;
+  fullscreenButtonRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 function GalacticEffects() {
@@ -332,7 +333,7 @@ function TransitControls({
 const MAJOR_ASPECTS = Object.entries(ASPECTS).filter(([, v]) => v.major);
 const MINOR_ASPECTS = Object.entries(ASPECTS).filter(([, v]) => !v.major);
 
-export default function GalacticMode({ chart: initialChart, name, birthDate, visiblePlanets, visibleAspects, onFetchAsteroidData }: GalacticModeProps) {
+export default function GalacticMode({ chart: initialChart, name, birthDate, visiblePlanets, visibleAspects, onFetchAsteroidData, fullscreenButtonRef }: GalacticModeProps) {
   const [selectedPlanet, setSelectedPlanet] = useState<string | null>(null);
   const [selectedPlanetB, setSelectedPlanetB] = useState<string | null>(null);
   const [autoRotate, setAutoRotate] = useState(true);
@@ -789,13 +790,16 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
           <Home className="w-4 h-4" />
         </button>
 
-        <button
-          onClick={toggleFullscreen}
-          className="p-2 rounded-lg bg-black/50 backdrop-blur-sm text-white/50 hover:text-white/80 transition-colors"
-          title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-        >
-          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-        </button>
+        {isFullscreen && (
+          <button
+            onClick={toggleFullscreen}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/50 backdrop-blur-sm text-white/50 hover:text-white/80 transition-colors text-xs"
+            title="Exit fullscreen"
+          >
+            <Minimize2 className="w-4 h-4" />
+            <span>Exit</span>
+          </button>
+        )}
 
         <button
           onClick={() => setSettingsPanelOpen(v => !v)}

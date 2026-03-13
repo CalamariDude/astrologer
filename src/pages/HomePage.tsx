@@ -15,7 +15,7 @@ import { LandingFooter } from '@/components/landing/LandingFooter';
 import { FeatureShowcase } from '@/components/landing/FeatureShowcase';
 import { PricingToggle } from '@/components/landing/PricingSection';
 import { FAQSection } from '@/components/landing/FAQSection';
-import { TodaysSky } from '@/components/landing/TodaysSky';
+import { ChartEntryForm } from '@/components/landing/ChartEntryForm';
 import { FeatureBento } from '@/components/landing/FeatureBento';
 import { FeaturePreview } from '@/components/landing/FeaturePreview';
 import { AboutSection } from '@/components/landing/AboutSection';
@@ -128,7 +128,7 @@ export default function HomePage() {
       <div className="relative z-10 bg-white">
 
       {/* ── Today's Sky ─────────────────────────────────────── */}
-      <TodaysSky onOpenApp={handleOpenApp} />
+      <ChartEntryForm />
 
       {/* ── Feature Bento ───────────────────────────────────── */}
       <div id="features">

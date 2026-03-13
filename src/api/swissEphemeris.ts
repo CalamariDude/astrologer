@@ -60,6 +60,9 @@ export const swissEphemeris = {
   /** Calculate secondary progressions */
   progressed: (body: Record<string, unknown>) => apiCall('/progressed', body),
 
+  /** Calculate any planet return chart */
+  planetReturn: (body: Record<string, unknown>) => apiCall('/planet-return', body),
+
   /** List available fixed stars (GET endpoint) */
   fixedStars: async () => {
     const res = await fetch(`${BASE_URL}/fixed-stars`, {

@@ -1,15 +1,24 @@
 /**
- * Alchemystic Profection Cycle
- * Equinox-based years with fixed natural zodiac order
+ * Profection Calculations
  *
- * Birth → first spring equinox = Pisces (pre-period, variable length)
- * 1st equinox → 2nd equinox = Aries (year 1)
- * 2nd equinox → 3rd equinox = Taurus (year 2)
- * ...cycles through all 12 signs, repeating every 12 years
+ * Two methods supported:
+ *
+ * TRADITIONAL (default):
+ *   Age 0 = Ascendant sign (1st house), birthday to birthday
+ *   Age 1 = next sign (2nd house), etc.
+ *   Time Lord = ruler of the profected sign
+ *   This is the standard Hellenistic/medieval approach.
+ *
+ * MODERN (equinox-based):
+ *   Birth → first spring equinox = Pisces (pre-period, variable length)
+ *   1st equinox → 2nd equinox = Aries (year 1)
+ *   ...cycles through all 12 signs in natural zodiac order
  */
 
 import { ZODIAC_SIGNS } from '@/components/biwheel/utils/constants';
 import type { NatalChart } from '@/components/biwheel/types';
+
+export type ProfectionMethod = 'traditional' | 'modern';
 
 // Modern rulers (Pluto rules Scorpio, Uranus rules Aquarius, Neptune rules Pisces)
 export const TRADITIONAL_RULERS: Record<string, { ruler: string; rulerName: string; rulerSymbol: string }> = {
@@ -112,22 +121,71 @@ function generateMonths(yearStart: Date, yearEnd: Date, startSignIndex: number, 
 }
 
 /**
- * Calculate Alchemystic Profection Cycle
+ * Traditional Profections (Hellenistic/Medieval)
+ * Birthday-to-birthday years, starting from the Ascendant sign
+ * Age 0 = 1st house (ASC sign), Age 1 = 2nd house, etc.
+ */
+function calculateTraditionalProfections(
+  birth: Date,
+  chart: NatalChart,
+  now: Date
+): { currentAge: number; years: ProfectionYear[]; currentYear: ProfectionYear } {
+  // Get Ascendant sign index
+  const ascLong = chart.planets?.ascendant?.longitude
+    ?? (chart as any).angles?.ascendant
+    ?? 0;
+  const ascSignIdx = Math.floor(ascLong / 30) % 12;
+
+  // Chronological age
+  const ageMs = now.getTime() - birth.getTime();
+  const currentAge = Math.floor(ageMs / (365.25 * 24 * 60 * 60 * 1000));
+
+  const maxAge = Math.max(currentAge + 10, 96);
+  const years: ProfectionYear[] = [];
+
+  for (let age = 0; age <= maxAge; age++) {
+    // Birthday to birthday boundaries
+    const yearStart = new Date(birth);
+    yearStart.setFullYear(birth.getFullYear() + age);
+    const yearEnd = new Date(birth);
+    yearEnd.setFullYear(birth.getFullYear() + age + 1);
+
+    // Profected sign = ASC sign + age steps
+    const signIndex = (ascSignIdx + age) % 12;
+    const house = (age % 12) + 1;
+    const sign = ZODIAC_SIGNS[signIndex];
+    const timeLord = TRADITIONAL_RULERS[sign.name] || TRADITIONAL_RULERS.Aries;
+    const isCurrent = now >= yearStart && now < yearEnd;
+
+    years.push({
+      age,
+      house,
+      sign: sign.name,
+      signSymbol: sign.symbol,
+      element: sign.element,
+      timeLord,
+      topics: HOUSE_TOPICS[house],
+      isCurrent,
+      startDate: yearStart,
+      endDate: yearEnd,
+      months: generateMonths(yearStart, yearEnd, signIndex, now),
+    });
+  }
+
+  const currentYear = years.find(y => y.isCurrent) || years[0];
+  return { currentAge, years, currentYear };
+}
+
+/**
+ * Modern Profection Cycle (equinox-based)
  * Years measured from vernal equinox to vernal equinox
  * Signs fixed to natural zodiac order (not natal chart cusps)
  */
-export function calculateProfections(
-  birthDate: string | Date,
+function calculateModernProfections(
+  birth: Date,
   chart: NatalChart,
-  referenceDate: Date = new Date()
-): {
-  currentAge: number;
-  years: ProfectionYear[];
-  currentYear: ProfectionYear;
-} {
-  const birth = typeof birthDate === 'string' ? new Date(birthDate) : birthDate;
-  const now = referenceDate;
-
+  now: Date
+): { currentAge: number; years: ProfectionYear[]; currentYear: ProfectionYear } {
   // Chronological age
   const ageMs = now.getTime() - birth.getTime();
   const currentAge = Math.floor(ageMs / (365.25 * 24 * 60 * 60 * 1000));
@@ -198,6 +256,28 @@ export function calculateProfections(
   }
 
   const currentYear = years.find(y => y.isCurrent) || years[0];
-
   return { currentAge, years, currentYear };
+}
+
+/**
+ * Calculate profections using the specified method
+ * @param method - 'traditional' (ASC-based, birthday-to-birthday) or 'modern' (equinox-based, natural zodiac)
+ */
+export function calculateProfections(
+  birthDate: string | Date,
+  chart: NatalChart,
+  referenceDate: Date = new Date(),
+  method: ProfectionMethod = 'traditional'
+): {
+  currentAge: number;
+  years: ProfectionYear[];
+  currentYear: ProfectionYear;
+} {
+  const birth = typeof birthDate === 'string' ? new Date(birthDate) : birthDate;
+  const now = referenceDate;
+
+  if (method === 'modern') {
+    return calculateModernProfections(birth, chart, now);
+  }
+  return calculateTraditionalProfections(birth, chart, now);
 }

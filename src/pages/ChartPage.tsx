@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useSearchParams, Link } from 'react-router-dom';
-import { Loader2, MapPin, Plus, X, Pencil, LogIn, User, Users, Calendar, Clock, Search, Sparkles, Grid3X3, RotateCcw, Gauge, Table2, TrendingUp, CalendarClock, ArrowUpDown, StickyNote, Keyboard, Settings, FolderOpen, Radio, AlertTriangle, Link2, Crown, ArrowLeft, Sun, Moon, Star } from 'lucide-react';
+import { Loader2, MapPin, Plus, X, Pencil, LogIn, User, Users, Calendar, Clock, Search, Sparkles, Grid3X3, RotateCcw, Gauge, Table2, TrendingUp, CalendarClock, ArrowUpDown, StickyNote, Keyboard, Settings, FolderOpen, Radio, AlertTriangle, Link2, Crown, ArrowLeft, Sun, Moon, Star, Wrench } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { addClient } from '@/lib/clients';
 import { SaveChartButton } from '@/components/charts/SaveChartButton';
@@ -13,6 +13,7 @@ import { TimeInput } from '@/components/ui/TimeInput';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BiWheelMobileWrapper } from '@/components/biwheel';
 import { swissEphemeris } from '@/api/swissEphemeris';
+import { calculateDavisonMidpoint } from '@/lib/davison';
 import { getThemeCSSVariables, isThemeDark } from '@/lib/chartThemeCSS';
 import { applyTheme } from '@/components/biwheel/utils/constants';
 import type { ThemeName } from '@/components/biwheel/utils/themes';
@@ -20,6 +21,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
+import { PaidFeatureGate } from '@/components/subscription/PaidFeatureGate';
 import { ChartSpotlight } from '@/components/charts/ChartSpotlight';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
 import { supabase } from '@/lib/supabase';
@@ -57,6 +59,12 @@ const AIReading = React.lazy(() => import('@/components/astro-tools/AIReading').
 const DignityTable = React.lazy(() => import('@/components/astro-tools/DignityTable').then(m => ({ default: m.DignityTable })));
 const FixedStarsPanel = React.lazy(() => import('@/components/astro-tools/FixedStarsPanel').then(m => ({ default: m.FixedStarsPanel })));
 const TimeFinder = React.lazy(() => import('@/components/astro-tools/TimeFinder').then(m => ({ default: m.TimeFinder })));
+const VoidOfCoursePanel = React.lazy(() => import('@/components/astro-tools/VoidOfCoursePanel'));
+const PlanetReturnPanel = React.lazy(() => import('@/components/astro-tools/PlanetReturnPanel'));
+
+// Toolbox — lazy-loaded
+const ToolboxMenu = React.lazy(() => import('@/components/toolbox/ToolboxMenu').then(m => ({ default: m.ToolboxMenu })));
+const ToolboxWrapper = React.lazy(() => import('@/components/toolbox/ToolboxWrapper').then(m => ({ default: m.ToolboxWrapper })));
 
 const ZODIAC_SIGNS = [
   'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
@@ -774,6 +782,10 @@ export default function ChartPage() {
   } | null>(null);
 
   const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || sessionRestore?.activeTab || 'aspect-grid');
+  const [activeToolId, setActiveToolId] = useState<string | null>(null);
+  const [recentTools, setRecentTools] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('astrologer_recent_tools') || '[]'); } catch { return []; }
+  });
   const tabsListRef = useRef<HTMLDivElement>(null);
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
@@ -1397,6 +1409,42 @@ export default function ChartPage() {
     return { planets: compositePlanets, houses: compositeHouses, aspects: [], ascendantSign: ascSign };
   }, [personAData, personBData]);
 
+  const handleFetchDavison = useCallback(async (): Promise<any> => {
+    if (!personAData.date || personAData.lat === null || personAData.lng === null) throw new Error('Person A birth info not available');
+    if (!personBData?.date || personBData.lat === null || personBData.lng === null) throw new Error('Person B birth info not available');
+    const midpoint = calculateDavisonMidpoint(
+      { date: personAData.date, time: personAData.time || '12:00', lat: personAData.lat, lng: personAData.lng },
+      { date: personBData.date, time: personBData.time || '12:00', lat: personBData.lat, lng: personBData.lng }
+    );
+    const data = await swissEphemeris.natal({
+      birth_date: midpoint.date,
+      birth_time: midpoint.time,
+      lat: midpoint.lat,
+      lng: midpoint.lng,
+    });
+    // Convert API response to NatalChart format
+    const planets: Record<string, any> = {};
+    for (const p of (data.planets || [])) {
+      const k = (p.name || p.planet || '').toLowerCase();
+      if (k) {
+        planets[k] = {
+          longitude: p.longitude ?? p.abs_pos ?? 0,
+          sign: p.sign || '',
+          degree: p.degree ?? Math.floor((p.longitude ?? 0) % 30),
+          minute: p.minute ?? Math.floor(((p.longitude ?? 0) % 1) * 60),
+          retrograde: p.retrograde ?? false,
+          house: p.house,
+        };
+      }
+    }
+    return {
+      planets,
+      angles: data.angles || { ascendant: data.houses?.ascendant ?? 0, midheaven: data.houses?.mc ?? 0 },
+      houses: data.houses,
+      _davison: { midpoint },
+    };
+  }, [personAData, personBData]);
+
   const handleFetchProgressed = useCallback(async (
     person: 'A' | 'B', progressedTo: string, asteroids?: AsteroidsParam
   ): Promise<ProgressedData> => {
@@ -1405,7 +1453,7 @@ export default function ChartPage() {
     const body: Record<string, unknown> = { birth_date: src.date, birth_time: src.time || '12:00', lat: src.lat, lng: src.lng, progressed_to: progressedTo };
     if (asteroids) body.asteroids = asteroids;
     const data = await swissEphemeris.progressed(body);
-    return { natal_date: data.natal_date || '', progressed_to: data.progressed_to || progressedTo, progressed_chart_date: data.progressed_chart_date || '', years_progressed: data.years_progressed || 0, progressed_planets: data.progressed_planets || [], houses: data.houses, aspects_to_natal: data.aspects_to_natal || [], ascendantSign: data.ascendantSign || '' };
+    return { natal_date: data.natal_date || '', progressed_to: data.progressed_to || progressedTo, progressed_chart_date: data.progressed_chart_date || '', years_progressed: data.years_progressed || 0, progressed_planets: data.progressed_planets || data.planets || [], houses: data.houses, aspects_to_natal: data.aspects_to_natal || [], ascendantSign: data.ascendantSign || '' };
   }, [personAData, personBData]);
 
   const handleFetchRelocated = useCallback(async (
@@ -1749,7 +1797,26 @@ export default function ChartPage() {
               <InlineBirthForm data={personAData} onChange={setPersonAData} label="Person A" savedPersons={savedPersons} />
 
               {personBData ? (
-                <InlineBirthForm data={personBData} onChange={setPersonBData} label="Person B" onRemove={() => { setPersonBData(null); setChartB(null); }} savedPersons={savedPersons} />
+                <>
+                  <div className="flex justify-center -my-1">
+                    <button
+                      onClick={() => {
+                        const tmpA = personAData;
+                        const tmpChartA = chartA;
+                        setPersonAData(personBData);
+                        setPersonBData(tmpA);
+                        setChartA(chartB);
+                        setChartB(tmpChartA);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-border/40 hover:border-border transition-all duration-200"
+                      title="Swap Person A & B"
+                    >
+                      <ArrowUpDown className="w-3 h-3" />
+                      Swap
+                    </button>
+                  </div>
+                  <InlineBirthForm data={personBData} onChange={setPersonBData} label="Person B" onRemove={() => { setPersonBData(null); setChartB(null); }} savedPersons={savedPersons} />
+                </>
               ) : (
                 <button
                   onClick={() => setPersonBData(emptyBirth())}
@@ -1869,7 +1936,9 @@ export default function ChartPage() {
                     nameB={hasSynastry ? (personB!.name || 'Person B') : (personA.name || 'Person A')}
                     initialChartMode={sharedChartOptionsRef.current?.mode || initialMode as any}
                     enableTransits={true}
-                    enableComposite={hasSynastry}
+                    enableDavison={hasSynastry}
+                    enableDavison={hasSynastry}
+                  enableComposite={hasSynastry}
                     enableProgressed={true}
                     enableRelocated={true}
                     enableBirthTimeShift={true}
@@ -1877,6 +1946,8 @@ export default function ChartPage() {
                     onFetchSolarReturn={handleFetchSolarReturn}
                     onFetchLunarReturn={handleFetchLunarReturn}
                     onFetchComposite={hasSynastry ? handleFetchComposite : undefined}
+                  onFetchDavison={hasSynastry ? handleFetchDavison : undefined}
+                    onFetchDavison={hasSynastry ? handleFetchDavison : undefined}
                     onFetchProgressed={handleFetchProgressed}
                     onFetchRelocated={handleFetchRelocated}
                     onFetchShiftedNatal={handleFetchShiftedNatal}
@@ -1945,12 +2016,14 @@ export default function ChartPage() {
                   nameB={hasSynastry ? (personB!.name || 'Person B') : (personA.name || 'Person A')}
                   initialChartMode={sharedChartOptionsRef.current?.mode || initialMode as any}
                   enableTransits={true}
+                  enableDavison={hasSynastry}
                   enableComposite={hasSynastry}
                   enableProgressed={true}
                   enableRelocated={true}
                   enableBirthTimeShift={true}
                   onFetchTransits={handleFetchTransits}
                   onFetchComposite={hasSynastry ? handleFetchComposite : undefined}
+                  onFetchDavison={hasSynastry ? handleFetchDavison : undefined}
                   onFetchProgressed={handleFetchProgressed}
                   onFetchRelocated={handleFetchRelocated}
                   onFetchShiftedNatal={handleFetchShiftedNatal}
@@ -2135,12 +2208,14 @@ export default function ChartPage() {
                   nameB={hasSynastry ? (personB!.name || 'Person B') : (personA.name || 'Person A')}
                   initialChartMode={sharedChartOptionsRef.current?.mode || initialMode as any}
                   enableTransits={true}
+                  enableDavison={hasSynastry}
                   enableComposite={hasSynastry}
                   enableProgressed={true}
                   enableRelocated={true}
                   enableBirthTimeShift={true}
                   onFetchTransits={handleFetchTransits}
                   onFetchComposite={hasSynastry ? handleFetchComposite : undefined}
+                  onFetchDavison={hasSynastry ? handleFetchDavison : undefined}
                   onFetchProgressed={handleFetchProgressed}
                   onFetchRelocated={handleFetchRelocated}
                   onFetchShiftedNatal={handleFetchShiftedNatal}
@@ -2208,6 +2283,8 @@ export default function ChartPage() {
                 { group: 'Tools', tabs: [
                   { value: 'ai-reading', icon: Sparkles, label: 'AI Reading' },
                   { value: 'time-finder', icon: Search, label: 'Time Finder' },
+                  { value: 'voc-moon', icon: Moon, label: 'VOC Moon' },
+                  { value: 'planet-returns', icon: RotateCcw, label: 'Returns' },
                   { value: 'notes', icon: StickyNote, label: 'Notes' },
                 ]},
               ].map(group => (
@@ -2216,11 +2293,12 @@ export default function ChartPage() {
                   <div className="flex items-end gap-0.5">
                   {group.tabs.map(tab => {
                     const Icon = tab.icon;
-                    const isActive = activeTab === tab.value;
+                    const isActive = activeTab === tab.value && !activeToolId;
                     return (
                       <TabsTrigger
                         key={tab.value}
                         value={tab.value}
+                        onClick={() => setActiveToolId(null)}
                         className={`text-xs whitespace-nowrap gap-1.5 rounded-lg px-3 py-2 bg-transparent shadow-none transition-all duration-150 border ${
                           isActive
                             ? 'text-foreground bg-foreground/10 border-foreground/20 font-medium'
@@ -2235,9 +2313,78 @@ export default function ChartPage() {
                   </div>
                 </div>
               ))}
+              {/* Toolbox launcher */}
+              <div className="flex flex-col items-center gap-0.5">
+                <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/40 select-none">Advanced</span>
+                <div className="flex items-end gap-0.5">
+                  <button
+                    onClick={() => setActiveToolId(activeToolId ? null : 'menu')}
+                    className={`text-xs whitespace-nowrap gap-1.5 rounded-lg px-3 py-2 transition-all duration-150 border flex items-center ${
+                      activeToolId
+                        ? 'text-foreground bg-foreground/10 border-foreground/20 font-medium'
+                        : 'text-muted-foreground/60 border-transparent hover:text-foreground hover:bg-muted/40'
+                    }`}
+                  >
+                    <Wrench className="w-3.5 h-3.5" />
+                    Toolbox
+                  </button>
+                </div>
+              </div>
               </TabsList>
             </div>
 
+            {/* Toolbox overlay — replaces tab content when a tool is active */}
+            {activeToolId && (
+              <ErrorBoundary fallbackMessage="This toolbox panel encountered an error">
+              <React.Suspense fallback={
+                <div className="mt-4 min-h-[400px] flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              }>
+                {activeToolId === 'menu' ? (
+                  <div className="mt-4">
+                    <ToolboxMenu
+                      onSelectTool={(toolId) => {
+                        setActiveToolId(toolId);
+                        setRecentTools(prev => {
+                          const next = [toolId, ...prev.filter(t => t !== toolId)].slice(0, 5);
+                          localStorage.setItem('astrologer_recent_tools', JSON.stringify(next));
+                          return next;
+                        });
+                      }}
+                      onClose={() => setActiveToolId(null)}
+                      hasBirthDate={!!personAData.date}
+                      recentTools={recentTools}
+                    />
+                  </div>
+                ) : (
+                  <ToolboxWrapper
+                    toolId={activeToolId}
+                    onBack={() => setActiveToolId('menu')}
+                    personA={{
+                      natalChart: personA.natalChart,
+                      name: personA.name || 'Person A',
+                      date: personA.date,
+                      time: personA.time,
+                      lat: personA.lat ?? 33.89,
+                      lng: personA.lng ?? 35.50,
+                    }}
+                    personB={hasSynastry && personB ? {
+                      natalChart: personB.natalChart,
+                      name: personB.name || 'Person B',
+                      date: personB.date,
+                      time: personB.time,
+                      lat: personB.lat ?? 33.89,
+                      lng: personB.lng ?? 35.50,
+                    } : undefined}
+                  />
+                )}
+              </React.Suspense>
+              </ErrorBoundary>
+            )}
+
+            {/* Normal tab content — hidden when toolbox is active */}
+            {!activeToolId && (
             <ErrorBoundary fallbackMessage="This tool tab encountered an error">
             <React.Suspense fallback={
               <div className="mt-4 min-h-[400px] flex items-center justify-center">
@@ -2282,18 +2429,30 @@ export default function ChartPage() {
               />
             </TabsContent>
             <TabsContent value="time-finder" className="mt-4 min-h-[400px]">
-              <TimeFinder
-                onUseTime={(data) => {
-                  setPersonAData(prev => ({
-                    ...prev,
-                    date: data.date,
-                    time: data.time,
-                    location: data.location,
-                    lat: data.lat,
-                    lng: data.lng,
-                  }));
-                  setEditing(true);
-                }}
+              <PaidFeatureGate featureName="Time Finder" requiredTier="astrologer">
+                <TimeFinder
+                  onUseTime={(data) => {
+                    setPersonAData(prev => ({
+                      ...prev,
+                      date: data.date,
+                      time: data.time,
+                      location: data.location,
+                      lat: data.lat,
+                      lng: data.lng,
+                    }));
+                    setEditing(true);
+                  }}
+                />
+              </PaidFeatureGate>
+            </TabsContent>
+            <TabsContent value="voc-moon" className="mt-4 min-h-[400px]">
+              <VoidOfCoursePanel />
+            </TabsContent>
+            <TabsContent value="planet-returns" className="mt-4 min-h-[400px]">
+              <PlanetReturnPanel
+                natalChart={personA.natalChart}
+                personName={personA.name || 'Person A'}
+                birthInfo={personAData.lat ? { date: personAData.date, time: personAData.time || '12:00', lat: personAData.lat, lng: personAData.lng! } : undefined}
               />
             </TabsContent>
             <TabsContent value="notes" className="mt-4 min-h-[400px]">
@@ -2312,6 +2471,7 @@ export default function ChartPage() {
             </TabsContent>
             </React.Suspense>
             </ErrorBoundary>
+            )}
           </Tabs>
         </div>
         )
@@ -2325,20 +2485,22 @@ export default function ChartPage() {
                 </Button>
               </div>
               <React.Suspense fallback={<div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
-                <TimeFinder
-                  onUseTime={(data) => {
-                    setPersonAData(prev => ({
-                      ...prev,
-                      date: data.date,
-                      time: data.time,
-                      location: data.location,
-                      lat: data.lat,
-                      lng: data.lng,
-                    }));
-                    setEditing(true);
-                    setShowTimeFinder(false);
-                  }}
-                />
+                <PaidFeatureGate featureName="Time Finder" requiredTier="astrologer">
+                  <TimeFinder
+                    onUseTime={(data) => {
+                      setPersonAData(prev => ({
+                        ...prev,
+                        date: data.date,
+                        time: data.time,
+                        location: data.location,
+                        lat: data.lat,
+                        lng: data.lng,
+                      }));
+                      setEditing(true);
+                      setShowTimeFinder(false);
+                    }}
+                  />
+                </PaidFeatureGate>
               </React.Suspense>
             </div>
           ) : (

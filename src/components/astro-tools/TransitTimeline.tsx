@@ -8,13 +8,14 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, List, CalendarDays, Zap, Tag, ChevronDown, ChevronRight, Search, X } from 'lucide-react';
+import { Loader2, List, CalendarDays, Zap, Tag, ChevronDown, ChevronRight, Search, X, Download } from 'lucide-react';
 import { swissEphemeris } from '@/api/swissEphemeris';
 import { PLANETS, ASPECTS } from '@/components/biwheel/utils/constants';
 import type { NatalChart } from '@/components/biwheel/types';
 import { detectTransitEvents } from '@/lib/transitTimeline';
 import type { TransitEvent } from '@/lib/transitTimeline';
 import { LIFE_THEMES } from '@/lib/astroThemes';
+import { downloadTransitICS } from '@/lib/icalExport';
 
 interface TransitTimelineProps {
   natalChart: NatalChart;
@@ -509,6 +510,21 @@ export function TransitTimeline({ natalChart, personName }: TransitTimelineProps
           <Search className="w-3 h-3" />
           Search
         </button>
+
+        {/* iCal export */}
+        {events.length > 0 && (
+          <>
+            <div className="w-px h-6 bg-border" />
+            <button
+              onClick={() => downloadTransitICS(events, personName)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-background border hover:bg-muted/60 transition-all"
+              title="Export to Calendar (.ics)"
+            >
+              <Download className="w-3 h-3" />
+              iCal
+            </button>
+          </>
+        )}
 
         {loading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
       </div>

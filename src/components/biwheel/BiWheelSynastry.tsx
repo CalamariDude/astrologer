@@ -40,6 +40,7 @@ const PlanetTooltip = React.lazy(() => import('./tooltips/PlanetTooltip').then(m
 const AspectTooltip = React.lazy(() => import('./tooltips/AspectTooltip').then(m => ({ default: m.AspectTooltip })));
 const SignTooltip = React.lazy(() => import('./tooltips/SignTooltip').then(m => ({ default: m.SignTooltip })));
 const HouseTooltip = React.lazy(() => import('./tooltips/HouseTooltip').then(m => ({ default: m.HouseTooltip })));
+const PlanetDetailDialog = React.lazy(() => import('./tooltips/PlanetDetailDialog').then(m => ({ default: m.PlanetDetailDialog })));
 // TogglePanel — lazy-loaded (desktop sidebar, not used on mobile)
 const TogglePanel = React.lazy(() => import('./controls/TogglePanel').then(m => ({ default: m.TogglePanel })));
 import { TransitJogWheel } from './controls/TransitJogWheel';
@@ -356,6 +357,10 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   // Composite props
   enableComposite = false,
   onFetchComposite,
+  // Davison props
+  enableDavison = false,
+  onFetchDavison,
+  davisonLabel,
   // Progressed props
   enableProgressed = false,
   onFetchProgressed,
@@ -427,8 +432,10 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   onHouseSystemChange,
   // Custom orbs
   customAspectOrbs,
+  customSeparatingAspectOrbs,
   customPlanetOrbs,
   onCustomAspectOrbChange,
+  onCustomSeparatingAspectOrbChange,
   onCustomPlanetOrbChange,
   onResetOrbs,
   // Harmonic charts
@@ -485,6 +492,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     selectedSign: null,
     tooltipPosition: null,
     pinnedTooltipOpen: false,
+    expandedPlanetOpen: false,
     // Transit/Composite state
     showTransits: initialShowTransits,
     transitDate: initialTransitDate || today,
@@ -494,6 +502,9 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     chartMode: initialChartMode,
     compositeData: null,
     compositeLoading: false,
+    // Davison state
+    davisonData: null,
+    davisonLoading: false,
     // Progressed state
     showProgressed: !!initialProgressedPerson,
     progressedDate: initialProgressedDate || today,
@@ -1168,6 +1179,25 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
     fetchData();
   }, [state.chartMode, chartA, chartB, onFetchComposite, computedAsteroids]);
+
+  // Fetch Davison chart when chartMode is 'davison'
+  useEffect(() => {
+    if (state.chartMode !== 'davison' || !onFetchDavison) return;
+    if (state.davisonData) return; // Already fetched
+
+    const fetchData = async () => {
+      setState(prev => ({ ...prev, davisonLoading: true }));
+      try {
+        const data = await onFetchDavison();
+        setState(prev => ({ ...prev, davisonData: data, davisonLoading: false }));
+      } catch (error) {
+        console.error('Failed to fetch Davison chart:', error);
+        setState(prev => ({ ...prev, davisonLoading: false }));
+      }
+    };
+
+    fetchData();
+  }, [state.chartMode, onFetchDavison, state.davisonData]);
 
   // Fetch progressed chart when progressedPerson is set or progressedDate changes
   useEffect(() => {
@@ -1983,10 +2013,12 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         return displayChartB;
       case 'composite':
         return compositeNatalChart || displayChartA;
+      case 'davison':
+        return state.davisonData || displayChartA;
       default:
         return displayChartA;
     }
-  }, [state.chartMode, displayChartA, displayChartB, compositeNatalChart]);
+  }, [state.chartMode, displayChartA, displayChartB, compositeNatalChart, state.davisonData]);
 
   const houseOverlayChartB = useMemo((): NatalChart => {
     switch (state.chartMode) {
@@ -1996,10 +2028,12 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         return displayChartB;
       case 'composite':
         return compositeNatalChart || displayChartB;
+      case 'davison':
+        return state.davisonData || displayChartB;
       default:
         return displayChartB;
     }
-  }, [state.chartMode, displayChartA, displayChartB, compositeNatalChart]);
+  }, [state.chartMode, displayChartA, displayChartB, compositeNatalChart, state.davisonData]);
 
   // Build effective planet records from effective charts (includes birth-time shift, relocated, progressed)
   // These are used for aspect calculation so aspects update when the chart shifts
@@ -2029,27 +2063,48 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     return merged;
   }, [effectiveChartB]);
 
+  // Build orb overrides from custom settings
+  const orbOverrides = useMemo(() => {
+    const overrides: import('./utils/aspectCalculations').OrbOverrides = {};
+    if (customAspectOrbs && Object.keys(customAspectOrbs).length > 0) overrides.aspectOrbs = customAspectOrbs;
+    if (customSeparatingAspectOrbs && Object.keys(customSeparatingAspectOrbs).length > 0) overrides.separatingAspectOrbs = customSeparatingAspectOrbs;
+    if (customPlanetOrbs && Object.keys(customPlanetOrbs).length > 0) overrides.planetOrbs = customPlanetOrbs;
+    return Object.keys(overrides).length > 0 ? overrides : undefined;
+  }, [customAspectOrbs, customSeparatingAspectOrbs, customPlanetOrbs]);
+
   // Calculate aspects based on chart mode
   // Uses effective planets so aspects update with birth-time shift, relocated, progressed overlays
   // When swapped in synastry mode, swap inputs so aspect.planetA refers to the outer ring person
   const aspects = useMemo(() => {
     switch (state.chartMode) {
       case 'personA':
-        return calculateNatalAspects(effectivePlanetsA, state.visiblePlanets);
+        return calculateNatalAspects(effectivePlanetsA, state.visiblePlanets, undefined, orbOverrides);
       case 'personB':
-        return calculateNatalAspects(effectivePlanetsB, state.visiblePlanets);
+        return calculateNatalAspects(effectivePlanetsB, state.visiblePlanets, undefined, orbOverrides);
       case 'composite':
         return state.compositeData
-          ? calculateNatalAspects(compositeWithAngles, state.visiblePlanets)
+          ? calculateNatalAspects(compositeWithAngles, state.visiblePlanets, undefined, orbOverrides)
           : [];
+      case 'davison':
+        if (state.davisonData) {
+          const davisonPlanets: Record<string, { longitude: number; sign?: string; retrograde?: boolean }> = { ...state.davisonData.planets };
+          if (state.davisonData.angles) {
+            if (state.davisonData.angles.ascendant !== undefined)
+              davisonPlanets.ascendant = { longitude: state.davisonData.angles.ascendant, sign: '', retrograde: false };
+            if (state.davisonData.angles.midheaven !== undefined)
+              davisonPlanets.midheaven = { longitude: state.davisonData.angles.midheaven, sign: '', retrograde: false };
+          }
+          return calculateNatalAspects(davisonPlanets, state.visiblePlanets, undefined, orbOverrides);
+        }
+        return [];
       case 'synastry':
       default: {
         const outerPlanets = swapped ? effectivePlanetsB : effectivePlanetsA;
         const innerPlanets = swapped ? effectivePlanetsA : effectivePlanetsB;
-        return calculateSynastryAspects(outerPlanets, innerPlanets, state.visiblePlanets);
+        return calculateSynastryAspects(outerPlanets, innerPlanets, state.visiblePlanets, undefined, orbOverrides);
       }
     }
-  }, [state.chartMode, effectivePlanetsA, effectivePlanetsB, compositeWithAngles, state.visiblePlanets, state.compositeData, swapped]);
+  }, [state.chartMode, effectivePlanetsA, effectivePlanetsB, compositeWithAngles, state.visiblePlanets, state.compositeData, swapped, orbOverrides]);
 
   // Calculate planet positions for both charts (for aspect line positioning)
   // Use displayChart (swap-aware) so aspect lines match the rendered planet positions
@@ -2103,6 +2158,19 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           }
         }
         break;
+      case 'davison':
+        if (state.davisonData) {
+          for (const [key, value] of Object.entries(state.davisonData.planets)) {
+            if (value && 'longitude' in value) {
+              map.set(key, (value as any).longitude);
+            }
+          }
+          if (state.davisonData.angles) {
+            map.set('ascendant', state.davisonData.angles.ascendant);
+            map.set('midheaven', state.davisonData.angles.midheaven);
+          }
+        }
+        break;
     }
     return map;
   }, [state.chartMode, placedPlanetsA, placedPlanetsB, compositeWithAngles]);
@@ -2130,10 +2198,10 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   const transitAspects = useMemo(() => {
     if (!outerRingPlanets) return [];
 
-    // Build outer ring planets object for aspect calculation
-    const transitPlanets: Record<string, { longitude: number }> = {};
+    // Build outer ring planets object for aspect calculation (include speed for applying/separating)
+    const transitPlanets: Record<string, { longitude: number; speed?: number }> = {};
     for (const tp of outerRingPlanets) {
-      transitPlanets[tp.planet] = { longitude: tp.longitude };
+      transitPlanets[tp.planet] = { longitude: tp.longitude, speed: (tp as any).speed };
     }
 
     const allAspects: Array<SynastryAspect & { natalChart: 'A' | 'B' | 'Composite' }> = [];
@@ -2144,9 +2212,21 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       const compositeAspects = calculateSynastryAspects(
         transitPlanets,
         compositeWithAngles,
-        state.visiblePlanets
+        state.visiblePlanets,
+        undefined,
+        orbOverrides
       );
       for (const asp of compositeAspects) {
+        allAspects.push({ ...asp, natalChart: 'Composite' });
+      }
+    } else if (state.chartMode === 'davison' && state.davisonData) {
+      const davisonPlanets: Record<string, { longitude: number }> = { ...state.davisonData.planets as any };
+      if (state.davisonData.angles) {
+        davisonPlanets.ascendant = { longitude: state.davisonData.angles.ascendant };
+        davisonPlanets.midheaven = { longitude: state.davisonData.angles.midheaven };
+      }
+      const davisonAspects = calculateSynastryAspects(transitPlanets, davisonPlanets, state.visiblePlanets, undefined, orbOverrides);
+      for (const asp of davisonAspects) {
         allAspects.push({ ...asp, natalChart: 'Composite' });
       }
     } else if (state.chartMode === 'personA') {
@@ -2154,7 +2234,9 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       const aspectsToA = calculateSynastryAspects(
         transitPlanets,
         planetsWithAnglesA,
-        state.visiblePlanets
+        state.visiblePlanets,
+        undefined,
+        orbOverrides
       );
       for (const asp of aspectsToA) {
         allAspects.push({ ...asp, natalChart: 'A' });
@@ -2164,7 +2246,9 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       const aspectsToB = calculateSynastryAspects(
         transitPlanets,
         planetsWithAnglesB,
-        state.visiblePlanets
+        state.visiblePlanets,
+        undefined,
+        orbOverrides
       );
       for (const asp of aspectsToB) {
         allAspects.push({ ...asp, natalChart: 'B' });
@@ -2174,7 +2258,9 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       const aspectsToA = calculateSynastryAspects(
         transitPlanets,
         planetsWithAnglesA,
-        state.visiblePlanets
+        state.visiblePlanets,
+        undefined,
+        orbOverrides
       );
       for (const asp of aspectsToA) {
         allAspects.push({ ...asp, natalChart: 'A' });
@@ -2183,7 +2269,9 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       const aspectsToB = calculateSynastryAspects(
         transitPlanets,
         planetsWithAnglesB,
-        state.visiblePlanets
+        state.visiblePlanets,
+        undefined,
+        orbOverrides
       );
       for (const asp of aspectsToB) {
         allAspects.push({ ...asp, natalChart: 'B' });
@@ -2200,6 +2288,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     planetsWithAnglesA,
     planetsWithAnglesB,
     compositeWithAngles,
+    orbOverrides,
   ]);
 
   // Actions
@@ -2257,7 +2346,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
   const handlePlanetHover = useCallback(
     (planet: { planet: string; chart: 'A' | 'B' | 'Transit' | 'Composite' } | null, event?: React.MouseEvent) => {
-      // Position tooltip at cursor
+      // Use cursor position for tooltip placement (much closer to what the user is looking at)
       let pos: { x: number; y: number } | null = null;
       if (event) {
         pos = { x: event.clientX, y: event.clientY };
@@ -2325,17 +2414,36 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
   const handlePlanetClick = useCallback(
     (planet: string, chart: 'A' | 'B' | 'Transit' | 'Composite', event?: React.MouseEvent) => {
-      // Single click: highlight only (dim non-relevant planets/aspects), no tooltip
-      setState((prev) => ({
-        ...prev,
-        selectedPlanet: prev.selectedPlanet?.planet === planet && prev.selectedPlanet?.chart === chart
-          ? null
-          : { planet, chart },
-        hoveredPlanet: null,
-        selectedAspect: null,
-        selectedSign: null,
-        pinnedTooltipOpen: false,
-      }));
+      // Single click: toggle selection AND open pinned tooltip
+      let pos: { x: number; y: number } | undefined;
+      if (event) {
+        pos = { x: event.clientX, y: event.clientY };
+      }
+      setState((prev) => {
+        const isSame = prev.selectedPlanet?.planet === planet && prev.selectedPlanet?.chart === chart;
+        if (isSame) {
+          // Clicking same planet again: deselect and close tooltip
+          return {
+            ...prev,
+            selectedPlanet: null,
+            hoveredPlanet: null,
+            selectedAspect: null,
+            selectedSign: null,
+            pinnedTooltipOpen: false,
+            expandedPlanetOpen: false,
+          };
+        }
+        // Clicking a planet: select, highlight, AND open tooltip
+        return {
+          ...prev,
+          selectedPlanet: { planet, chart },
+          hoveredPlanet: null,
+          selectedAspect: null,
+          selectedSign: null,
+          tooltipPosition: pos ?? prev.tooltipPosition,
+          pinnedTooltipOpen: true,
+        };
+      });
       onPlanetClick?.(planet, chart);
     },
     [onPlanetClick]
@@ -2343,22 +2451,10 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
   const handlePlanetDoubleClick = useCallback(
     (planet: string, chart: 'A' | 'B' | 'Transit' | 'Composite', event?: React.MouseEvent) => {
-      // Double click: open pinned tooltip
-      let pos: { x: number; y: number } | undefined;
-      if (event) {
-        pos = { x: event.clientX, y: event.clientY };
-      }
-      setState((prev) => ({
-        ...prev,
-        selectedPlanet: { planet, chart },
-        hoveredPlanet: null,
-        selectedAspect: null,
-        selectedSign: null,
-        tooltipPosition: pos ?? prev.tooltipPosition,
-        pinnedTooltipOpen: true,
-      }));
+      // Double click: same as single click (kept for backward compat)
+      handlePlanetClick(planet, chart, event);
     },
-    []
+    [handlePlanetClick]
   );
 
   const handleSignClick = useCallback(
@@ -2372,6 +2468,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         selectedAspect: null, // Clear other selections
         selectedPlanet: null,
         pinnedTooltipOpen: false,
+        expandedPlanetOpen: false,
         tooltipPosition: event ? { x: event.clientX, y: event.clientY } : prev.tooltipPosition,
       }));
     },
@@ -2525,6 +2622,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         selectedAspect: null,
         selectedSign: null,
         pinnedTooltipOpen: false,
+        expandedPlanetOpen: false,
       }))}
     >
       {/* SVG Chart - wrapper keeps square aspect ratio, SVG scales via viewBox */}
@@ -2640,8 +2738,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           dimensions={dimensions}
           chart={houseOverlayChartA}
           chartB={houseOverlayChartB}
-          nameA={state.chartMode === 'composite' ? 'Composite' : state.chartMode === 'personB' ? displayNameB : displayNameA}
-          nameB={state.chartMode === 'composite' ? 'Composite' : state.chartMode === 'personA' ? displayNameA : displayNameB}
+          nameA={state.chartMode === 'composite' ? 'Composite' : state.chartMode === 'davison' ? 'Davison' : state.chartMode === 'personB' ? displayNameB : displayNameA}
+          nameB={state.chartMode === 'composite' ? 'Composite' : state.chartMode === 'davison' ? 'Davison' : state.chartMode === 'personA' ? displayNameA : displayNameB}
           showHouses={state.showHouses}
           showDegreeMarkers={state.showDegreeMarkers}
           onHouseHover={handleHouseHover}
@@ -2703,6 +2801,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           chartB={state.chartMode === 'synastry' || state.chartMode === 'personB' ? displayChartB : undefined}
           mode={state.chartMode}
           compositeData={state.compositeData || undefined}
+          davisonData={state.davisonData || undefined}
           visiblePlanets={state.visiblePlanets}
           showRetrogrades={state.showRetrogrades}
           showDecans={state.showDecans}
@@ -2789,6 +2888,35 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
               dominantBaseline="central"
             >
               ⏳ Loading Composite...
+            </text>
+          </g>
+        )}
+
+        {/* Davison loading indicator */}
+        {state.chartMode === 'davison' && state.davisonLoading && (
+          <g>
+            <rect
+              x={dimensions.cx - 90}
+              y={dimensions.cy - 20}
+              width={180}
+              height={40}
+              rx={8}
+              fill={COLORS.background}
+              stroke="#9333ea"
+              strokeWidth={1.5}
+              fillOpacity={0.95}
+            />
+            <text
+              x={dimensions.cx}
+              y={dimensions.cy}
+              fill="#9333ea"
+              fontSize={12}
+              fontFamily="Arial, sans-serif"
+              fontWeight="bold"
+              textAnchor="middle"
+              dominantBaseline="central"
+            >
+              Loading Davison...
             </text>
           </g>
         )}
@@ -2980,6 +3108,13 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
                   <circle cx={10} cy={10} r={6} fill={COLORS.composite} />
                   <text x={22} y={14} fill={COLORS.textSecondary} fontSize={10}>
                     {displayNameA} + {displayNameB}
+                  </text>
+                </>
+              ) : state.chartMode === 'davison' && state.davisonData ? (
+                <>
+                  <circle cx={10} cy={10} r={6} fill="#9333ea" />
+                  <text x={22} y={14} fill={COLORS.textSecondary} fontSize={10}>
+                    Davison
                   </text>
                 </>
               ) : null}
@@ -3205,12 +3340,46 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           visibleAspects={state.visibleAspects}
           position={state.tooltipPosition}
           visible={true}
-          onClose={() => setState((prev) => ({ ...prev, selectedPlanet: null, pinnedTooltipOpen: false }))}
+          onClose={() => setState((prev) => ({ ...prev, selectedPlanet: null, pinnedTooltipOpen: false, expandedPlanetOpen: false }))}
+          onExpand={() => setState((prev) => ({ ...prev, expandedPlanetOpen: true }))}
           partnerChart={isSingleWheel || state.selectedPlanet.chart === 'Transit' ? undefined : state.selectedPlanet.chart === 'A' ? displayChartB : displayChartA}
           transitDate={state.selectedPlanet.chart === 'Transit' ? state.transitDate : undefined}
           transitAspects={state.selectedPlanet.chart === 'Transit' ? transitAspects : undefined}
           nameA={displayNameA}
           nameB={displayNameB}
+        />
+      )}
+
+      {/* Planet Detail Dialog (expanded view) */}
+      {state.expandedPlanetOpen && state.selectedPlanet && selectedPlanetData && (
+        <PlanetDetailDialog
+          planet={state.selectedPlanet.planet}
+          chart={state.selectedPlanet.chart}
+          name={state.selectedPlanet.chart === 'Transit' ? 'Transit' : state.selectedPlanet.chart === 'A' ? displayNameA : displayNameB}
+          partnerName={isSingleWheel || state.selectedPlanet.chart === 'Transit' ? undefined : state.selectedPlanet.chart === 'A' ? displayNameB : displayNameA}
+          data={selectedPlanetData}
+          ownHouse={state.selectedPlanet.chart === 'Transit' ? undefined :
+            selectedPlanetData.longitude !== undefined ?
+              calculateHouseFromLongitude(
+                selectedPlanetData.longitude,
+                state.selectedPlanet.chart === 'A' ? (displayChartA.angles?.ascendant ?? 0) : (displayChartB.angles?.ascendant ?? 0),
+                houseSystem === 'whole_sign'
+              ) : undefined}
+          partnerHouse={isSingleWheel || state.selectedPlanet.chart === 'Transit' ? undefined :
+            selectedPlanetData.longitude !== undefined ?
+              calculateHouseFromLongitude(
+                selectedPlanetData.longitude,
+                state.selectedPlanet.chart === 'A' ? (displayChartB.angles?.ascendant ?? 0) : (displayChartA.angles?.ascendant ?? 0),
+                houseSystem === 'whole_sign'
+              ) : undefined}
+          aspects={state.selectedPlanet.chart === 'Transit' ? [] : aspects}
+          visibleAspects={state.visibleAspects}
+          partnerChart={isSingleWheel || state.selectedPlanet.chart === 'Transit' ? undefined : state.selectedPlanet.chart === 'A' ? displayChartB : displayChartA}
+          transitDate={state.selectedPlanet.chart === 'Transit' ? state.transitDate : undefined}
+          transitAspects={state.selectedPlanet.chart === 'Transit' ? transitAspects : undefined}
+          nameA={displayNameA}
+          nameB={displayNameB}
+          onClose={() => setState((prev) => ({ ...prev, expandedPlanetOpen: false, selectedPlanet: null, pinnedTooltipOpen: false }))}
         />
       )}
 
@@ -3372,6 +3541,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             onSetShowLunarReturn={setShowLunarReturn}
             onSetLunarReturnStartDate={setLunarReturnStartDate}
             enableComposite={enableComposite}
+            enableDavison={enableDavison}
+            davisonLoading={state.davisonLoading}
             chartMode={state.chartMode}
             compositeLoading={state.compositeLoading}
             onSetChartMode={setChartMode}
@@ -3437,8 +3608,10 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             onSetHouseSystem={onHouseSystemChange}
             // Custom orbs
             customAspectOrbs={customAspectOrbs}
+            customSeparatingAspectOrbs={customSeparatingAspectOrbs}
             customPlanetOrbs={customPlanetOrbs}
             onSetCustomAspectOrb={onCustomAspectOrbChange}
+            onSetCustomSeparatingAspectOrb={onCustomSeparatingAspectOrbChange}
             onSetCustomPlanetOrb={onCustomPlanetOrbChange}
             onResetOrbs={onResetOrbs}
             // Harmonic charts

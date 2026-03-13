@@ -312,6 +312,14 @@ export function getAspectOrb(aspectType: string, overrides?: Record<string, numb
   return def?.orb ?? 8;
 }
 
+// Get the separating orb for a specific aspect type
+// Falls back to separating overrides → applying overrides → default orb
+export function getAspectSeparatingOrb(aspectType: string, separatingOverrides?: Record<string, number>, applyingOverrides?: Record<string, number>): number {
+  if (separatingOverrides && aspectType in separatingOverrides) return separatingOverrides[aspectType];
+  const def = ASPECTS[aspectType as keyof typeof ASPECTS];
+  return def?.separatingOrb ?? getAspectOrb(aspectType, applyingOverrides);
+}
+
 // Aspect definitions (classic astrology colors)
 export const ASPECTS = {
   conjunction: {
@@ -319,6 +327,7 @@ export const ASPECTS = {
     symbol: '\u260C',
     angle: 0,
     orb: 8,
+    separatingOrb: 8,
     color: '#daa520', // gold/orange
     nature: 'neutral',
     major: true,
@@ -328,6 +337,7 @@ export const ASPECTS = {
     symbol: '\u26B9',
     angle: 60,
     orb: 5,
+    separatingOrb: 4,
     color: '#1e5aa8', // blue
     nature: 'harmonious',
     major: true,
@@ -337,6 +347,7 @@ export const ASPECTS = {
     symbol: '\u25A1',
     angle: 90,
     orb: 7,
+    separatingOrb: 5,
     color: '#c41e3a', // red
     nature: 'challenging',
     major: true,
@@ -346,6 +357,7 @@ export const ASPECTS = {
     symbol: '\u25B3',
     angle: 120,
     orb: 7,
+    separatingOrb: 5,
     color: '#00bcd4', // cyan/light blue
     nature: 'harmonious',
     major: true,
@@ -355,6 +367,7 @@ export const ASPECTS = {
     symbol: '\u260D',
     angle: 180,
     orb: 8,
+    separatingOrb: 8,
     color: '#c41e3a', // red
     nature: 'challenging',
     major: true,
@@ -364,6 +377,7 @@ export const ASPECTS = {
     symbol: '\u26BB',
     angle: 150,
     orb: 3,
+    separatingOrb: 2,
     color: '#228b22', // green
     nature: 'challenging',
     major: true,
@@ -373,6 +387,7 @@ export const ASPECTS = {
     symbol: '\u26BA',
     angle: 30,
     orb: 2,
+    separatingOrb: 1.5,
     color: '#228b22', // green
     nature: 'neutral',
     major: true,
@@ -382,6 +397,7 @@ export const ASPECTS = {
     symbol: '\u2220',
     angle: 45,
     orb: 2,
+    separatingOrb: 1.5,
     color: '#c41e3a', // red
     nature: 'challenging',
     major: true,
@@ -391,6 +407,7 @@ export const ASPECTS = {
     symbol: '\u26BC',
     angle: 135,
     orb: 2,
+    separatingOrb: 1.5,
     color: '#c41e3a', // red
     nature: 'challenging',
     major: false,
@@ -401,6 +418,7 @@ export const ASPECTS = {
     symbol: '\u2221', // ∡ measured angle
     angle: 15,
     orb: 1,
+    separatingOrb: 1,
     color: '#607D8B', // blue-gray
     nature: 'neutral',
     major: false,
@@ -410,6 +428,7 @@ export const ASPECTS = {
     symbol: 'D',
     angle: 36,
     orb: 1,
+    separatingOrb: 1,
     color: '#9C27B0', // purple (quintile family)
     nature: 'harmonious',
     major: false,
@@ -419,6 +438,7 @@ export const ASPECTS = {
     symbol: 'N',
     angle: 40,
     orb: 1,
+    separatingOrb: 1,
     color: '#FF8F00', // amber (novile family)
     nature: 'harmonious',
     major: false,
@@ -428,6 +448,7 @@ export const ASPECTS = {
     symbol: 'S\u2087', // S₇
     angle: 51.4286, // 360/7
     orb: 1,
+    separatingOrb: 1,
     color: '#00897B', // teal (septile family)
     nature: 'neutral',
     major: false,
@@ -437,6 +458,7 @@ export const ASPECTS = {
     symbol: 'Q',
     angle: 72, // 360/5
     orb: 1,
+    separatingOrb: 1,
     color: '#7B1FA2', // deep purple (quintile family)
     nature: 'harmonious',
     major: false,
@@ -446,6 +468,7 @@ export const ASPECTS = {
     symbol: 'bN',
     angle: 80, // 2 × 360/9
     orb: 1,
+    separatingOrb: 1,
     color: '#FF8F00', // amber (novile family)
     nature: 'harmonious',
     major: false,
@@ -455,6 +478,7 @@ export const ASPECTS = {
     symbol: 'bS\u2087', // bS₇
     angle: 102.8571, // 2 × 360/7
     orb: 1,
+    separatingOrb: 1,
     color: '#00897B', // teal (septile family)
     nature: 'neutral',
     major: false,
@@ -464,6 +488,7 @@ export const ASPECTS = {
     symbol: 'bQ',
     angle: 144, // 2 × 360/5
     orb: 1,
+    separatingOrb: 1,
     color: '#7B1FA2', // deep purple (quintile family)
     nature: 'harmonious',
     major: false,
@@ -473,6 +498,7 @@ export const ASPECTS = {
     symbol: 'tS\u2087', // tS₇
     angle: 154.2857, // 3 × 360/7
     orb: 1,
+    separatingOrb: 1,
     color: '#00897B', // teal (septile family)
     nature: 'neutral',
     major: false,
@@ -482,6 +508,7 @@ export const ASPECTS = {
     symbol: 'qN',
     angle: 160, // 4 × 360/9
     orb: 1,
+    separatingOrb: 1,
     color: '#FF8F00', // amber (novile family)
     nature: 'harmonious',
     major: false,
@@ -491,6 +518,7 @@ export const ASPECTS = {
     symbol: 'Qd',
     angle: 165,
     orb: 1,
+    separatingOrb: 1,
     color: '#C2185B', // deep pink
     nature: 'challenging',
     major: false,

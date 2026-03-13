@@ -28,6 +28,7 @@ interface SubscriptionContextType {
   tier: SubscriptionTier;
   isPaid: boolean;
   hasHoroscopeAccess: boolean;
+  hasAstrologerAccess: boolean;
   chartsLimit: number; // -1 = unlimited
   isTrialing: boolean;
   trialDaysRemaining: number | null;
@@ -197,6 +198,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     (status === 'trialing' && trialEndsAt ? new Date(trialEndsAt) > new Date() : false);
 
   const hasHoroscopeAccess = tier === 'horoscope' || tier === 'astrologer' || tier === 'professional';
+  const hasAstrologerAccess = tier === 'astrologer' || tier === 'professional';
   const chartsLimit = TIER_LIMITS[tier].charts; // -1 = unlimited
 
   const isTrialing = status === 'trialing' && trialEndsAt ? new Date(trialEndsAt) > new Date() : false;
@@ -302,7 +304,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   return (
     <SubscriptionContext.Provider
       value={{
-        status, plan, tier, isPaid, hasHoroscopeAccess, chartsLimit, isTrialing, trialDaysRemaining, loading,
+        status, plan, tier, isPaid, hasHoroscopeAccess, hasAstrologerAccess, chartsLimit, isTrialing, trialDaysRemaining, loading,
         aiCreditsRemaining, aiCreditsLimit,
         relocatedRemaining, relocatedLimit,
         sessionsRemaining, sessionsLimit, sessionsUsed,

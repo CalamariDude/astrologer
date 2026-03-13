@@ -22,6 +22,8 @@ export const TAB_VALUES = [
   'fixed-stars',
   'ai-reading',
   'time-finder',
+  'voc-moon',
+  'planet-returns',
   'notes',
 ] as const;
 

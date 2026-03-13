@@ -79,6 +79,7 @@ interface AstrologerUser {
   relocated_reset_at: string | null;
   created_at: string;
   last_sign_in_at: string | null;
+  last_active_at: string | null;
   is_admin: boolean;
   saved_charts_count: number;
   theme: string | null;
@@ -779,7 +780,7 @@ export default function AdminPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-sm">{u.saved_charts_count}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{timeAgo(u.last_sign_in_at)}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{timeAgo(u.last_active_at || u.last_sign_in_at)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</TableCell>
                       <TableCell onClick={e => e.stopPropagation()}>
                         <div className="flex gap-1">
@@ -1417,8 +1418,8 @@ export default function AdminPage() {
                 {/* Activity */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label className="text-xs text-muted-foreground">Last Login</Label>
-                    <p className="text-sm mt-1">{timeAgo(selectedUser.last_sign_in_at)}</p>
+                    <Label className="text-xs text-muted-foreground">Last Active</Label>
+                    <p className="text-sm mt-1">{timeAgo(selectedUser.last_active_at || selectedUser.last_sign_in_at)}</p>
                   </div>
                   <div>
                     <Label className="text-xs text-muted-foreground">Joined</Label>

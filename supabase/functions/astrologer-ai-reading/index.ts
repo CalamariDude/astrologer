@@ -23,6 +23,42 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
   });
 }
 
+// ─── Question-Type Detection ─────────────────────────────────────
+
+type QuestionWeight = 'timing-heavy' | 'horary-electional' | 'natal-heavy' | 'balanced';
+
+function detectQuestionWeight(question: string): QuestionWeight {
+  const q = question.toLowerCase();
+
+  // Horary / electional: "should I do X?", "is this a good time to?", "when should I?", "will this work out?"
+  const horaryKeywords = [
+    'should i', 'is this a good time', 'is now a good time', 'when should i', 'when is the best time',
+    'will this work out', 'will it work', 'is this the right time', 'good day to', 'good time to',
+    'electional', 'horary', 'pick a date', 'best date', 'best time for', 'auspicious',
+    'should we', 'is today good', 'is this week good', 'timing for',
+  ];
+  if (horaryKeywords.some(kw => q.includes(kw))) return 'horary-electional';
+
+  // Timing-heavy: current events, what's happening now, predictions
+  const timingKeywords = [
+    'right now', 'currently', 'this month', 'this week', 'this year',
+    'lately', 'recently', 'what\'s happening', 'going through', 'phase', 'period', 'season',
+    'today', 'upcoming', 'near future', 'soon', 'next few', 'these days',
+    'will i', 'will my', 'when will', 'forecast', 'prediction', 'outlook',
+    'what to expect', 'what lies ahead', 'coming up',
+  ];
+  if (timingKeywords.some(kw => q.includes(kw))) return 'timing-heavy';
+
+  // Natal-heavy: personality, strengths, who am I, etc.
+  const natalKeywords = [
+    'my personality', 'who am i', 'my strengths', 'my weaknesses', 'what am i like',
+    'my nature', 'describe me', 'tell me about myself', 'my character',
+  ];
+  if (natalKeywords.some(kw => q.includes(kw))) return 'natal-heavy';
+
+  return 'balanced';
+}
+
 // ─── Phase 0: Smart Vantage Selection ─────────────────────────────
 
 async function phase0SmartSelection(
@@ -109,6 +145,7 @@ async function analyzeVantage(
   hasTransits: boolean = false,
   derived?: { label: string; house: number } | null,
   synastryContext?: { source_person: string; host_person: string; mode: string; sourcePersonName?: string; hostPersonName?: string } | null,
+  questionWeight: QuestionWeight = 'balanced',
 ): Promise<string> {
   let systemPrompt: string;
 
@@ -212,10 +249,12 @@ Be specific and analytical. Every detail you note will help create a better read
 
   // ── Timing blocks ──
   if (hasTransits) {
+    const isTimingFocused = questionWeight === 'horary-electional' || questionWeight === 'timing-heavy';
     systemPrompt += `
 
-10. TRANSIT ASPECTS (current planetary weather hitting this energy center)
-   - Transit energy is EXTERNAL pressure arriving from outside, interacting with the natal pattern
+10. TRANSIT ASPECTS (current planetary weather hitting this energy center)${isTimingFocused ? ' — ⚡ PRIMARY FOCUS for this question' : ''}
+   - Transit energy is EXTERNAL pressure arriving from outside, interacting with the natal pattern${isTimingFocused ? `
+   - THIS IS A TIMING QUESTION — transits are the MOST IMPORTANT part of your analysis. Spend the majority of your analysis here.` : ''}
    - For each transit aspect:
      * "applying: true" = approaching exactitude — energy BUILDING, anticipatory, not yet peak
      * "applying: false" = separating — peak PASSED, integrating/releasing
@@ -229,7 +268,14 @@ Be specific and analytical. Every detail you note will help create a better read
    - LEAD PLANET: When multiple transits hit same natal planet, FASTER planet leads (its themes arrive first). Slower planet = backdrop.
    - HANDOFF: Fast transit separating while slow transit applying to same natal planet = brief emotional hit gives way to deeper structural pressure.
    - TURNOVER: When a faster planet overtakes a slower one in a multi-planet transit, the thematic lead changes — what was background becomes foreground.
-   - Connect transits to the natal vantage tree: a transit TO this planet activates the entire tree — backward trace sources get stirred, forward trace outlets get pressured.`;
+   - Connect transits to the natal vantage tree: a transit TO this planet activates the entire tree — backward trace sources get stirred, forward trace outlets get pressured.${questionWeight === 'horary-electional' ? `
+
+   HORARY/ELECTIONAL FOCUS:
+   - Assess whether transits SUPPORT or BLOCK the action being asked about
+   - Benefic aspects (trines, sextiles from Jupiter/Venus) = favorable timing
+   - Malefic aspects (squares, oppositions from Saturn/Mars/Pluto) = caution/delay
+   - Moon aspects are key: what is the Moon applying to next? That shows the immediate outcome.
+   - Retrograde transit planets = revisiting old ground, not ideal for new beginnings` : ''}`;
   }
 
   const hasProfection = !!vantage.profection_context;
@@ -465,6 +511,9 @@ serve(async (req) => {
       });
     }
 
+    // ── Detect question weight for data emphasis ──
+    const questionWeight = detectQuestionWeight(question || '');
+
     // ── Collect all vantages from trees ──
     const isSynastry = readingFocus === 'synastry' && Array.isArray(treesB);
     const hasDerived = trees.some((t: any) => t.derived) || (treesB || []).some((t: any) => t.derived);
@@ -662,25 +711,69 @@ RULES FOR THE TECHNICAL SECTION (after ${SEPARATOR}):
 - Be concise but thorough`;
     }
 
-    // Add timing suffixes
-    if (hasTransitData) {
+    // Add timing suffixes based on question weight
+    if (questionWeight === 'horary-electional' && hasTransitData) {
       synthesisSystemPrompt += `
-- When timing data is present, weave it naturally into BOTH sections
-- In the reading: "Right now you're in a phase where..." — NEVER mention transits, planets, or aspects
+
+CRITICAL — HORARY/ELECTIONAL QUESTION DETECTED:
+This is a timing-specific question ("should I?", "is this a good time?", "when?").
+The TRANSITS are the PRIMARY source of your answer — they represent the current sky and its verdict.
+- The natal chart provides context (what this person's relationship to the topic is)
+- But the TRANSITS determine the ANSWER: favorable or unfavorable timing, what energies support or block action
+- Lead with what the current sky says about the question
+- Applying aspects = building energy (action will intensify). Separating = energy waning.
+- Benefic transits (Jupiter, Venus) to relevant houses/planets = favorable. Malefic (Saturn, Mars) = caution.
+- Moon aspects are especially important for horary: Moon's last aspect before void = the outcome.
+- In the reading: frame as clear guidance — "This is / isn't a favorable window because..." (no astro terms)
+- In the technical section: list all active transits with orbs, applying/separating, and their horary significance`;
+      if (hasProfectionData) {
+        synthesisSystemPrompt += `
+- Profections add context: is the Year Lord well-aspected by transits? This colors the entire year's flavor for this topic.`;
+      }
+      if (hasActivationData) {
+        synthesisSystemPrompt += `
+- Age-degree activations show if relevant planets are currently "awake" — activated planets respond more strongly to transits.`;
+      }
+    } else if (questionWeight === 'timing-heavy' && hasTransitData) {
+      synthesisSystemPrompt += `
+
+TIMING-FOCUSED QUESTION — transits, profections, and activations should be the BACKBONE of your answer:
+- The natal chart shows WHO this person is; the timing data shows WHAT is happening to them NOW
+- Structure your answer around current timing: what energies are arriving, peaking, or fading
+- In the reading: "Right now you're in a phase where..." / "Over the coming weeks..." — NEVER mention transits, planets, or aspects
 - In the technical section: list active transits with orbs and applying/separating status`;
-    }
-    if (hasProfectionData) {
-      synthesisSystemPrompt += `
+      if (hasProfectionData) {
+        synthesisSystemPrompt += `
+- Profection timing reveals the current life chapter — the Year Lord planet is the protagonist of this year
+- In the reading: translate the profection year themes into plain language ("this is a year focused on...")
+- In the technical section: note the profected house, Year Lord, Month Lord`;
+      }
+      if (hasActivationData) {
+        synthesisSystemPrompt += `
+- Age-degree activations show which planets are currently "awake" or recently peaked
+- When profections AND activations AND transits converge on the same planet, this is a MAJOR convergence — emphasize it strongly`;
+      }
+    } else {
+      // Balanced or natal-heavy — timing is supplementary
+      if (hasTransitData) {
+        synthesisSystemPrompt += `
+- Timing data (transits) is available — weave it in as supplementary context where relevant, but keep the focus on the natal patterns
+- In the reading: briefly mention current timing if it's relevant to their question — "Right now you're in a phase where..."
+- In the technical section: list active transits with orbs and applying/separating status`;
+      }
+      if (hasProfectionData) {
+        synthesisSystemPrompt += `
 - Profection timing reveals the current life chapter — the Year Lord planet is the protagonist of this year
 - In the reading: translate the profection year themes into plain language
 - In the technical section: note the profected house, Year Lord, Month Lord`;
-    }
-    if (hasActivationData) {
-      synthesisSystemPrompt += `
+      }
+      if (hasActivationData) {
+        synthesisSystemPrompt += `
 - Age-degree activations show which planets are currently "awake" or recently peaked
 - In the reading: reference the activated themes naturally
 - In the technical section: list active age-degree activations with cycle and degree
 - When profections AND activations AND transits converge on the same planet, emphasize this convergence`;
+      }
     }
 
     // ── SSE Streaming Response ──
@@ -701,7 +794,7 @@ RULES FOR THE TECHNICAL SECTION (after ${SEPARATOR}):
           const analysisPromises = vantagesWithContext.map(({ vantage, category, hasTransits, derived, synastryCtx, label }, idx) =>
             // Stagger requests by 200ms each to avoid rate limits
             new Promise(r => setTimeout(r, idx * 200)).then(() =>
-              analyzeVantage(vantage, category, hasTransits, derived, synastryCtx).then(analysis => ({
+              analyzeVantage(vantage, category, hasTransits, derived, synastryCtx, questionWeight).then(analysis => ({
                 planet: label || vantage.planet?.planet || `vantage_${idx}`,
                 analysis,
                 index: idx,
@@ -771,9 +864,16 @@ ${analysesText}
 
 Synthesize these into a cohesive answer with TWO sections separated by "${SEPARATOR}".
 The first section is the plain-language reading (no astrology terms).
-The second section is the technical astrology summary.${hasTransitData ? `
+The second section is the technical astrology summary.${questionWeight === 'horary-electional' && hasTransitData ? `
 
-NOTE: Current timing data is included in the analyses. Ground your answer in what's happening NOW.` : ''}`;
+CRITICAL: This is a HORARY/ELECTIONAL question. The person wants a timing verdict — is this a good time or not?
+The transit data in the analyses above is your PRIMARY evidence. Give a clear, direct answer to their timing question.
+Natal chart context tells you what this topic means to them; the TRANSITS tell you the answer.` : questionWeight === 'timing-heavy' && hasTransitData ? `
+
+NOTE: This is a timing-focused question. Current transit, profection, and activation data is included in the analyses.
+Structure your answer around what's happening NOW — what energies are arriving, peaking, or fading.` : hasTransitData ? `
+
+NOTE: Current timing data is included in the analyses. Weave it in where relevant.` : ''}`;
           }
 
           if (hasDerived) {
@@ -798,6 +898,9 @@ NOTE: Current timing data is included in the analyses. Ground your answer in wha
           }
 
           // Send debug prompts
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ debug_question_weight: questionWeight })}\n\n`)
+          );
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ debug_system_prompt: synthesisSystemPrompt })}\n\n`)
           );

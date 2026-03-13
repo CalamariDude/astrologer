@@ -129,18 +129,23 @@ interface TogglePanelContentProps {
   onSetHouseSystem?: (system: string) => void;
   // Custom orbs
   customAspectOrbs?: Record<string, number>;
+  customSeparatingAspectOrbs?: Record<string, number>;
   customPlanetOrbs?: Record<string, number>;
   onSetCustomAspectOrb?: (aspect: string, orb: number) => void;
+  onSetCustomSeparatingAspectOrb?: (aspect: string, orb: number) => void;
   onSetCustomPlanetOrb?: (planet: string, orb: number) => void;
   onResetOrbs?: () => void;
   // Harmonic charts
   harmonicNumber?: number;
   onSetHarmonicNumber?: (n: number) => void;
   // Sidereal zodiac
-  zodiacType?: 'tropical' | 'sidereal';
-  onSetZodiacType?: (type: 'tropical' | 'sidereal') => void;
+  zodiacType?: 'tropical' | 'sidereal' | 'draconic';
+  onSetZodiacType?: (type: 'tropical' | 'sidereal' | 'draconic') => void;
   ayanamsaKey?: string;
   onSetAyanamsaKey?: (key: string) => void;
+  // Davison chart
+  enableDavison?: boolean;
+  davisonLoading?: boolean;
   // Presets
   presets?: { id: string; name: string }[];
   activePresetId?: string | null;
@@ -498,8 +503,10 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
   onSetHouseSystem,
   // Custom orbs
   customAspectOrbs,
+  customSeparatingAspectOrbs,
   customPlanetOrbs,
   onSetCustomAspectOrb,
+  onSetCustomSeparatingAspectOrb,
   onSetCustomPlanetOrb,
   onResetOrbs,
   // Harmonic charts
@@ -510,6 +517,9 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
   onSetZodiacType,
   ayanamsaKey = 'lahiri',
   onSetAyanamsaKey,
+  // Davison
+  enableDavison,
+  davisonLoading,
   // Presets
   presets,
   activePresetId,
@@ -775,6 +785,7 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
                   { mode: 'personB' as ChartMode, label: nameB.split(' ')[0], color: COLORS.personB },
                   { mode: 'synastry' as ChartMode, label: 'Synastry', color: COLORS.gridLineLight },
                   { mode: 'composite' as ChartMode, label: 'Composite', color: COLORS.composite },
+                  ...(enableDavison ? [{ mode: 'davison' as ChartMode, label: 'Davison', color: '#9333ea' }] : []),
                 ].map(({ mode, label, color }) => (
                   <button
                     key={mode}
@@ -1336,27 +1347,62 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
       {/* Orb Settings */}
       {onSetCustomAspectOrb && (
         <Section title="Orb Settings" defaultOpen={false} isMobile={isMobile}>
-          {/* Per-aspect orbs */}
+          {/* Per-aspect orbs — Applying & Separating columns */}
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: isMobile ? 12 : 10, color: COLORS.textMuted, marginBottom: 6 }}>Aspect Orbs</div>
+            {/* Column headers */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 6 }}>
+              <div style={{ fontSize: isMobile ? 11 : 9, color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
+                Applying Orb
+              </div>
+              <div style={{ fontSize: isMobile ? 11 : 9, color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
+                Separating Orb
+              </div>
+            </div>
             {Object.entries(ASPECTS).filter(([key]) => visibleAspects.has(key as AspectType)).map(([key, def]) => {
-              const current = customAspectOrbs?.[key] ?? def.orb;
+              const applyingOrb = customAspectOrbs?.[key] ?? def.orb;
+              const separatingOrb = customSeparatingAspectOrbs?.[key] ?? def.separatingOrb;
               return (
-                <div key={key} style={{ marginBottom: isMobile ? 10 : 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: isMobile ? 13 : 11, marginBottom: 2 }}>
+                <div key={key} style={{ marginBottom: isMobile ? 12 : 8 }}>
+                  {/* Aspect name row */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: isMobile ? 13 : 11, marginBottom: 3 }}>
                     <span style={{ color: def.color, width: 14, textAlign: 'center' }}>{def.symbol}</span>
                     <span style={{ flex: 1, color: COLORS.textSecondary }}>{def.name}</span>
-                    <span style={{ fontSize: isMobile ? 13 : 11, fontWeight: 600, color: COLORS.textPrimary, minWidth: 28, textAlign: 'right' }}>{current}°</span>
                   </div>
-                  <input
-                    type="range"
-                    min={0.5}
-                    max={12}
-                    step={0.5}
-                    value={current}
-                    onChange={(e) => onSetCustomAspectOrb(key, parseFloat(e.target.value))}
-                    style={{ width: '100%', accentColor: def.color }}
-                  />
+                  {/* Two sliders side by side */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {/* Applying */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: isMobile ? 11 : 9, marginBottom: 1 }}>
+                        <span style={{ color: COLORS.textMuted }}>App</span>
+                        <span style={{ fontWeight: 600, color: COLORS.textPrimary }}>{applyingOrb}°</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0.5}
+                        max={12}
+                        step={0.5}
+                        value={applyingOrb}
+                        onChange={(e) => onSetCustomAspectOrb(key, parseFloat(e.target.value))}
+                        style={{ width: '100%', accentColor: def.color }}
+                      />
+                    </div>
+                    {/* Separating */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: isMobile ? 11 : 9, marginBottom: 1 }}>
+                        <span style={{ color: COLORS.textMuted }}>Sep</span>
+                        <span style={{ fontWeight: 600, color: COLORS.textPrimary }}>{separatingOrb}°</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0.5}
+                        max={12}
+                        step={0.5}
+                        value={separatingOrb}
+                        onChange={(e) => onSetCustomSeparatingAspectOrb?.(key, parseFloat(e.target.value))}
+                        style={{ width: '100%', accentColor: def.color }}
+                      />
+                    </div>
+                  </div>
                 </div>
               );
             })}
@@ -1459,7 +1505,7 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
       {onSetZodiacType && (
         <Section title="Zodiac System" defaultOpen={false} isMobile={isMobile}>
           <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-            {(['tropical', 'sidereal'] as const).map(type => (
+            {(['tropical', 'sidereal', 'draconic'] as const).map(type => (
               <button
                 key={type}
                 onClick={() => onSetZodiacType(type)}
@@ -1502,6 +1548,11 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
                 Sidereal positions shifted by ~{AYANAMSA_SYSTEMS.find(s => s.key === ayanamsaKey)?.epoch2000.toFixed(1) ?? '?'}° ({ayanamsaKey})
               </div>
             </>
+          )}
+          {zodiacType === 'draconic' && (
+            <div style={{ fontSize: isMobile ? 11 : 9, color: COLORS.textMuted, padding: '4px 6px', background: COLORS.backgroundAlt, borderRadius: 4, marginTop: 8 }}>
+              Draconic: North Node = 0 Aries. Reveals soul purpose and karmic patterns.
+            </div>
           )}
         </Section>
       )}

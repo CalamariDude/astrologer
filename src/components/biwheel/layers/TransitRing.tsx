@@ -48,8 +48,8 @@ interface TransitRingProps {
  *
  * Multiple iterations let cascading pushes settle.
  */
-const MIN_SPACING = 8;   // target spacing in degrees (wide glyphs need more room)
-const REPEL_ZONE = 14;   // planets further apart than this don't interact
+const MIN_SPACING = 4;   // target spacing in degrees
+const REPEL_ZONE = 8;    // planets further apart than this don't interact
 
 /** Signed angular difference (handles 0°/360° wrap), result in -180..180 */
 function signedDiff(a: number, b: number): number {
@@ -359,8 +359,8 @@ export const TransitRing: React.FC<TransitRingProps> = ({
             x1={from.x} y1={from.y}
             x2={to.x} y2={to.y}
             stroke={highlighted ? TRANSIT_COLOR_ACCENT : TRANSIT_COLOR_LIGHT}
-            strokeWidth={highlighted ? 1.5 : 0.75}
-            strokeOpacity={highlighted ? 0.8 : 0.4}
+            strokeWidth={highlighted ? 1.5 : 1}
+            strokeOpacity={highlighted ? 0.9 : 0.7}
           />
         );
       })}

@@ -20,20 +20,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Track last active time on astrologer_profiles
+  const trackActivity = (userId: string) => {
+    supabase
+      .from('astrologer_profiles')
+      .update({ last_active_at: new Date().toISOString() })
+      .eq('id', userId)
+      .then(() => {});
+  };
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (event === 'INITIAL_SESSION') {
         setLoading(false);
+        // Track on initial load
+        if (session?.user) trackActivity(session.user.id);
+      }
+      if (event === 'SIGNED_IN' && session?.user) {
+        trackActivity(session.user.id);
       }
     });
+
+    // Track when tab becomes visible again
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && user) {
+        trackActivity(user.id);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
 
     // Fallback timeout in case INITIAL_SESSION never fires
     const timeout = setTimeout(() => setLoading(false), 3000);
 
     return () => {
       subscription.unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibility);
       clearTimeout(timeout);
     };
   }, []);

@@ -15,7 +15,7 @@ import type { AspectType, SynastryAspect } from './utils/aspectCalculations';
  * - synastry: Dual wheel (biwheel) with synastry aspects between A and B
  * - composite: Single wheel showing composite midpoints with composite aspects
  */
-export type ChartMode = 'personA' | 'personB' | 'synastry' | 'composite';
+export type ChartMode = 'personA' | 'personB' | 'synastry' | 'composite' | 'davison';
 
 // ============================================================================
 // Transit Types
@@ -186,6 +186,10 @@ export interface BiWheelSynastryProps {
   // Composite props
   enableComposite?: boolean;
   onFetchComposite?: (chartA: NatalChart, chartB: NatalChart, asteroids?: AsteroidsParam) => Promise<CompositeData>;
+  // Davison chart props
+  enableDavison?: boolean;
+  onFetchDavison?: () => Promise<NatalChart>;
+  davisonLabel?: string;
   // Progressed props
   enableProgressed?: boolean;
   onFetchProgressed?: (person: 'A' | 'B', progressedTo: string, asteroids?: AsteroidsParam) => Promise<ProgressedData>;
@@ -259,16 +263,18 @@ export interface BiWheelSynastryProps {
   onRefetchWithHouseSystem?: (system: string) => Promise<void>;
   // Custom orbs
   customAspectOrbs?: Record<string, number>;
+  customSeparatingAspectOrbs?: Record<string, number>;
   customPlanetOrbs?: Record<string, number>;
   onCustomAspectOrbChange?: (aspect: string, orb: number) => void;
+  onCustomSeparatingAspectOrbChange?: (aspect: string, orb: number) => void;
   onCustomPlanetOrbChange?: (planet: string, orb: number) => void;
   onResetOrbs?: () => void;
   // Harmonic charts
   harmonicNumber?: number;
   onHarmonicNumberChange?: (n: number) => void;
   // Sidereal zodiac
-  zodiacType?: 'tropical' | 'sidereal';
-  onZodiacTypeChange?: (type: 'tropical' | 'sidereal') => void;
+  zodiacType?: 'tropical' | 'sidereal' | 'draconic';
+  onZodiacTypeChange?: (type: 'tropical' | 'sidereal' | 'draconic') => void;
   ayanamsaKey?: string;
   onAyanamsaKeyChange?: (key: string) => void;
   // Solar return props
@@ -334,6 +340,7 @@ export interface BiWheelState {
   selectedSign: { name: string; symbol: string; element: string; modality: string; ruler: string; dates: string } | null;
   tooltipPosition: { x: number; y: number } | null;
   pinnedTooltipOpen: boolean;
+  expandedPlanetOpen: boolean;
   // Transit state
   showTransits: boolean;
   transitDate: string;
@@ -344,6 +351,9 @@ export interface BiWheelState {
   chartMode: ChartMode;
   compositeData: CompositeData | null;
   compositeLoading: boolean;
+  // Davison state
+  davisonData: NatalChart | null;
+  davisonLoading: boolean;
   // Progressed state
   showProgressed: boolean;
   progressedDate: string;

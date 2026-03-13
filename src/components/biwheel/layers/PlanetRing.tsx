@@ -29,6 +29,7 @@ interface PlanetRingProps {
   chartA: NatalChart;
   chartB?: NatalChart;
   compositeData?: CompositeData;
+  davisonData?: NatalChart;
   mode: ChartMode;
   visiblePlanets: Set<string>;
   showRetrogrades: boolean;
@@ -351,6 +352,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
   chartA,
   chartB,
   compositeData,
+  davisonData,
   mode,
   visiblePlanets,
   showRetrogrades,
@@ -391,7 +393,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
   };
 
   // Determine which ring radius to use based on mode
-  const isSingleWheel = mode === 'personA' || mode === 'personB' || mode === 'composite';
+  const isSingleWheel = mode === 'personA' || mode === 'personB' || mode === 'composite' || mode === 'davison';
   const singleRingRadius = singlePlanetRing || planetARing;
   const singleDegRadius = singleDegreeRing || degreeARing;
   const singleSignRadius = singleSignRing || signARing;
@@ -399,14 +401,14 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
 
   // Prepare planet placements based on mode
   const planetsA = React.useMemo(() => {
-    if (mode === 'personB' || mode === 'composite') return [];
+    if (mode === 'personB' || mode === 'composite' || mode === 'davison') return [];
     const radius = isSingleWheel ? singleRingRadius : planetARing;
     console.log('[PlanetRing] Preparing planets for A, midheaven:', chartA.angles?.midheaven, 'ascendant:', chartA.angles?.ascendant);
     return preparePlanets(chartA, visiblePlanets, dimensions, radius, rotationOffset);
   }, [chartA, chartA.angles?.midheaven, chartA.angles?.ascendant, visiblePlanets, dimensions, planetARing, singleRingRadius, rotationOffset, mode, isSingleWheel]);
 
   const planetsB = React.useMemo(() => {
-    if (mode === 'personA' || mode === 'composite' || !chartB) return [];
+    if (mode === 'personA' || mode === 'composite' || mode === 'davison' || !chartB) return [];
     const radius = isSingleWheel ? singleRingRadius : planetBRing;
     // Inner ring needs wider spacing — smaller radius means less pixel distance per degree
     const innerSpacing = isSingleWheel ? undefined : { minSpacing: MIN_SPACING_INNER, repelZone: REPEL_ZONE_INNER };
@@ -417,6 +419,11 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
     if (mode !== 'composite' || !compositeData) return [];
     return preparePlanetsFromComposite(compositeData, visiblePlanets, dimensions, singleRingRadius, rotationOffset);
   }, [compositeData, visiblePlanets, dimensions, singleRingRadius, rotationOffset, mode]);
+
+  const planetsDavison = React.useMemo(() => {
+    if (mode !== 'davison' || !davisonData) return [];
+    return preparePlanets(davisonData, visiblePlanets, dimensions, singleRingRadius, rotationOffset);
+  }, [davisonData, visiblePlanets, dimensions, singleRingRadius, rotationOffset, mode]);
 
   // Find planets that have aspects with the hovered or selected planet
   const activePlanet = hoveredPlanet || selectedPlanet as typeof hoveredPlanet;
@@ -432,7 +439,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
           partners.add(`A-${asp.planetA}`);
         }
       } else {
-        const chartKey = mode === 'composite' ? 'Composite' : mode === 'personA' ? 'A' : 'B';
+        const chartKey = mode === 'composite' ? 'Composite' : mode === 'davison' ? 'Composite' : mode === 'personA' ? 'A' : 'B';
         if (activePlanet.chart === chartKey) {
           if (asp.planetA === activePlanet.planet) {
             partners.add(`${chartKey}-${asp.planetB}`);
@@ -606,6 +613,23 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
           return (
             <line
               key={`ptr-C-${planet.key}`}
+              x1={from.x} y1={from.y}
+              x2={to.x} y2={to.y}
+              stroke={planetColor}
+              strokeWidth={1.5}
+              strokeOpacity={0.8}
+            />
+          );
+        })}
+        {planetsDavison.map((planet) => {
+          const planetColor = getPlanetColor(planet.key);
+          const effectivePlanetRing = singlePlanetRing || planetARing;
+          if (!decanInner || !effectivePlanetRing) return null;
+          const from = longitudeToXY(planet.displayLongitude, cx, cy, effectivePlanetRing + 20, rotationOffset);
+          const to = longitudeToXY(planet.longitude, cx, cy, decanInner, rotationOffset);
+          return (
+            <line
+              key={`ptr-D-${planet.key}`}
               x1={from.x} y1={from.y}
               x2={to.x} y2={to.y}
               stroke={planetColor}
@@ -1037,6 +1061,58 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             })()}
 
 
+          </g>
+        );
+      })}
+
+      {/* Davison planets (single wheel mode) */}
+      {planetsDavison.map((planet) => {
+        const highlighted = isHighlighted(planet.key, 'Composite');
+        const dimmed = isDimmed(planet.key, 'Composite');
+        const degInSign = Math.floor(planet.longitude % 30);
+        const minutes = Math.floor((planet.longitude % 1) * 60);
+        const planetColor = getPlanetColor(planet.key);
+        const deg = calculateDegreeSign(planet.longitude);
+        const zodiacSignD = degreeSymbolMode === 'sign' ? getZodiacSignSymbol(planet.longitude) : null;
+        const displaySymbolD = zodiacSignD ? zodiacSignD.signSymbol : deg.degreeSymbol;
+        const displayColorIndexD = zodiacSignD ? zodiacSignD.signIndex : deg.degreeIndex;
+        const textRotation = isTextLabel(planet.key) ? getRadialRotation(planet.displayLongitude) : 0;
+
+        const degreePos = singleDegRadius ? longitudeToXY(planet.displayLongitude, cx, cy, singleDegRadius, rotationOffset) : null;
+        const signPos = singleSignRadius ? longitudeToXY(planet.displayLongitude, cx, cy, singleSignRadius, rotationOffset) : null;
+        const minutePos = singleMinRadius ? longitudeToXY(planet.displayLongitude, cx, cy, singleMinRadius, rotationOffset) : null;
+        const planetPos = longitudeToXY(planet.displayLongitude, cx, cy, singleRingRadius, rotationOffset);
+
+        return (
+          <g
+            key={`Davison-${planet.key}`}
+            className="planet-marker"
+            style={{ cursor: 'pointer', opacity: dimmed ? 0.3 : 1, transition: 'opacity 0.15s ease-out' }}
+            onMouseEnter={(e) => onPlanetHover({ planet: planet.key, chart: 'Composite' }, e)}
+            onMouseLeave={() => onPlanetHover(null)}
+            onClick={(e) => { e.stopPropagation(); onPlanetClick?.(planet.key, 'Composite', e); }}
+            onDoubleClick={(e) => { e.stopPropagation(); onPlanetDoubleClick?.(planet.key, 'Composite', e); }}
+          >
+            {degreePos && (() => {
+              const sp = smoothPos(degreePos.x, degreePos.y);
+              return (<text {...sp.posProps} fill={COLORS.textSecondary} fontSize={degreeASize} fontFamily="Arial, sans-serif" fontWeight="bold" textAnchor="middle" dominantBaseline="central" style={{ userSelect: 'none', ...sp.posStyle }}>{degInSign}°</text>);
+            })()}
+            {signPos && (() => {
+              const sp = smoothPos(signPos.x, signPos.y, 'font-size 0.15s ease-out');
+              return (<text {...sp.posProps} fill={getSignColor(displayColorIndexD * 30)} fontSize={highlighted ? signASize * highlightScale : signASize} fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif" fontWeight="bold" textAnchor="middle" dominantBaseline="central" style={{ userSelect: 'none', ...sp.posStyle }}>{displaySymbolD}</text>);
+            })()}
+            {minutePos && (() => {
+              const sp = smoothPos(minutePos.x, minutePos.y);
+              return (<text {...sp.posProps} fill={COLORS.textSecondary} fontSize={minuteASize} fontFamily="Arial, sans-serif" textAnchor="middle" dominantBaseline="central" style={{ userSelect: 'none', ...sp.posStyle }}>{minutes.toString().padStart(2, '0')}'</text>);
+            })()}
+            {(() => {
+              const sp = smoothPos(planetPos.x, planetPos.y, 'font-size 0.15s ease-out');
+              return (<text {...sp.posProps} fill={planetColor} fontSize={getPlanetFontSize(planet.key, true, highlighted)} fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif" fontWeight="900" textAnchor="middle" dominantBaseline="central" style={{ userSelect: 'none', ...sp.posStyle }} stroke={planetColor} strokeWidth={isAsteroid(planet.key) ? 0.3 : 0.5} {...(!smoothTransitions && textRotation ? { transform: `rotate(${textRotation}, ${planetPos.x}, ${planetPos.y})` } : {})}>{getPlanetDescription(planet.key) && <title>{getPlanetDescription(planet.key)}</title>}{getPlanetSymbol(planet.key)}</text>);
+            })()}
+            {showRetrogrades && planet.data.retrograde && (() => {
+              const rOff = getRetrogradeOffset(planet.key, 19, -14, asteroidASize);
+              return (<text x={planetPos.x + rOff.x} y={planetPos.y + rOff.y} fill="#c41e3a" fontSize={isTextLabel(planet.key) ? 9 : 12} fontFamily="Arial, sans-serif" fontWeight="bold" textAnchor="middle" dominantBaseline="central" style={{ userSelect: 'none' }} {...(rOff.useRotation && textRotation ? { transform: `rotate(${textRotation}, ${planetPos.x}, ${planetPos.y})` } : {})}>℞</text>);
+            })()}
           </g>
         );
       })}

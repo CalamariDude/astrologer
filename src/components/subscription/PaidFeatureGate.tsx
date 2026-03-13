@@ -8,17 +8,28 @@ import { UpgradeModal } from './UpgradeModal';
 interface PaidFeatureGateProps {
   children: React.ReactNode;
   featureName: string;
+  requiredTier?: 'horoscope' | 'astrologer' | 'professional';
 }
 
-export function PaidFeatureGate({ children, featureName }: PaidFeatureGateProps) {
+export function PaidFeatureGate({ children, featureName, requiredTier }: PaidFeatureGateProps) {
   const { user } = useAuth();
-  const { isPaid } = useSubscription();
+  const { isPaid, hasHoroscopeAccess, hasAstrologerAccess, tier } = useSubscription();
   const [showAuth, setShowAuth] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
 
-  if (isPaid) {
+  const hasAccess = requiredTier === 'astrologer'
+    ? hasAstrologerAccess
+    : requiredTier === 'professional'
+      ? tier === 'professional'
+      : requiredTier === 'horoscope'
+        ? hasHoroscopeAccess
+        : isPaid;
+
+  if (hasAccess) {
     return <>{children}</>;
   }
+
+  const tierLabel = requiredTier === 'astrologer' ? 'Astrologer' : requiredTier === 'professional' ? 'Professional' : 'Astrologer Pro';
 
   return (
     <>
@@ -32,14 +43,14 @@ export function PaidFeatureGate({ children, featureName }: PaidFeatureGateProps)
             <p className="text-xs text-muted-foreground mt-1">
               {!user
                 ? 'Sign in to access this feature'
-                : 'Upgrade to Astrologer Pro to access this feature'}
+                : `Upgrade to ${tierLabel} to access this feature`}
             </p>
           </div>
           <button
             onClick={() => user ? setShowUpgrade(true) : setShowAuth(true)}
             className="mt-1 px-6 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
           >
-            {!user ? 'Sign In' : 'Upgrade to Pro'}
+            {!user ? 'Sign In' : `Upgrade to ${tierLabel}`}
           </button>
         </div>
       </div>

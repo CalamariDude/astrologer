@@ -23,7 +23,7 @@ import {
   enrichTreesWithActivations,
 } from '@/lib/chartReading/buildVantageTree';
 import { buildSynastryTreeGroups } from '@/lib/chartReading/buildSynastryTree';
-import { DEFAULT_PARAMS, isTransitQuestion, detectCategories } from '@/lib/chartReading/types';
+import { DEFAULT_PARAMS, detectCategories } from '@/lib/chartReading/types';
 import type { NatalChart, ChartReadingTree, TreeGroup, VantageAnalysis } from '@/lib/chartReading/types';
 import * as analytics from '@/lib/analytics';
 
@@ -270,19 +270,62 @@ function ReadingWithCitations({ text, citations }: { text: string; citations: Re
         if (citMatch) {
           const num = citMatch[1];
           const tooltip = citations[num];
-          if (!tooltip) return <sup key={i} className="text-[9px] text-amber-600/70">{num}</sup>;
+          if (!tooltip) return <sup key={i} className="text-[10px] text-amber-600/70">{num}</sup>;
           return (
-            <span key={i} className="relative group/cite inline">
-              <sup className="text-[9px] font-semibold text-amber-600 cursor-help px-[1px] hover:text-amber-500 transition-colors">{num}</sup>
-              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1.5 rounded-lg bg-foreground text-background text-[10px] leading-snug whitespace-pre-wrap max-w-[280px] w-max opacity-0 pointer-events-none group-hover/cite:opacity-100 group-hover/cite:pointer-events-auto transition-opacity duration-150 z-50 shadow-lg font-mono">
-                {tooltip}
-              </span>
-            </span>
+            <CitationTooltip key={i} num={num} tooltip={tooltip} />
           );
         }
         return <Fragment key={i}>{part}</Fragment>;
       })}
     </>
+  );
+}
+
+/** Individual citation with click-to-toggle tooltip (reliable on all devices) */
+function CitationTooltip({ num, tooltip }: { num: string; tooltip: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  // Close on click outside
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  return (
+    <span ref={ref} className="relative inline-block">
+      <sup
+        className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 cursor-help px-[2px] py-[1px] hover:text-amber-500 hover:bg-amber-500/10 rounded transition-colors"
+        onClick={() => setOpen(!open)}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => {
+          // Delay closing so user can move to tooltip
+          setTimeout(() => {
+            if (ref.current && !ref.current.matches(':hover')) {
+              setOpen(false);
+            }
+          }, 200);
+        }}
+      >
+        {num}
+      </sup>
+      {open && (
+        <span
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-3 py-2 rounded-lg bg-popover text-popover-foreground text-[11px] leading-snug whitespace-pre-wrap max-w-[300px] w-max z-50 shadow-xl border border-border font-mono"
+          onMouseEnter={() => setOpen(true)}
+          onMouseLeave={() => setOpen(false)}
+        >
+          <span className="text-amber-600 dark:text-amber-400 font-semibold">[{num}]</span>{' '}
+          {tooltip}
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -447,8 +490,8 @@ export function AIReading({ chartA, chartB, nameA, nameB, birthInfoA, birthInfoB
         // Activations
         trees = enrichTreesWithActivations(trees, activeChart as NatalChart, activeBirthInfo.date);
 
-        // Transits (only when question is timing-related and we have coordinates)
-        if (isTransitQuestion(userQuestion) && activeBirthInfo.lat && activeBirthInfo.lng) {
+        // Transits (always include when we have coordinates — transit-to-natal aspects)
+        if (activeBirthInfo.lat && activeBirthInfo.lng) {
           try {
             const now = new Date();
             const transitData = await swissEphemeris.transit({

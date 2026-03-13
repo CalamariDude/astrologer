@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router-dom';
 import { type ChartPreset, loadPresets, savePreset, deletePreset, reorderPresets, buildPresetFromState, loadPresetsFromProfile, savePresetsToProfile } from './utils/presets';
 import { calculateHarmonicChart } from '@/lib/harmonics';
 import { convertToSidereal, AYANAMSA_SYSTEMS } from '@/lib/sidereal';
+import { convertToDraconic } from '@/lib/draconic';
 // Lazy-import chart export (pulls in jsPDF ~357KB) — only needed on export button click
 const getChartExport = () => import('@/lib/chartExport');
 import * as analytics from '@/lib/analytics';
@@ -256,13 +257,14 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
 
   // Custom orbs (lifted for mobile drawer access)
   const [customAspectOrbs, setCustomAspectOrbs] = useState<Record<string, number>>(savedDefaults?.customAspectOrbs ?? {});
+  const [customSeparatingAspectOrbs, setCustomSeparatingAspectOrbs] = useState<Record<string, number>>(savedDefaults?.customSeparatingAspectOrbs ?? {});
   const [customPlanetOrbs, setCustomPlanetOrbs] = useState<Record<string, number>>(savedDefaults?.customPlanetOrbs ?? {});
 
   // Harmonic number (lifted for mobile drawer access)
   const [harmonicNumber, setHarmonicNumber] = useState<number>(savedDefaults?.harmonicNumber ?? 1);
 
   // Sidereal zodiac (lifted for mobile drawer access)
-  const [zodiacType, setZodiacType] = useState<'tropical' | 'sidereal'>(savedDefaults?.zodiacType ?? 'tropical');
+  const [zodiacType, setZodiacType] = useState<'tropical' | 'sidereal' | 'draconic'>(savedDefaults?.zodiacType ?? 'tropical');
   const [ayanamsaKey, setAyanamsaKey] = useState<string>(savedDefaults?.ayanamsaKey ?? 'lahiri');
 
   // Wheel rotation state (lifted for session broadcast)
@@ -934,6 +936,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
       enabledAsteroidGroups,
       houseSystem,
       customAspectOrbs,
+      customSeparatingAspectOrbs,
       customPlanetOrbs,
       harmonicNumber,
     });
@@ -972,6 +975,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     setEnabledAsteroidGroups(new Set(preset.enabledAsteroidGroups as AsteroidGroup[]));
     if (preset.houseSystem) setHouseSystem(preset.houseSystem);
     if (preset.customAspectOrbs) setCustomAspectOrbs(preset.customAspectOrbs);
+    if (preset.customSeparatingAspectOrbs) setCustomSeparatingAspectOrbs(preset.customSeparatingAspectOrbs);
     if (preset.customPlanetOrbs) setCustomPlanetOrbs(preset.customPlanetOrbs);
     if (preset.harmonicNumber !== undefined) setHarmonicNumber(preset.harmonicNumber);
     setActivePresetId(preset.id);
@@ -1111,8 +1115,8 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   const chartKey = useMemo(() => {
     const locKeyA = relocatedLocationA ? `${relocatedLocationA.lat},${relocatedLocationA.lng}` : 'none';
     const locKeyB = relocatedLocationB ? `${relocatedLocationB.lat},${relocatedLocationB.lng}` : 'none';
-    return `${chartMode}-${Array.from(visiblePlanets).sort().join(',')}-${Array.from(visibleAspects).sort().join(',')}-${showHouses}-${showDegreeMarkers}-${Array.from(enabledAsteroidGroups).sort().join(',')}-${showTransits}-${progressedPerson}-${progressedDate}-${showSolarArc}-${relocatedPerson}-${locKeyA}-${locKeyB}-${chartTheme}-${straightAspects}-${mobileShowEffects}-${showRetrogrades}-${showDecans}-${houseSystem}-${harmonicNumber}-${zodiacType}-${ayanamsaKey}-${JSON.stringify(customAspectOrbs)}-${JSON.stringify(customPlanetOrbs)}`;
-  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups, showTransits, progressedPerson, progressedDate, showSolarArc, relocatedPerson, relocatedLocationA, relocatedLocationB, chartTheme, straightAspects, mobileShowEffects, showRetrogrades, showDecans, houseSystem, harmonicNumber, zodiacType, ayanamsaKey, customAspectOrbs, customPlanetOrbs]);
+    return `${chartMode}-${Array.from(visiblePlanets).sort().join(',')}-${Array.from(visibleAspects).sort().join(',')}-${showHouses}-${showDegreeMarkers}-${Array.from(enabledAsteroidGroups).sort().join(',')}-${showTransits}-${progressedPerson}-${progressedDate}-${showSolarArc}-${relocatedPerson}-${locKeyA}-${locKeyB}-${chartTheme}-${straightAspects}-${mobileShowEffects}-${showRetrogrades}-${showDecans}-${houseSystem}-${harmonicNumber}-${zodiacType}-${ayanamsaKey}-${JSON.stringify(customAspectOrbs)}-${JSON.stringify(customSeparatingAspectOrbs)}-${JSON.stringify(customPlanetOrbs)}`;
+  }, [chartMode, visiblePlanets, visibleAspects, showHouses, showDegreeMarkers, enabledAsteroidGroups, showTransits, progressedPerson, progressedDate, showSolarArc, relocatedPerson, relocatedLocationA, relocatedLocationB, chartTheme, straightAspects, mobileShowEffects, showRetrogrades, showDecans, houseSystem, harmonicNumber, zodiacType, ayanamsaKey, customAspectOrbs, customSeparatingAspectOrbs, customPlanetOrbs]);
 
   return (
     <div ref={containerRef} className="w-full">
@@ -1247,7 +1251,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
           } : {})}
         >
           {(() => {
-            // Apply sidereal conversion when zodiacType === 'sidereal'
+            // Apply zodiac system conversion (sidereal or draconic)
             let baseChartA = biWheelProps.chartA;
             let baseChartB = biWheelProps.chartB;
             if (zodiacType === 'sidereal' && baseChartA) {
@@ -1256,6 +1260,11 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
               if (baseChartB) {
                 const dateB = biWheelProps.birthDateB || dateA;
                 baseChartB = convertToSidereal(baseChartB, dateB, ayanamsaKey);
+              }
+            } else if (zodiacType === 'draconic' && baseChartA) {
+              baseChartA = convertToDraconic(baseChartA);
+              if (baseChartB) {
+                baseChartB = convertToDraconic(baseChartB);
               }
             }
             // Apply harmonic transformation when harmonicNumber > 1
@@ -1302,10 +1311,12 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
               onHouseSystemChange: setHouseSystem,
               // Custom orbs
               customAspectOrbs,
+              customSeparatingAspectOrbs,
               customPlanetOrbs,
               onCustomAspectOrbChange: (aspect: string, orb: number) => setCustomAspectOrbs(prev => ({ ...prev, [aspect]: orb })),
+              onCustomSeparatingAspectOrbChange: (aspect: string, orb: number) => setCustomSeparatingAspectOrbs(prev => ({ ...prev, [aspect]: orb })),
               onCustomPlanetOrbChange: (planet: string, orb: number) => setCustomPlanetOrbs(prev => ({ ...prev, [planet]: orb })),
-              onResetOrbs: () => { setCustomAspectOrbs({}); setCustomPlanetOrbs({}); },
+              onResetOrbs: () => { setCustomAspectOrbs({}); setCustomSeparatingAspectOrbs({}); setCustomPlanetOrbs({}); },
               // Harmonic charts
               harmonicNumber,
               onHarmonicNumberChange: setHarmonicNumber,
@@ -1702,6 +1713,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                   chartMode={chartMode}
                   onSetChartMode={(mode: ChartMode) => { setChartMode(mode); biWheelProps.onChartModeChange?.(mode); }}
                   enableComposite={biWheelProps.enableComposite}
+                  enableDavison={biWheelProps.enableDavison}
                   enableTransits={biWheelProps.enableTransits}
                   showTransits={showTransits}
                   transitDate={transitDate}
@@ -1771,10 +1783,12 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                   onSetHouseSystem={setHouseSystem}
                   // Custom orbs
                   customAspectOrbs={customAspectOrbs}
+                  customSeparatingAspectOrbs={customSeparatingAspectOrbs}
                   customPlanetOrbs={customPlanetOrbs}
                   onSetCustomAspectOrb={(aspect, orb) => setCustomAspectOrbs(prev => ({ ...prev, [aspect]: orb }))}
+                  onSetCustomSeparatingAspectOrb={(aspect, orb) => setCustomSeparatingAspectOrbs(prev => ({ ...prev, [aspect]: orb }))}
                   onSetCustomPlanetOrb={(planet, orb) => setCustomPlanetOrbs(prev => ({ ...prev, [planet]: orb }))}
-                  onResetOrbs={() => { setCustomAspectOrbs({}); setCustomPlanetOrbs({}); }}
+                  onResetOrbs={() => { setCustomAspectOrbs({}); setCustomSeparatingAspectOrbs({}); setCustomPlanetOrbs({}); }}
                   // Harmonic charts
                   harmonicNumber={harmonicNumber}
                   onSetHarmonicNumber={setHarmonicNumber}
@@ -1805,6 +1819,10 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                       enabledFixedStarGroups: [...enabledFixedStarGroups],
                       straightAspects,
                       showEffects: mobileShowEffects,
+                      customAspectOrbs,
+                      customSeparatingAspectOrbs,
+                      customPlanetOrbs,
+                      harmonicNumber,
                     };
                     localStorage.setItem('biwheel-chart-defaults', JSON.stringify(defaults));
                   }}

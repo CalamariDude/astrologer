@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ChevronDown, ChevronRight, ChevronLeft, Star, RotateCcw } from 'lucide-react';
 import type { NatalChart } from '@/components/biwheel/types';
 import { calculateProfections } from '@/lib/profections';
-import type { ProfectionYear } from '@/lib/profections';
+import type { ProfectionYear, ProfectionMethod } from '@/lib/profections';
 import { TRADITIONAL_RULERS } from '@/lib/profections';
 import { getTimeLordNatalCondition } from '@/lib/dignities';
 import type { TimeLordCondition } from '@/lib/dignities';
@@ -31,11 +31,12 @@ const ELEMENT_COLORS: Record<string, { bg: string; text: string; ring: string; f
   water: { bg: 'bg-cyan-500/10', text: 'text-cyan-600 dark:text-cyan-400', ring: 'ring-cyan-500/30', fill: '#06b6d4' },
 };
 
-/** Get natal planets that fall in a given zodiac sign (fixed natural zodiac: house 1=Aries, etc.) */
-function getNatalPlanetsInSign(house: number, natalChart: NatalChart): { key: string; symbol: string; color: string }[] {
+/** Get natal planets that fall in a given zodiac sign */
+function getNatalPlanetsInSign(signName: string, natalChart: NatalChart): { key: string; symbol: string; color: string }[] {
   const result: { key: string; symbol: string; color: string }[] = [];
   const corePlanets = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto', 'chiron', 'northnode'];
-  const targetSignIndex = (house - 1) % 12;
+  const targetSignIndex = ZODIAC_SIGNS.findIndex(s => s.name === signName);
+  if (targetSignIndex < 0) return result;
 
   for (const pKey of corePlanets) {
     const planet = natalChart.planets[pKey];
@@ -131,8 +132,8 @@ function ProfectionWheel({ years, onSelect, selectedAge, selectedYear, currentAg
   const selectedHouseNum = selectedYear.house; // 1-12
 
   const natalPlanetsInSign = useMemo(
-    () => getNatalPlanetsInSign(selectedYear.house, natalChart),
-    [selectedYear.house, natalChart]
+    () => getNatalPlanetsInSign(selectedYear.sign, natalChart),
+    [selectedYear.sign, natalChart]
   );
 
   const hoveredSignInfo = useMemo(() => {
@@ -680,11 +681,22 @@ function KeywordsSection({ sign, ruler }: { sign: string; ruler: string }) {
 }
 
 export function ProfectionsPanel({ birthDate, natalChart, personName }: ProfectionsPanelProps) {
+  const [method, setMethod] = useState<ProfectionMethod>('modern');
   const profections = useMemo(
-    () => natalChart?.planets ? calculateProfections(birthDate, natalChart) : null,
-    [birthDate, natalChart]
+    () => natalChart?.planets ? calculateProfections(birthDate, natalChart, new Date(), method) : null,
+    [birthDate, natalChart, method]
   );
-  const [selectedYear, setSelectedYear] = useState<ProfectionYear | null>(profections?.currentYear ?? null);
+  const [selectedYearAge, setSelectedYearAge] = useState<number | null>(null);
+  const selectedYear = useMemo(() => {
+    if (!profections) return null;
+    if (selectedYearAge !== null) {
+      return profections.years.find(y => y.age === selectedYearAge) || profections.currentYear;
+    }
+    return profections.currentYear;
+  }, [profections, selectedYearAge]);
+  const setSelectedYear = useCallback((year: ProfectionYear | null) => {
+    setSelectedYearAge(year?.age ?? null);
+  }, []);
   const colors = ELEMENT_COLORS[selectedYear?.element ?? 'fire'] || ELEMENT_COLORS.fire;
   const currentMonth = selectedYear?.months.find(m => m.isCurrent);
 
@@ -712,8 +724,36 @@ export function ProfectionsPanel({ birthDate, natalChart, personName }: Profecti
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-base font-semibold">Yearly/Monthly Profections</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">Age {profections.currentAge} &mdash; equinox year {profections.currentYear.age}</p>
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold">Yearly/Monthly Profections</h3>
+          <div className="flex items-center gap-1 bg-muted/40 rounded-full p-0.5">
+            <button
+              onClick={() => { setMethod('traditional'); setSelectedYearAge(null); }}
+              className={`px-2.5 py-1 text-[10px] rounded-full transition-colors ${
+                method === 'traditional'
+                  ? 'bg-foreground text-background font-semibold'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Traditional
+            </button>
+            <button
+              onClick={() => { setMethod('modern'); setSelectedYearAge(null); }}
+              className={`px-2.5 py-1 text-[10px] rounded-full transition-colors ${
+                method === 'modern'
+                  ? 'bg-foreground text-background font-semibold'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Modern
+            </button>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Age {profections.currentAge} &mdash; {method === 'traditional'
+            ? `${profections.currentYear.sign} year (from ASC)`
+            : `${profections.currentYear.sign} year (equinox-based)`}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">

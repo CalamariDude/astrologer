@@ -4,6 +4,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
+import { Maximize2 } from 'lucide-react';
 import { PLANETS, COLORS, ASTEROIDS, ARABIC_PARTS } from '../utils/constants';
 import { formatLongitude, calculateDegreeSign } from '../utils/chartMath';
 import type { PlanetData, NatalChart } from '../types';
@@ -15,6 +16,7 @@ import {
   getSignAspectInterpretation,
 } from '@/lib/interpretationLookup';
 import { getTooltipContainerStyle, isTooltipMobile } from './useTooltipStyle';
+import { getSabianSymbol } from '@/data/sabianSymbols';
 
 const isMobileView = () => window.innerWidth < 500;
 
@@ -36,6 +38,7 @@ interface PlanetTooltipProps {
   position: { x: number; y: number };
   visible: boolean;
   onClose?: () => void; // If provided, shows close button (pinned mode)
+  onExpand?: () => void; // If provided, shows expand button (opens detail dialog)
   // Chart data for getting partner planet signs
   partnerChart?: NatalChart;
   // Transit-specific
@@ -106,6 +109,7 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
   position,
   visible,
   onClose,
+  onExpand,
   partnerChart,
   transitDate,
   transitAspects = [],
@@ -219,24 +223,40 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
         </div>
       )}
 
-      {/* Close button - only if pinned */}
+      {/* Expand + Close buttons - only if pinned */}
       {onClose && (
-        <button
-          onClick={onClose}
-          style={{
-            position: 'absolute',
-            top: 8,
-            right: 10,
-            background: 'none',
-            border: 'none',
-            color: COLORS.textMuted,
-            cursor: 'pointer',
-            fontSize: 16,
-            padding: 4,
-          }}
-        >
-          ×
-        </button>
+        <div style={{ position: 'absolute', top: 8, right: 10, display: 'flex', gap: 2 }}>
+          {onExpand && (
+            <button
+              onClick={onExpand}
+              title="Expand details"
+              style={{
+                background: 'none',
+                border: 'none',
+                color: COLORS.textMuted,
+                cursor: 'pointer',
+                padding: 4,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <Maximize2 size={12} />
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: COLORS.textMuted,
+              cursor: 'pointer',
+              fontSize: 16,
+              padding: 4,
+            }}
+          >
+            ×
+          </button>
+        </div>
       )}
 
       {/* Header */}
@@ -370,6 +390,37 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
           </div>
         </div>
       )}
+
+      {/* Sabian Symbol — hidden on mobile */}
+      {!mobile && data.longitude !== undefined && (() => {
+        const sabian = getSabianSymbol(data.longitude);
+        return (
+          <div style={{
+            borderTop: `1px solid ${COLORS.gridLine}`,
+            paddingTop: 8,
+            marginBottom: 8,
+          }}>
+            <div style={{
+              fontSize: 10, fontWeight: 600, color: COLORS.textMuted,
+              marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px',
+            }}>
+              Sabian Symbol ({sabian.sign} {sabian.degree})
+            </div>
+            <div style={{
+              fontSize: 11, color: COLORS.textSecondary, lineHeight: 1.4,
+              fontStyle: 'italic',
+            }}>
+              "{sabian.symbol}"
+            </div>
+            <div style={{
+              fontSize: 10, color: COLORS.textMuted, marginTop: 3,
+              fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.3px',
+            }}>
+              {sabian.keyword}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Aspects list — hidden on mobile hover (only show when pinned/clicked) */}
       {sortedAspects.length > 0 && !(mobile && !onClose) && (
@@ -506,16 +557,29 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
                       )}
                     </div>
 
-                    {/* Orb */}
-                    <span
-                      style={{
-                        fontSize: 10,
-                        color: isTight ? '#7c3aed' : COLORS.textMuted,
-                        fontWeight: isTight ? 600 : 400,
-                      }}
-                    >
-                      {asp.aspect.exactOrb.toFixed(1)}°
-                    </span>
+                    {/* Orb + applying/separating */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          color: isTight ? '#7c3aed' : COLORS.textMuted,
+                          fontWeight: isTight ? 600 : 400,
+                        }}
+                      >
+                        {asp.aspect.exactOrb.toFixed(1)}°
+                      </span>
+                      {asp.aspect.isApplying !== undefined && (
+                        <span style={{
+                          fontSize: 7,
+                          color: asp.aspect.isApplying ? '#3b82f6' : COLORS.textMuted,
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.3px',
+                        }}>
+                          {asp.aspect.isApplying ? 'App' : 'Sep'}
+                        </span>
+                      )}
+                    </div>
 
                     {/* Tight badge */}
                     {isTight && (

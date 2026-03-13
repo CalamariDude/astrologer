@@ -138,16 +138,18 @@ interface TogglePanelProps {
   onSetHouseSystem?: (system: string) => void;
   // Custom orbs
   customAspectOrbs?: Record<string, number>;
+  customSeparatingAspectOrbs?: Record<string, number>;
   customPlanetOrbs?: Record<string, number>;
   onSetCustomAspectOrb?: (aspect: string, orb: number) => void;
+  onSetCustomSeparatingAspectOrb?: (aspect: string, orb: number) => void;
   onSetCustomPlanetOrb?: (planet: string, orb: number) => void;
   onResetOrbs?: () => void;
   // Harmonic charts
   harmonicNumber?: number;
   onSetHarmonicNumber?: (n: number) => void;
   // Sidereal zodiac
-  zodiacType?: 'tropical' | 'sidereal';
-  onSetZodiacType?: (type: 'tropical' | 'sidereal') => void;
+  zodiacType?: 'tropical' | 'sidereal' | 'draconic';
+  onSetZodiacType?: (type: 'tropical' | 'sidereal' | 'draconic') => void;
   ayanamsaKey?: string;
   onSetAyanamsaKey?: (key: string) => void;
   // Save current settings as default
@@ -531,8 +533,10 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
   onSetHouseSystem,
   // Custom orbs
   customAspectOrbs,
+  customSeparatingAspectOrbs,
   customPlanetOrbs,
   onSetCustomAspectOrb,
+  onSetCustomSeparatingAspectOrb,
   onSetCustomPlanetOrb,
   onResetOrbs,
   // Harmonic charts
@@ -1522,27 +1526,62 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
       {/* Orb Settings */}
       {onSetCustomAspectOrb && (
         <Section title="Orb Settings" defaultOpen={false}>
-          {/* Per-aspect orbs */}
+          {/* Per-aspect orbs — Applying & Separating columns */}
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 10, color: COLORS.textMuted, marginBottom: 6 }}>Aspect Orbs</div>
+            {/* Column headers */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 6 }}>
+              <div style={{ fontSize: 9, color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
+                Applying Orb
+              </div>
+              <div style={{ fontSize: 9, color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
+                Separating Orb
+              </div>
+            </div>
             {Object.entries(ASPECTS).filter(([key]) => visibleAspects.has(key as AspectType)).map(([key, def]) => {
-              const current = customAspectOrbs?.[key] ?? def.orb;
+              const applyingOrb = customAspectOrbs?.[key] ?? def.orb;
+              const separatingOrb = customSeparatingAspectOrbs?.[key] ?? def.separatingOrb;
               return (
-                <div key={key} style={{ marginBottom: 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, marginBottom: 2 }}>
+                <div key={key} style={{ marginBottom: 8 }}>
+                  {/* Aspect name row */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, marginBottom: 3 }}>
                     <span style={{ color: def.color, width: 14, textAlign: 'center' }}>{def.symbol}</span>
                     <span style={{ flex: 1, color: COLORS.textSecondary }}>{def.name}</span>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: COLORS.textPrimary, minWidth: 28, textAlign: 'right' }}>{current}°</span>
                   </div>
-                  <input
-                    type="range"
-                    min={0.5}
-                    max={12}
-                    step={0.5}
-                    value={current}
-                    onChange={(e) => onSetCustomAspectOrb(key, parseFloat(e.target.value))}
-                    style={{ width: '100%', accentColor: def.color }}
-                  />
+                  {/* Two sliders side by side */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {/* Applying */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, marginBottom: 1 }}>
+                        <span style={{ color: COLORS.textMuted }}>App</span>
+                        <span style={{ fontWeight: 600, color: COLORS.textPrimary }}>{applyingOrb}°</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0.5}
+                        max={12}
+                        step={0.5}
+                        value={applyingOrb}
+                        onChange={(e) => onSetCustomAspectOrb(key, parseFloat(e.target.value))}
+                        style={{ width: '100%', accentColor: def.color }}
+                      />
+                    </div>
+                    {/* Separating */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, marginBottom: 1 }}>
+                        <span style={{ color: COLORS.textMuted }}>Sep</span>
+                        <span style={{ fontWeight: 600, color: COLORS.textPrimary }}>{separatingOrb}°</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0.5}
+                        max={12}
+                        step={0.5}
+                        value={separatingOrb}
+                        onChange={(e) => onSetCustomSeparatingAspectOrb?.(key, parseFloat(e.target.value))}
+                        style={{ width: '100%', accentColor: def.color }}
+                      />
+                    </div>
+                  </div>
                 </div>
               );
             })}

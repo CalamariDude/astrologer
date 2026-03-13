@@ -33,6 +33,7 @@ export interface ChartPreset {
   houseSystem?: string;
   // Custom orbs (optional)
   customAspectOrbs?: Record<string, number>;
+  customSeparatingAspectOrbs?: Record<string, number>;
   customPlanetOrbs?: Record<string, number>;
   // Harmonic number (optional)
   harmonicNumber?: number;
@@ -148,6 +149,7 @@ export function buildPresetFromState(opts: {
   enabledAsteroidGroups: Set<AsteroidGroup>;
   houseSystem?: string;
   customAspectOrbs?: Record<string, number>;
+  customSeparatingAspectOrbs?: Record<string, number>;
   customPlanetOrbs?: Record<string, number>;
   harmonicNumber?: number;
 }): Omit<ChartPreset, 'id' | 'createdAt'> {
@@ -167,6 +169,7 @@ export function buildPresetFromState(opts: {
     enabledAsteroidGroups: Array.from(opts.enabledAsteroidGroups),
     houseSystem: opts.houseSystem,
     customAspectOrbs: opts.customAspectOrbs && Object.keys(opts.customAspectOrbs).length > 0 ? opts.customAspectOrbs : undefined,
+    customSeparatingAspectOrbs: opts.customSeparatingAspectOrbs && Object.keys(opts.customSeparatingAspectOrbs).length > 0 ? opts.customSeparatingAspectOrbs : undefined,
     customPlanetOrbs: opts.customPlanetOrbs && Object.keys(opts.customPlanetOrbs).length > 0 ? opts.customPlanetOrbs : undefined,
     harmonicNumber: opts.harmonicNumber && opts.harmonicNumber > 1 ? opts.harmonicNumber : undefined,
   };
