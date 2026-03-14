@@ -581,6 +581,11 @@ export default function GalacticMode({ chart: initialChart, name, birthDate, vis
     }
   }, []);
 
+  // Expose toggleFullscreen to parent
+  if (fullscreenButtonRef) {
+    fullscreenButtonRef.current = toggleFullscreen;
+  }
+
   // Planet list for Object toggles
   const mainPlanetKeys = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto', 'chiron', 'northnode', 'southnode', 'lilith'];
   const mainPlanets = useMemo(() => {

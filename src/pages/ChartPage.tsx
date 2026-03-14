@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useSearchParams, Link } from 'react-router-dom';
-import { Loader2, MapPin, Plus, X, Pencil, LogIn, User, Users, Calendar, Clock, Search, Sparkles, Grid3X3, RotateCcw, Gauge, Table2, TrendingUp, CalendarClock, ArrowUpDown, StickyNote, Keyboard, Settings, FolderOpen, Radio, AlertTriangle, Link2, Crown, ArrowLeft, Sun, Moon, Star, Wrench } from 'lucide-react';
+import { Loader2, MapPin, Plus, X, Pencil, LogIn, User, Users, Calendar, Clock, Search, Sparkles, Grid3X3, RotateCcw, Gauge, Table2, TrendingUp, CalendarClock, ArrowUpDown, StickyNote, Keyboard, Settings, FolderOpen, Radio, AlertTriangle, Link2, Crown, ArrowLeft, Sun, Moon, Star, Wrench, Maximize2 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { addClient } from '@/lib/clients';
 import { SaveChartButton } from '@/components/charts/SaveChartButton';
@@ -822,6 +822,7 @@ export default function ChartPage() {
   }, [activeTab]);
 
   const [showGalactic, setShowGalactic] = useState(false);
+  const galacticFullscreenRef = useRef<(() => void) | null>(null);
   const [viewMode, setViewMode] = useState<'chart' | 'video'>('chart');
   const [showMobileChart, setShowMobileChart] = useState(false);
 
@@ -891,7 +892,7 @@ export default function ChartPage() {
           localStorage.setItem('astrologer_theme', data.theme);
         }
         // Restore tabs from profile if available and no route/session override
-        if (!profileTabsLoaded.current && data?.chart_tabs && Array.isArray(data.chart_tabs) && data.chart_tabs.length > 0 && !routeState?.personA) {
+        if (!profileTabsLoaded.current && data?.chart_tabs && Array.isArray(data.chart_tabs) && data.chart_tabs.length > 0 && !routeState?.personA && !routeState?.loadClient && !routeState?.loadChart && !routeState?.currentTransits) {
           setTabs(data.chart_tabs as ChartTab[]);
           // Preserve session-restored activeTabIndex on reload; only jump if no session
           if (!sessionRestore?.activeTabIndex) {
@@ -2160,7 +2161,16 @@ export default function ChartPage() {
                       </Button>
                     )}
                   </div>
-                  <div className="shrink-0">
+                  <div className="shrink-0 flex items-center gap-1.5">
+                    {showGalactic && webglSupported && (
+                      <button
+                        onClick={() => galacticFullscreenRef.current?.()}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30 transition-all duration-200"
+                      >
+                        <Maximize2 className="w-3.5 h-3.5" />
+                        Full Screen
+                      </button>
+                    )}
                     {webglSupported && (
                       <GalacticToggle active={showGalactic} onToggle={handleGalacticToggle} />
                     )}
@@ -2170,7 +2180,16 @@ export default function ChartPage() {
             )}
             {editing && (
               <div className="flex items-center justify-end mb-2">
-                <div className="shrink-0">
+                <div className="shrink-0 flex items-center gap-1.5">
+                  {showGalactic && webglSupported && (
+                    <button
+                      onClick={() => galacticFullscreenRef.current?.()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30 transition-all duration-200"
+                    >
+                      <Maximize2 className="w-3.5 h-3.5" />
+                      Full Screen
+                    </button>
+                  )}
                   {webglSupported && (
                     <GalacticToggle active={showGalactic} onToggle={handleGalacticToggle} />
                   )}
@@ -2192,6 +2211,7 @@ export default function ChartPage() {
                   visiblePlanets={sharedVisiblePlanets}
                   visibleAspects={sharedVisibleAspects}
                   onFetchAsteroidData={handleFetchAsteroidData}
+                  fullscreenButtonRef={galacticFullscreenRef}
                     onFetchFixedStarData={handleFetchFixedStarData}
                     onRefetchWithHouseSystem={handleRefetchWithHouseSystem}
                 />
