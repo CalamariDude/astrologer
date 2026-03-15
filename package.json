@@ -35,6 +35,13 @@
     "@react-three/fiber": "^8.17.10",
     "@react-three/postprocessing": "^2.19.1",
     "@supabase/supabase-js": "^2.97.0",
+    "@tiptap/core": "^3.20.1",
+    "@tiptap/extension-image": "^3.20.1",
+    "@tiptap/extension-link": "^3.20.1",
+    "@tiptap/html": "^3.20.1",
+    "@tiptap/pm": "^3.20.1",
+    "@tiptap/react": "^3.20.1",
+    "@tiptap/starter-kit": "^3.20.1",
     "@xyflow/react": "^12.10.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
@@ -57,6 +64,7 @@
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.183.1",
+    "tiptap-markdown": "^0.9.0",
     "vaul": "^0.9.1"
   },
   "devDependencies": {

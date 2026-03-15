@@ -173,6 +173,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   const [selectedPlanets, setSelectedPlanets] = useState<Set<string>>(
     new Set(['Sun', 'Moon', 'Venus', 'Mars'])
   );
+  const [expanded, setExpanded] = useState(false);
 
   // Reset selected location when modal opens
   useEffect(() => {
@@ -253,15 +254,17 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
     >
       <div
         style={{
-          width: '90%',
-          maxWidth: 700,
-          maxHeight: '90vh',
+          width: expanded ? '98%' : '90%',
+          maxWidth: expanded ? '100%' : 700,
+          maxHeight: expanded ? '98vh' : '90vh',
+          height: expanded ? '98vh' : undefined,
           background: COLORS.background,
-          borderRadius: 12,
+          borderRadius: expanded ? 8 : 12,
           boxShadow: '0 25px 50px rgba(0, 0, 0, 0.3)',
           overflow: 'hidden auto',
           display: 'flex',
           flexDirection: 'column',
+          transition: 'all 0.2s ease',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -276,27 +279,48 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
           }}
         >
           <div>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: COLORS.textPrimary }}>
-              Select Relocated Location
-            </h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: COLORS.textPrimary }}>
+                Astrocartography
+              </h2>
+              <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(245,158,11,0.1)', color: '#d97706', border: '1px solid rgba(245,158,11,0.2)' }}>Beta</span>
+            </div>
             <p style={{ margin: '4px 0 0', fontSize: 12, color: COLORS.textMuted }}>
-              Click on the map to choose a new location for the relocated chart
+              Click on the map to select a location &mdash; see where your planetary lines cross
             </p>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: 24,
-              color: COLORS.gridLineFaint,
-              cursor: 'pointer',
-              padding: 4,
-              lineHeight: 1,
-            }}
-          >
-            ×
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button
+              onClick={() => setExpanded(e => !e)}
+              style={{
+                background: 'none',
+                border: `1px solid ${COLORS.gridLineFaint}44`,
+                borderRadius: 4,
+                fontSize: 11,
+                color: COLORS.textSecondary,
+                cursor: 'pointer',
+                padding: '4px 8px',
+                lineHeight: 1,
+              }}
+              title={expanded ? 'Collapse map' : 'Expand map'}
+            >
+              {expanded ? '⇲ Collapse' : '⇱ Expand'}
+            </button>
+            <button
+              onClick={onClose}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: 24,
+                color: COLORS.gridLineFaint,
+                cursor: 'pointer',
+                padding: 4,
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         {/* Map Style Toggle */}
@@ -368,7 +392,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
             {showLines && (
               <>
                 <span style={{ fontSize: 10, color: COLORS.textMuted }}>|</span>
-                {['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'].map(planet => (
+                {['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'].map(planet => (
                   <button
                     key={planet}
                     onClick={() => {
@@ -402,7 +426,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
         )}
 
         {/* Map Container */}
-        <div style={{ height: 'clamp(250px, 45vh, 400px)', minHeight: '250px', position: 'relative', flexShrink: 0 }}>
+        <div style={{ height: expanded ? undefined : 'clamp(250px, 45vh, 400px)', flex: expanded ? 1 : undefined, minHeight: '250px', position: 'relative', flexShrink: 0 }}>
           <MapContainer
             key={`${defaultCenter.lat}-${defaultCenter.lng}-${mapStyle}`}
             center={[defaultCenter.lat, defaultCenter.lng]}
@@ -468,6 +492,43 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
                 />
               ))}
           </MapContainer>
+
+          {/* Legend overlay */}
+          {showLines && astroLines.length > 0 && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 10,
+                left: 10,
+                background: 'rgba(0,0,0,0.75)',
+                borderRadius: 6,
+                padding: '6px 10px',
+                zIndex: 1000,
+                fontSize: 10,
+                color: '#fff',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 3,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 20, height: 2, background: '#fff' }} />
+                <span>MC (Culmination)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 20, height: 2, background: '#fff', borderTop: '2px dashed #fff', height: 0 }} />
+                <span>IC (Nadir)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 20, height: 2, background: '#fff', borderRadius: 1 }} />
+                <span>ASC (Rising)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 20, height: 0, borderTop: '2px dashed #fff' }} />
+                <span>DSC (Setting)</span>
+              </div>
+            </div>
+          )}
 
           {/* Geocoding indicator */}
           {isGeocoding && (

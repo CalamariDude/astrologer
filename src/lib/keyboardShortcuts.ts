@@ -9,7 +9,7 @@ export interface ShortcutDef {
   category: 'Navigation' | 'Chart' | 'Chart Tabs' | 'View' | 'General';
 }
 
-/** Ordered tab values — indices 0–8 map to keys 1–9 */
+/** Ordered tab values */
 export const TAB_VALUES = [
   'aspect-grid',
   'profections',
@@ -27,19 +27,29 @@ export const TAB_VALUES = [
   'notes',
 ] as const;
 
+/** Human-readable labels for each tab value (used in spotlight search) */
+export const TAB_LABELS: Record<string, string> = {
+  'aspect-grid': 'Aspects',
+  'profections': 'Profections',
+  'age-degree': 'Activations',
+  'ephemeris': 'Ephemeris',
+  'graphic-eph': 'Graphic Ephemeris',
+  'transits': 'Transits',
+  'declination': 'Declination',
+  'dignities': 'Dignities',
+  'fixed-stars': 'Fixed Stars',
+  'ai-reading': 'AI Reading',
+  'time-finder': 'Time Finder',
+  'voc-moon': 'VOC Moon',
+  'planet-returns': 'Returns',
+  'notes': 'Notes',
+};
+
 export const SHORTCUTS: ShortcutDef[] = [
   // Navigation
-  { id: 'tab-1', key: '1', label: 'Aspects tab', category: 'Navigation' },
-  { id: 'tab-2', key: '2', label: 'Profections tab', category: 'Navigation' },
-  { id: 'tab-3', key: '3', label: 'Activations tab', category: 'Navigation' },
-  { id: 'tab-4', key: '4', label: 'Ephemeris tab', category: 'Navigation' },
-  { id: 'tab-5', key: '5', label: 'Graphic Eph. tab', category: 'Navigation' },
-  { id: 'tab-6', key: '6', label: 'Transits tab', category: 'Navigation' },
-  { id: 'tab-7', key: '7', label: 'Declination tab', category: 'Navigation' },
-  { id: 'tab-8', key: '8', label: 'AI Reading tab', category: 'Navigation' },
-  { id: 'tab-9', key: '9', label: 'Notes tab', category: 'Navigation' },
   { id: 'prev-tab', key: '[', label: 'Previous tab', category: 'Navigation' },
   { id: 'next-tab', key: ']', label: 'Next tab', category: 'Navigation' },
+  { id: 'preset', key: '0-9', label: 'Load preset (0=Default)', category: 'Navigation' },
 
   // Chart Tabs
   { id: 'new-tab', key: 'T', alt: true, label: 'New chart tab', category: 'Chart Tabs' },
@@ -49,7 +59,7 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'next-chart-tab', key: '→', alt: true, label: 'Next chart tab', category: 'Chart Tabs' },
 
   // Chart
-  { id: 'spotlight', key: 'K', meta: true, label: 'Quick switch chart', category: 'Chart' },
+  { id: 'spotlight', key: 'K', meta: true, label: 'Command palette', category: 'Chart' },
   { id: 'calculate', key: 'Enter', meta: true, label: 'Calculate chart', category: 'Chart' },
   { id: 'save', key: 'S', meta: true, label: 'Save chart', category: 'Chart' },
   { id: 'edit', key: 'E', label: 'Toggle edit mode', category: 'Chart' },

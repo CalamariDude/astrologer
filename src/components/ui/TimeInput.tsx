@@ -44,8 +44,29 @@ export function TimeInput({ value, onChange, className, style, unstyled }: TimeI
 
   const hhRef = React.useRef<HTMLInputElement>(null);
   const mmRef = React.useRef<HTMLInputElement>(null);
+  const focusedRef = React.useRef(false);
+  const blurTimerRef = React.useRef<number>(0);
+  // Mirror latest values in refs so blur handlers never read stale closures
+  const hhValRef = React.useRef(hh);
+  const mmValRef = React.useRef(mm);
+  hhValRef.current = hh;
+  mmValRef.current = mm;
+
+  // Track focus at the container level so hh→mm transitions don't create a gap
+  const handleContainerFocus = () => {
+    clearTimeout(blurTimerRef.current);
+    focusedRef.current = true;
+  };
+  const handleContainerBlur = () => {
+    clearTimeout(blurTimerRef.current);
+    blurTimerRef.current = window.setTimeout(() => {
+      focusedRef.current = false;
+    }, 50);
+  };
 
   React.useEffect(() => {
+    // Don't overwrite local state while the user is actively typing
+    if (focusedRef.current) return;
     const p = parseTimeValue(value);
     setHh(p.hh);
     setMm(p.mm);
@@ -63,9 +84,9 @@ export function TimeInput({ value, onChange, className, style, unstyled }: TimeI
 
   const handleChange = (segment: 'hh' | 'mm', raw: string) => {
     const digits = raw.replace(/\D/g, '').slice(0, 2);
-    let newHh = hh, newMm = mm;
-    if (segment === 'hh') { newHh = digits; setHh(digits); }
-    if (segment === 'mm') { newMm = digits; setMm(digits); }
+    let newHh = hhValRef.current, newMm = mmValRef.current;
+    if (segment === 'hh') { newHh = digits; setHh(digits); hhValRef.current = digits; }
+    if (segment === 'mm') { newMm = digits; setMm(digits); mmValRef.current = digits; }
     if (segment === 'hh' && digits.length === 2) mmRef.current?.focus();
     emitChange(newHh, newMm, period);
   };
@@ -81,14 +102,15 @@ export function TimeInput({ value, onChange, className, style, unstyled }: TimeI
   };
 
   const handleBlur = (segment: 'hh' | 'mm') => {
-    let newHh = hh, newMm = mm;
-    if (segment === 'hh' && hh) {
-      const n = clamp(parseInt(hh, 10), 1, 12);
+    // Read from refs to avoid stale closure values (e.g. when hh auto-focuses mm)
+    let newHh = hhValRef.current, newMm = mmValRef.current;
+    if (segment === 'hh' && newHh) {
+      const n = clamp(parseInt(newHh, 10), 1, 12);
       newHh = String(n);
       setHh(newHh);
     }
-    if (segment === 'mm' && mm) {
-      const n = clamp(parseInt(mm, 10), 0, 59);
+    if (segment === 'mm' && newMm) {
+      const n = clamp(parseInt(newMm, 10), 0, 59);
       newMm = String(n).padStart(2, '0');
       setMm(newMm);
     }
@@ -147,14 +169,17 @@ export function TimeInput({ value, onChange, className, style, unstyled }: TimeI
       }
       style={style}
       onPaste={handlePaste}
+      onFocusCapture={handleContainerFocus}
+      onBlurCapture={handleContainerBlur}
     >
       <input
         ref={hhRef}
         value={hh}
         onChange={(e) => handleChange('hh', e.target.value)}
         onKeyDown={(e) => handleKeyDown('hh', e)}
+        onFocus={(e) => e.target.select()}
         onBlur={() => handleBlur('hh')}
-        placeholder="12"
+        placeholder="--"
         inputMode="numeric"
         pattern="[0-9]*"
         style={segStyle}
@@ -166,8 +191,9 @@ export function TimeInput({ value, onChange, className, style, unstyled }: TimeI
         value={mm}
         onChange={(e) => handleChange('mm', e.target.value)}
         onKeyDown={(e) => handleKeyDown('mm', e)}
+        onFocus={(e) => e.target.select()}
         onBlur={() => handleBlur('mm')}
-        placeholder="00"
+        placeholder="--"
         inputMode="numeric"
         pattern="[0-9]*"
         style={segStyle}

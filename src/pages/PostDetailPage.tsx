@@ -7,6 +7,8 @@ import CommentThread from '@/components/community/CommentThread';
 import CommentComposer from '@/components/community/CommentComposer';
 import FlagDialog from '@/components/community/FlagDialog';
 import { formatDistanceToNow } from '@/components/community/utils';
+import { MarkdownRenderer } from '@/components/community/MarkdownRenderer';
+import { NotificationBell } from '@/components/community/NotificationBell';
 import { getThemeCSSVariables, isThemeDark } from '@/lib/chartThemeCSS';
 
 const PostDetailPage = () => {
@@ -54,7 +56,8 @@ const PostDetailPage = () => {
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
           <button onClick={() => navigate(-1)} className="p-1 hover:bg-muted rounded-full"><ArrowLeft className="w-5 h-5" /></button>
-          <h1 className="text-lg font-semibold">Post</h1>
+          <h1 className="text-lg font-semibold flex-1">Post</h1>
+          <NotificationBell />
         </div>
       </div>
 
@@ -77,7 +80,7 @@ const PostDetailPage = () => {
           </div>
 
           {post.title && <h2 className="text-xl font-bold mb-2">{post.title}</h2>}
-          <p className="text-foreground whitespace-pre-wrap leading-relaxed mb-4">{post.body}</p>
+          <MarkdownRenderer content={post.body} className="mb-4" />
 
           {post.media_urls.length > 0 && (
             <div className={`mb-4 rounded-lg overflow-hidden ${post.media_urls.length === 1 ? '' : 'grid grid-cols-2 gap-1'}`}>

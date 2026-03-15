@@ -10,6 +10,7 @@ import PostComposer from '@/components/community/PostComposer';
 import ApplyToPostDialog from '@/components/community/ApplyToPostDialog';
 import FlagDialog from '@/components/community/FlagDialog';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
+import { NotificationBell } from '@/components/community/NotificationBell';
 import { getThemeCSSVariables, isThemeDark } from '@/lib/chartThemeCSS';
 
 const CommunityPage = () => {
@@ -66,7 +67,10 @@ const CommunityPage = () => {
             </button>
             <h1 className="text-xl font-bold">Community</h1>
           </div>
-          <ProfileDropdown />
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <ProfileDropdown />
+          </div>
         </div>
       </div>
 

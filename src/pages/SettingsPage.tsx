@@ -24,6 +24,55 @@ import { invalidateChartsCache } from '@/components/charts/SaveChartButton';
 import { THEME_LABELS, THEME_SWATCHES, type ThemeName } from '@/components/biwheel/utils/themes';
 import { loadPresets, loadPresetsFromProfile, savePresetsToProfile, deletePreset as deleteLocalPreset, renamePreset as renameLocalPreset, type ChartPreset } from '@/components/biwheel/utils/presets';
 import { ClientsList } from '@/components/clients/ClientsList';
+import { isPushSupported, isSubscribedToPush, subscribeToPush, unsubscribeFromPush } from '@/lib/pushNotifications';
+
+function PushNotificationToggle({ userId }: { userId?: string }) {
+  const [supported, setSupported] = useState(false);
+  const [subscribed, setSubscribed] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const sup = await isPushSupported();
+      setSupported(sup);
+      if (sup) {
+        const sub = await isSubscribedToPush();
+        setSubscribed(sub);
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  if (!supported) {
+    return <p className="text-xs text-muted-foreground">Push notifications are not supported in this browser.</p>;
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div>
+        <div className="text-sm font-medium">Browser Notifications</div>
+        <div className="text-xs text-muted-foreground">Receive instant notifications in your browser</div>
+      </div>
+      <Switch
+        checked={subscribed}
+        disabled={loading || !userId}
+        onCheckedChange={async (checked) => {
+          if (!userId) return;
+          setLoading(true);
+          if (checked) {
+            const ok = await subscribeToPush(userId);
+            setSubscribed(ok);
+            if (!ok) toast.error('Failed to enable push notifications');
+          } else {
+            await unsubscribeFromPush(userId);
+            setSubscribed(false);
+          }
+          setLoading(false);
+        }}
+      />
+    </div>
+  );
+}
 
 const SECTIONS = [
   { id: 'account', label: 'Account', icon: User },
@@ -100,10 +149,16 @@ export default function SettingsPage() {
   const birthLocAbortRef = useRef<AbortController | null>(null);
   const [birthSaving, setBirthSaving] = useState(false);
 
-  // Danger zone state
   // Notifications state
   const [emailUnsubscribed, setEmailUnsubscribed] = useState(false);
   const [loadingEmailPref, setLoadingEmailPref] = useState(false);
+  const [notifyPostLikes, setNotifyPostLikes] = useState(true);
+  const [notifyPostComments, setNotifyPostComments] = useState(true);
+  const [notifyCommentLikes, setNotifyCommentLikes] = useState(true);
+  const [notifyCommentReplies, setNotifyCommentReplies] = useState(true);
+  const [notifyNewFollowers, setNotifyNewFollowers] = useState(true);
+  const [notifyEmailCommunity, setNotifyEmailCommunity] = useState(true);
+  const [savingNotifPref, setSavingNotifPref] = useState(false);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -225,10 +280,16 @@ export default function SettingsPage() {
   // Load profile data
   useEffect(() => {
     if (!user) return;
-    supabase.from('astrologer_profiles').select('display_name, email_unsubscribed').eq('id', user.id).single()
+    supabase.from('astrologer_profiles').select('display_name, email_unsubscribed, notify_post_likes, notify_post_comments, notify_comment_likes, notify_comment_replies, notify_new_followers, notify_email_community').eq('id', user.id).single()
       .then(({ data }) => {
         setDisplayName(data?.display_name || '');
         setEmailUnsubscribed(data?.email_unsubscribed ?? false);
+        setNotifyPostLikes(data?.notify_post_likes ?? true);
+        setNotifyPostComments(data?.notify_post_comments ?? true);
+        setNotifyCommentLikes(data?.notify_comment_likes ?? true);
+        setNotifyCommentReplies(data?.notify_comment_replies ?? true);
+        setNotifyNewFollowers(data?.notify_new_followers ?? true);
+        setNotifyEmailCommunity(data?.notify_email_community ?? true);
       });
     // Load community profile (socials)
     supabase.from('profiles').select('avatar_url, bio, website_url, linktree_url, twitter_handle, instagram_handle, tiktok_handle, youtube_url').eq('id', user.id).maybeSingle()
@@ -1005,40 +1066,106 @@ export default function SettingsPage() {
 
             {/* Notifications */}
             {activeSection === 'notifications' && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Email Notifications</CardTitle>
-                  <CardDescription>Control which emails you receive</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <div className="text-sm font-medium">Daily Horoscope</div>
-                      <div className="text-xs text-muted-foreground">Receive a personalized energy reading every morning at 7 AM</div>
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Email Notifications</CardTitle>
+                    <CardDescription>Control which emails you receive</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-sm font-medium">Daily Horoscope</div>
+                        <div className="text-xs text-muted-foreground">Receive a personalized energy reading every morning at 7 AM</div>
+                      </div>
+                      <Switch
+                        checked={!emailUnsubscribed}
+                        disabled={loadingEmailPref}
+                        onCheckedChange={async (checked) => {
+                          if (!user) return;
+                          setLoadingEmailPref(true);
+                          const unsubscribed = !checked;
+                          const { error } = await supabase
+                            .from('astrologer_profiles')
+                            .update({ email_unsubscribed: unsubscribed })
+                            .eq('id', user.id);
+                          setLoadingEmailPref(false);
+                          if (error) {
+                            toast.error('Failed to update preference');
+                            return;
+                          }
+                          setEmailUnsubscribed(unsubscribed);
+                          toast.success(checked ? 'Daily horoscope emails enabled' : 'Daily horoscope emails disabled');
+                        }}
+                      />
                     </div>
-                    <Switch
-                      checked={!emailUnsubscribed}
-                      disabled={loadingEmailPref}
-                      onCheckedChange={async (checked) => {
-                        if (!user) return;
-                        setLoadingEmailPref(true);
-                        const unsubscribed = !checked;
-                        const { error } = await supabase
-                          .from('astrologer_profiles')
-                          .update({ email_unsubscribed: unsubscribed })
-                          .eq('id', user.id);
-                        setLoadingEmailPref(false);
-                        if (error) {
-                          toast.error('Failed to update preference');
-                          return;
-                        }
-                        setEmailUnsubscribed(unsubscribed);
-                        toast.success(checked ? 'Daily horoscope emails enabled' : 'Daily horoscope emails disabled');
-                      }}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
+                    <Separator />
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-sm font-medium">Community Activity</div>
+                        <div className="text-xs text-muted-foreground">Email summaries when people interact with your posts</div>
+                      </div>
+                      <Switch
+                        checked={notifyEmailCommunity}
+                        disabled={savingNotifPref}
+                        onCheckedChange={async (checked) => {
+                          if (!user) return;
+                          setSavingNotifPref(true);
+                          const { error } = await supabase.from('astrologer_profiles').update({ notify_email_community: checked }).eq('id', user.id);
+                          setSavingNotifPref(false);
+                          if (error) { toast.error('Failed to update'); return; }
+                          setNotifyEmailCommunity(checked);
+                        }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Community Notifications</CardTitle>
+                    <CardDescription>Choose what you get notified about in the community</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {([
+                      { key: 'postLikes', label: 'Post Likes', desc: 'When someone likes your post', value: notifyPostLikes, setter: setNotifyPostLikes, col: 'notify_post_likes' },
+                      { key: 'postComments', label: 'Comments', desc: 'When someone comments on your post', value: notifyPostComments, setter: setNotifyPostComments, col: 'notify_post_comments' },
+                      { key: 'commentLikes', label: 'Comment Likes', desc: 'When someone likes your comment', value: notifyCommentLikes, setter: setNotifyCommentLikes, col: 'notify_comment_likes' },
+                      { key: 'commentReplies', label: 'Replies', desc: 'When someone replies to your comment', value: notifyCommentReplies, setter: setNotifyCommentReplies, col: 'notify_comment_replies' },
+                      { key: 'newFollowers', label: 'New Followers', desc: 'When someone follows you', value: notifyNewFollowers, setter: setNotifyNewFollowers, col: 'notify_new_followers' },
+                    ] as const).map(({ key, label, desc, value, setter, col }) => (
+                      <div key={key} className="flex items-center justify-between gap-4">
+                        <div>
+                          <div className="text-sm font-medium">{label}</div>
+                          <div className="text-xs text-muted-foreground">{desc}</div>
+                        </div>
+                        <Switch
+                          checked={value}
+                          disabled={savingNotifPref}
+                          onCheckedChange={async (checked) => {
+                            if (!user) return;
+                            setSavingNotifPref(true);
+                            const { error } = await supabase.from('astrologer_profiles').update({ [col]: checked }).eq('id', user.id);
+                            setSavingNotifPref(false);
+                            if (error) { toast.error('Failed to update'); return; }
+                            setter(checked);
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Push Notifications</CardTitle>
+                    <CardDescription>Get browser notifications for community activity</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <PushNotificationToggle userId={user?.id} />
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             {/* Preferences */}

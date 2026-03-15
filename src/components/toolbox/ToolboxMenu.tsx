@@ -109,6 +109,7 @@ export function ToolboxMenu({ onSelectTool, onClose, hasBirthDate, recentTools =
         <div className="flex items-center gap-2">
           <Wrench className="w-4 h-4 text-muted-foreground" />
           <h3 className="text-sm font-semibold">Advanced Toolbox</h3>
+          <span className="text-[9px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20">Beta</span>
           <span className="text-[11px] text-muted-foreground/70 bg-muted/40 px-1.5 py-0.5 rounded">{TOOLS.length} tools</span>
         </div>
         <button

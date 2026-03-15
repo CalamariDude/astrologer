@@ -22,6 +22,7 @@ export interface ChartPreset {
   showDecans: boolean;
   // Aspect lines
   straightAspects: boolean;
+  aspectLineStyle?: string;
   showEffects: boolean;
   // Theme & rotation
   chartTheme: string;
@@ -142,6 +143,7 @@ export function buildPresetFromState(opts: {
   showRetrogrades: boolean;
   showDecans: boolean;
   straightAspects: boolean;
+  aspectLineStyle?: string;
   showEffects: boolean;
   chartTheme: string;
   rotateToAscendant: boolean;
@@ -162,6 +164,7 @@ export function buildPresetFromState(opts: {
     showRetrogrades: opts.showRetrogrades,
     showDecans: opts.showDecans,
     straightAspects: opts.straightAspects,
+    aspectLineStyle: opts.aspectLineStyle,
     showEffects: opts.showEffects,
     chartTheme: opts.chartTheme,
     rotateToAscendant: opts.rotateToAscendant,

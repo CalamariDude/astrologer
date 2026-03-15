@@ -840,6 +840,27 @@ export default function ChartPage() {
   const [showSpotlight, setShowSpotlight] = useState(false);
   const [saveAfterGenerate, setSaveAfterGenerate] = useState(false);
 
+  // Spotlight tutorial — show once on first visit
+  const spotlightBtnRef = useRef<HTMLButtonElement>(null);
+  const [showSpotlightTutorial, setShowSpotlightTutorial] = useState(() => {
+    return !localStorage.getItem('astrologer-spotlight-tutorial-seen');
+  });
+  useEffect(() => {
+    if (!showSpotlightTutorial) return;
+    // Dismiss when spotlight opens
+    if (showSpotlight) {
+      setShowSpotlightTutorial(false);
+      localStorage.setItem('astrologer-spotlight-tutorial-seen', '1');
+      return;
+    }
+    // Auto-dismiss after 8 seconds
+    const t = setTimeout(() => {
+      setShowSpotlightTutorial(false);
+      localStorage.setItem('astrologer-spotlight-tutorial-seen', '1');
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [showSpotlightTutorial, showSpotlight]);
+
   // Load saved charts from DB (for logged-in) or localStorage on mount
   const [savedChartsLoaded, setSavedChartsLoaded] = useState<SavedChart[]>([]);
   useEffect(() => {
@@ -1586,6 +1607,52 @@ export default function ChartPage() {
     if (btn && !btn.disabled) btn.click();
   }, []);
 
+  // Load preset by number — 0=Default, 1-9=preset by position
+  const handleLoadPresetByIndex = useCallback((index: number) => {
+    if (index === 0) {
+      const btn = document.querySelector<HTMLButtonElement>('[data-preset-id="__default__"]');
+      btn?.click();
+    } else {
+      const presetEls = document.querySelectorAll('[data-preset-id]:not([data-preset-id="__default__"])');
+      const el = presetEls[index - 1];
+      if (el) {
+        const btn = el.querySelector('button');
+        btn?.click();
+      }
+    }
+  }, []);
+
+  // Spotlight command handler — handles all shortcut IDs from SHORTCUTS
+  const handleSpotlightCommand = useCallback((id: string) => {
+    switch (id) {
+      // Navigation
+      case 'prev-tab': handlePrevTab(); break;
+      case 'next-tab': handleNextTab(); break;
+      case 'preset': break; // chord-only, no direct action
+      // Chart Tabs
+      case 'new-tab': handleNewTab?.(); break;
+      case 'close-tab': handleCloseTab?.(activeTabIndex); break;
+      case 'dup-tab': handleDuplicateTab?.(); break;
+      case 'prev-chart-tab': setActiveTabIndex(prev => Math.max(0, prev - 1)); break;
+      case 'next-chart-tab': setActiveTabIndex(prev => Math.min(tabs.length - 1, prev + 1)); break;
+      // Chart
+      case 'save': handleShortcutSave(); break;
+      case 'calculate': calculateChart(); break;
+      case 'edit': setEditing(v => !v); break;
+      // View
+      case 'galactic': handleGalacticToggle(); break;
+      case 'transits-toggle': {
+        const btn = document.querySelector<HTMLButtonElement>('[data-shortcut="toggle-transits"]');
+        btn?.click();
+        break;
+      }
+      case 'zoom-in': case 'zoom-out': case 'zoom-reset': break; // handled by wheel internals
+      // General
+      case 'escape': break; // closing spotlight already handles this
+      case 'help': setShowShortcutsHelp(true); break;
+    }
+  }, [handleShortcutSave, calculateChart, handleGalacticToggle, handlePrevTab, handleNextTab, handleNewTab, handleCloseTab, handleDuplicateTab, activeTabIndex, tabs.length]);
+
   useKeyboardShortcuts({
     hasChart,
     isEditing: editing,
@@ -1597,9 +1664,14 @@ export default function ChartPage() {
     onSave: handleShortcutSave,
     onToggleEdit: useCallback(() => setEditing(v => !v), [setEditing]),
     onToggleGalactic: handleGalacticToggle,
+    onToggleTransits: useCallback(() => {
+      const btn = document.querySelector<HTMLButtonElement>('[data-shortcut="toggle-transits"]');
+      btn?.click();
+    }, []),
     onEscape: handleShortcutEscape,
     onShowHelp: useCallback(() => setShowShortcutsHelp(true), []),
     onSpotlight: useCallback(() => setShowSpotlight(true), []),
+    onLoadPreset: handleLoadPresetByIndex,
     // Chart tab shortcuts
     onNewChartTab: handleNewTab,
     onCloseChartTab: useCallback(() => handleCloseTab(activeTabIndex), [handleCloseTab, activeTabIndex]),
@@ -1616,23 +1688,41 @@ export default function ChartPage() {
       {/* ── Header Bar ──────────────────────────────────────── */}
       <div className="border-b bg-background">
         <div className="container flex items-center gap-2 md:gap-3 py-2 px-2 md:px-6">
+          {/* Left: Back + Logo */}
           <Link to="/dashboard" className="p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors" title="Back to Dashboard">
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <Link to="/dashboard" className="text-sm md:text-base font-extralight tracking-[0.12em] uppercase shrink-0" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>Astrologer</Link>
-          <button
-            onClick={() => setShowSpotlight(true)}
-            className="hidden md:flex items-center gap-2 h-7 px-2.5 rounded-md border border-border/50 bg-muted/30 text-muted-foreground/60 hover:text-foreground hover:bg-muted hover:border-border transition-colors text-xs"
-            title="Quick switch chart (⌘K)"
-          >
-            <Search className="w-3 h-3" />
-            <span className="font-normal">Search charts...</span>
-            <kbd className="ml-1 inline-flex h-[18px] items-center rounded border border-border/60 px-1 text-[10px] font-mono text-muted-foreground/50">⌘K</kbd>
-          </button>
+
+          {/* Center: Search bar (desktop) */}
+          <div className="hidden md:flex flex-1 justify-center">
+            <div className="relative">
+              <button
+                ref={spotlightBtnRef}
+                onClick={() => setShowSpotlight(true)}
+                className={`flex items-center gap-2 h-7 px-2.5 rounded-md border border-border/50 bg-muted/30 text-muted-foreground/60 hover:text-foreground hover:bg-muted hover:border-border transition-colors text-xs ${showSpotlightTutorial ? 'animate-pulse' : ''}`}
+                title="Command palette (⌘K)"
+              >
+                <Search className="w-3 h-3" />
+                <span className="font-normal">Search charts, features, commands...</span>
+                <kbd className="ml-1 inline-flex h-[18px] items-center rounded border border-border/60 px-1 text-[10px] font-mono text-muted-foreground/50">⌘K</kbd>
+              </button>
+              {showSpotlightTutorial && (
+                <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-50 whitespace-nowrap animate-in fade-in slide-in-from-top-1 duration-300">
+                  <div className="bg-foreground text-background text-xs px-3 py-1.5 rounded-lg shadow-lg">
+                    Press <kbd className="font-mono font-semibold mx-0.5">⌘K</kbd> to search charts, commands, and features
+                    <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-foreground rotate-45" />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile: search icon */}
           <button
             onClick={() => setShowSpotlight(true)}
             className="md:hidden flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground/40 hover:text-foreground hover:bg-muted transition-colors"
-            title="Quick switch chart (⌘K)"
+            title="Command palette (⌘K)"
           >
             <Search className="w-3.5 h-3.5" />
           </button>
@@ -1643,7 +1733,8 @@ export default function ChartPage() {
           >
             <Keyboard className="w-3.5 h-3.5" />
           </button>
-          <div className="flex-1" />
+          <div className="hidden md:hidden flex-1" />
+          <div className="flex-1 md:hidden" />
 
           {user ? (
             <div className="flex items-center gap-2">
@@ -1871,12 +1962,6 @@ export default function ChartPage() {
                   >
                     <Users className="w-3 h-3" />
                     Save as Client
-                  </Button>
-                )}
-                {!hasChart && (
-                  <Button variant="ghost" size="sm" onClick={() => setShowTimeFinder(true)} className="text-muted-foreground gap-1.5">
-                    <Search className="w-3.5 h-3.5" />
-                    Time Finder
                   </Button>
                 )}
                 {hasChart && (
@@ -2557,7 +2642,7 @@ export default function ChartPage() {
       <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} />
       <UpgradeModal isOpen={showUpgrade} onClose={() => setShowUpgrade(false)} />
       <KeyboardShortcutsHelp open={showShortcutsHelp} onOpenChange={setShowShortcutsHelp} />
-      <ChartSpotlight open={showSpotlight} onClose={() => setShowSpotlight(false)} onLoad={handleLoadChart} userId={user?.id || null} />
+      <ChartSpotlight open={showSpotlight} onClose={() => setShowSpotlight(false)} onLoad={handleLoadChart} userId={user?.id || null} onTabChange={handleTabChange} onCommand={handleSpotlightCommand} />
 
 
       {/* Session reconnecting overlay */}

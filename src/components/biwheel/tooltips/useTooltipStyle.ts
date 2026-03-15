@@ -1,8 +1,9 @@
 /**
  * Shared tooltip positioning logic.
  * On narrow screens (< 500px), renders as a compact bottom sheet.
- * On wider screens, positions tooltip outside the chart area to avoid
- * blocking the aspect grid and inner content.
+ * On wider screens, positions tooltip at the cursor but pushed toward the
+ * side of the chart where the planet sits, so the central aspect grid
+ * stays visible.
  */
 
 import type React from 'react';
@@ -20,23 +21,6 @@ interface TooltipStyleOptions {
 
 export function isTooltipMobile(): boolean {
   return window.innerWidth < MOBILE_BP;
-}
-
-/**
- * Find the chart SVG element to avoid overlapping it with the tooltip.
- * Returns the chart's bounding rect if found, or null.
- */
-function getChartRect(): DOMRect | null {
-  // The biwheel SVG has a specific viewBox; find it
-  const svg = document.querySelector('svg[viewBox]') as SVGSVGElement | null;
-  if (svg) {
-    const vb = svg.getAttribute('viewBox');
-    // BiWheel SVGs typically have a large viewBox (e.g. "0 0 1000 1000")
-    if (vb && vb.includes('1000')) {
-      return svg.getBoundingClientRect();
-    }
-  }
-  return null;
 }
 
 export function getTooltipContainerStyle(opts: TooltipStyleOptions): React.CSSProperties {
@@ -66,47 +50,28 @@ export function getTooltipContainerStyle(opts: TooltipStyleOptions): React.CSSPr
     };
   }
 
-  // Desktop: position tooltip outside the chart area
+  // Desktop: cursor-relative, pushed to the same side as the planet
+  // (planet is left or right of center → tooltip goes that direction)
   const tooltipWidth = opts.width ?? 280;
   const tooltipHeight = opts.height ?? 360;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const chartRect = getChartRect();
-  const GAP = 12; // gap between chart edge and tooltip
+  const GAP = 16;
+
+  // Determine if cursor is on the left or right half of the viewport
+  const cursorOnLeft = opts.position.x < vw / 2;
 
   let left: number;
-  let top: number;
-
-  if (chartRect) {
-    // Smart positioning: place tooltip to the side of the chart that has more room
-    const spaceRight = vw - chartRect.right;
-    const spaceLeft = chartRect.left;
-
-    if (spaceRight >= tooltipWidth + GAP) {
-      // Place to the right of the chart
-      left = chartRect.right + GAP;
-    } else if (spaceLeft >= tooltipWidth + GAP) {
-      // Place to the left of the chart
-      left = chartRect.left - tooltipWidth - GAP;
-    } else {
-      // Not enough space on either side — fall back to cursor-relative
-      // but push to whichever side the cursor is NOT on
-      const isLeftSide = opts.position.x < vw / 2;
-      left = isLeftSide
-        ? Math.min(opts.position.x + GAP, vw - tooltipWidth - 10)
-        : Math.max(opts.position.x - tooltipWidth - GAP, 10);
-    }
-
-    // Vertically: align near the cursor Y but stay within viewport
-    top = opts.position.y - 20;
+  if (cursorOnLeft) {
+    // Planet is on the left → place tooltip to the left of cursor
+    left = opts.position.x - tooltipWidth - GAP;
   } else {
-    // No chart rect found — fall back to cursor-relative positioning
-    const isLeftSide = opts.position.x < vw / 2;
-    left = isLeftSide
-      ? opts.position.x + GAP
-      : opts.position.x - tooltipWidth - GAP;
-    top = opts.position.y - 10;
+    // Planet is on the right → place tooltip to the right of cursor
+    left = opts.position.x + GAP;
   }
+
+  // Vertically: align near cursor
+  let top = opts.position.y - 40;
 
   // Clamp within viewport
   left = Math.max(8, Math.min(left, vw - tooltipWidth - 8));

@@ -4,6 +4,7 @@ import { useLike } from '@/hooks/useLike';
 import type { CommunityPost } from '@/hooks/useCommunityFeed';
 import { useState } from 'react';
 import { formatDistanceToNow } from './utils';
+import { stripMarkdown } from './MarkdownRenderer';
 
 interface PostCardProps {
   post: CommunityPost;
@@ -29,7 +30,8 @@ const PostCard = ({ post, onPostUpdate, onFlag }: PostCardProps) => {
     });
   };
 
-  const bodyPreview = post.body.length > 300 ? post.body.slice(0, 300) + '...' : post.body;
+  const plainText = stripMarkdown(post.body);
+  const bodyPreview = plainText.length > 300 ? plainText.slice(0, 300) + '...' : plainText;
 
   return (
     <article

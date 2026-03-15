@@ -17,6 +17,14 @@ import type { AspectType, SynastryAspect } from './utils/aspectCalculations';
  */
 export type ChartMode = 'personA' | 'personB' | 'synastry' | 'composite' | 'davison';
 
+/**
+ * Aspect line rendering style:
+ * - modern: Curved bezier lines, individual colors, flow particles, symbol badges
+ * - classic: Straight lines, red/blue/green by nature, dashed minor (astro.com style)
+ * - clean: Straight lines, individual colors, no badges or flow effects
+ */
+export type AspectLineStyle = 'modern' | 'classic' | 'clean';
+
 // ============================================================================
 // Transit Types
 // ============================================================================

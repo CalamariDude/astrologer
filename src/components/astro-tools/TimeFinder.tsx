@@ -5,6 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { swissEphemeris } from '@/api/swissEphemeris';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { PaidFeatureGate } from '@/components/subscription/PaidFeatureGate';
 
 // ─── Constants ──────────────────────────────────────────────────────
 
@@ -1161,29 +1162,31 @@ export function TimeFinder({ onUseTime }: TimeFinderProps) {
         />
         {!chartImage ? (
           <>
-            <div
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-lg text-center cursor-pointer transition-colors ${
-                showConfig ? 'p-3' : 'p-8'
-              } ${
-                isDragOver
-                  ? 'border-primary bg-primary/5'
-                  : 'border-muted-foreground/25 hover:border-muted-foreground/50'
-              }`}
-            >
-              <Upload className={`mx-auto mb-2 text-muted-foreground ${showConfig ? 'w-4 h-4' : 'w-8 h-8'}`} />
-              <p className={`text-muted-foreground ${showConfig ? 'text-xs' : 'text-sm'}`}>
-                {showConfig
-                  ? <>Drop chart image or <span className="text-primary underline">browse</span></>
-                  : <>Drop a birth chart image — AI extracts positions automatically</>}
-              </p>
-              {!showConfig && (
-                <p className="text-xs text-muted-foreground/60 mt-1">PNG, JPG up to 10MB</p>
-              )}
-            </div>
+            <PaidFeatureGate featureName="Chart Image Recognition" requiredTier="professional">
+              <div
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-lg text-center cursor-pointer transition-colors ${
+                  showConfig ? 'p-3' : 'p-8'
+                } ${
+                  isDragOver
+                    ? 'border-primary bg-primary/5'
+                    : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+                }`}
+              >
+                <Upload className={`mx-auto mb-2 text-muted-foreground ${showConfig ? 'w-4 h-4' : 'w-8 h-8'}`} />
+                <p className={`text-muted-foreground ${showConfig ? 'text-xs' : 'text-sm'}`}>
+                  {showConfig
+                    ? <>Drop chart image or <span className="text-primary underline">browse</span></>
+                    : <>Drop a birth chart image — AI extracts positions automatically</>}
+                </p>
+                {!showConfig && (
+                  <p className="text-xs text-muted-foreground/60 mt-1">PNG, JPG up to 10MB</p>
+                )}
+              </div>
+            </PaidFeatureGate>
             {!showConfig && (
               <>
                 <div className="flex items-center gap-3 my-4">

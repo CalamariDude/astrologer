@@ -1,5 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ImagePlus, Send, X, Loader2 } from 'lucide-react';
+import { MarkdownEditor } from './MarkdownEditor';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,6 +25,19 @@ const PostComposer = ({ spaces, currentSpaceSlug, onPostCreated, initialChartSna
     const match = spaces.find(s => s.slug === currentSpaceSlug);
     return match?.id || spaces.find(s => s.is_default)?.id || spaces[0]?.id || '';
   });
+
+  // Sync spaceId when navigating to a different channel or when spaces load
+  useEffect(() => {
+    if (!spaces.length) return;
+    const match = currentSpaceSlug && currentSpaceSlug !== 'all'
+      ? spaces.find(s => s.slug === currentSpaceSlug)
+      : null;
+    if (match) {
+      setSpaceId(match.id);
+    } else if (!spaceId || !spaces.some(s => s.id === spaceId)) {
+      setSpaceId(spaces.find(s => s.is_default)?.id || spaces[0]?.id || '');
+    }
+  }, [currentSpaceSlug, spaces]); // eslint-disable-line react-hooks/exhaustive-deps
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [mediaPreviews, setMediaPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -106,7 +120,7 @@ const PostComposer = ({ spaces, currentSpaceSlug, onPostCreated, initialChartSna
         </select>
       </div>
       <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (optional)" className="w-full mb-2 bg-transparent text-base font-semibold px-0 border-0 outline-none placeholder:font-normal" />
-      <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Share your thoughts..." className="w-full min-h-[100px] bg-transparent resize-none px-0 border-0 outline-none" autoFocus />
+      <MarkdownEditor value={body} onChange={setBody} placeholder="Share your thoughts..." autoFocus />
 
       {chartSnapshotUrl && (
         <div className="relative mt-2 inline-block">

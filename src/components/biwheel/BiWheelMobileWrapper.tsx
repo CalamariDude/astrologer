@@ -239,7 +239,8 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
 
   // Aspect line display options (lifted for mobile drawer access)
   const [straightAspects, setStraightAspects] = useState(savedDefaults?.straightAspects ?? true);
-  const [mobileShowEffects, setMobileShowEffects] = useState(savedDefaults?.showEffects ?? true);
+  const [aspectLineStyle, setAspectLineStyle] = useState<import('./types').AspectLineStyle>(savedDefaults?.aspectLineStyle ?? 'modern');
+  const [mobileShowEffects, setMobileShowEffects] = useState(savedDefaults?.showEffects ?? false);
 
   // Display toggles (lifted for session sync)
   const [showRetrogrades, setShowRetrogrades] = useState(savedDefaults?.showRetrogrades ?? true);
@@ -352,6 +353,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     if (externalState.rotateToAscendant !== undefined) setRotateToAscendant(externalState.rotateToAscendant);
     if (externalState.zodiacVantage !== undefined) setZodiacVantage(externalState.zodiacVantage);
     if (externalState.straightAspects !== undefined) setStraightAspects(externalState.straightAspects);
+    if (externalState.aspectLineStyle !== undefined) setAspectLineStyle(externalState.aspectLineStyle);
     if (externalState.showEffects !== undefined) setMobileShowEffects(externalState.showEffects);
     if (externalState.showRetrogrades !== undefined) setShowRetrogrades(externalState.showRetrogrades);
     if (externalState.showDecans !== undefined) setShowDecans(externalState.showDecans);
@@ -440,6 +442,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
       rotateToAscendant,
       zodiacVantage,
       straightAspects,
+      aspectLineStyle,
       showEffects: mobileShowEffects,
       showRetrogrades,
       showDecans,
@@ -929,6 +932,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
       showRetrogrades,
       showDecans,
       straightAspects,
+      aspectLineStyle,
       showEffects: mobileShowEffects,
       chartTheme,
       rotateToAscendant,
@@ -966,6 +970,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     setShowRetrogrades(preset.showRetrogrades);
     setShowDecans(preset.showDecans);
     setStraightAspects(preset.straightAspects);
+    if (preset.aspectLineStyle) setAspectLineStyle(preset.aspectLineStyle as import('./types').AspectLineStyle);
     setMobileShowEffects(preset.showEffects);
     setChartTheme(preset.chartTheme);
     applyTheme(preset.chartTheme as ThemeName);
@@ -1217,6 +1222,19 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
             </div>
           </div>
         </div>
+        {/* Relocated location indicator */}
+        {relocatedPerson && (relocatedLocationA || relocatedLocationB) && (
+          <div className="flex items-center justify-center gap-1.5 px-2 py-1 mb-1">
+            <span className="text-[10px] md:text-xs text-amber-600 dark:text-amber-400">
+              {relocatedLocationA && (relocatedPerson === 'A' || relocatedPerson === 'both')
+                ? `📍 ${relocatedLocationA.name.length > 35 ? relocatedLocationA.name.slice(0, 34) + '…' : relocatedLocationA.name}`
+                : ''}
+              {relocatedLocationB && (relocatedPerson === 'B' || relocatedPerson === 'both')
+                ? `${relocatedLocationA && relocatedPerson === 'both' ? ' · ' : '📍 '}${relocatedLocationB.name.length > 35 ? relocatedLocationB.name.slice(0, 34) + '…' : relocatedLocationB.name}`
+                : ''}
+            </span>
+          </div>
+        )}
         </>}
 
         {/* Chart container */}
@@ -1288,6 +1306,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
               initialShowHouses: showHouses,
               initialShowDegreeMarkers: showDegreeMarkers,
               initialStraightAspects: straightAspects,
+              initialAspectLineStyle: aspectLineStyle,
               initialShowEffects: mobileShowEffects,
               initialChartMode: chartMode,
               initialShowTransits: showTransits,
@@ -1487,17 +1506,20 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
             {/* Default preset chip — always first */}
             <button
               onClick={handleResetToDefaults}
+              data-preset-id="__default__"
               className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] md:text-xs font-medium transition-colors ${
                 activePresetId === '__default__'
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted hover:bg-muted/70 text-foreground'
               }`}
-              title="Reset all chart options to app defaults"
+              title="Reset all chart options to app defaults (0)"
             >
+              <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded text-[8px] font-bold bg-foreground/10 mr-1">0</span>
               Default
             </button>
-            {previewPresets.map(p => {
+            {previewPresets.map((p, presetIdx) => {
               const isDragging = dragPresetId === p.id;
+              const presetNumber = presetIdx + 1;
               return (
                 <div
                   key={p.id}
@@ -1546,8 +1568,9 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted hover:bg-muted/70 text-foreground'
                     }`}
-                    title={`Load "${p.name}" — applies saved planets, aspects, theme, and display settings`}
+                    title={`Load "${p.name}" (${presetNumber}) — applies saved planets, aspects, theme, and display settings`}
                   >
+                    {presetNumber <= 9 && <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded text-[8px] font-bold bg-foreground/10 mr-1">{presetNumber}</span>}
                     {p.name}
                   </button>
                   <button
@@ -1667,6 +1690,8 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                   onSetDegreeSymbolMode={setDegreeSymbolMode}
                   straightAspects={straightAspects}
                   onSetStraightAspects={setStraightAspects}
+                  aspectLineStyle={aspectLineStyle}
+                  onSetAspectLineStyle={setAspectLineStyle}
                   showEffects={mobileShowEffects}
                   onSetShowEffects={setMobileShowEffects}
                   onEnablePlanetGroup={(group) => {

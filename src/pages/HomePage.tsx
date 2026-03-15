@@ -20,10 +20,69 @@ import { FeatureBento } from '@/components/landing/FeatureBento';
 import { FeaturePreview } from '@/components/landing/FeaturePreview';
 import { AboutSection } from '@/components/landing/AboutSection';
 import { LearnSection } from '@/components/landing/LearnSection';
+import { ToolboxShowcase } from '@/components/landing/ToolboxShowcase';
+import { AIReadingShowcase } from '@/components/landing/AIReadingShowcase';
 
 const SpaceScene = lazy(() => import('@/components/landing/SpaceScene'));
 
 // ─── Page ───────────────────────────────────────────────────────────────
+
+function MarketsMockVisual() {
+  return (
+    <div className="relative group flex items-center justify-center">
+      <div className="absolute -inset-10 bg-gradient-to-br from-emerald-500/[0.06] to-blue-500/[0.03] rounded-[2rem] blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
+      <div className="relative bg-white rounded-2xl border border-black/[0.08] p-5 sm:p-6 w-full max-w-lg drop-shadow-2xl text-left">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="text-xs text-black/40 font-bold uppercase tracking-wider">Company Chart</div>
+            <div className="text-lg font-semibold text-black/80 mt-1">Apple Inc. (AAPL)</div>
+            <div className="text-[11px] text-black/35">IPO: Dec 12, 1980 · 9:30 AM {'\u2014'} NASDAQ</div>
+          </div>
+          <div className="text-right">
+            <div className="text-xl font-bold text-emerald-600">$243.85</div>
+            <div className="text-[11px] text-emerald-500">+2.34%</div>
+          </div>
+        </div>
+        <div className="relative h-36 mb-4 rounded-lg bg-black/[0.02] border border-black/[0.04] overflow-hidden">
+          <svg viewBox="0 0 400 130" className="w-full h-full" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="chartGradHome" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#10b981" stopOpacity="0.15" />
+                <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <path d="M0,85 L40,80 L80,65 L120,70 L160,50 L200,55 L240,40 L280,45 L320,30 L360,35 L400,20" fill="none" stroke="#10b981" strokeWidth="2" />
+            <path d="M0,85 L40,80 L80,65 L120,70 L160,50 L200,55 L240,40 L280,45 L320,30 L360,35 L400,20 L400,130 L0,130 Z" fill="url(#chartGradHome)" />
+            <line x1="160" y1="0" x2="160" y2="130" stroke="#8b5cf6" strokeWidth="1" strokeDasharray="3 3" opacity="0.4" />
+            <line x1="280" y1="0" x2="280" y2="130" stroke="#d97706" strokeWidth="1" strokeDasharray="3 3" opacity="0.4" />
+          </svg>
+          <div className="absolute top-2 left-2 flex gap-2">
+            <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-violet-500/10 text-violet-500 border border-violet-500/20">{'\u2643'} trine MC</span>
+            <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">{'\u2644'} conj {'\u2609'}</span>
+          </div>
+          <div className="absolute bottom-2 left-3 text-[9px] font-semibold text-blue-500/80">Earnings Beat</div>
+          <div className="absolute bottom-8 right-16 text-[9px] font-semibold text-blue-500/80">iPhone Launch</div>
+          <div className="absolute top-10 right-6 text-[9px] font-semibold text-blue-500/80">AI Partnership</div>
+        </div>
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          {[
+            { label: 'Market Cap', value: '3.71T' },
+            { label: 'P/E Ratio', value: '32.4' },
+            { label: 'Volume', value: '48.2M' },
+          ].map((stat) => (
+            <div key={stat.label} className="text-center p-2 rounded-lg bg-black/[0.02]">
+              <div className="text-[10px] text-black/30">{stat.label}</div>
+              <div className="text-xs font-semibold text-black/60">{stat.value}</div>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 text-[10px] text-black/30">
+          <span>Click any candle to see transits and news for that date</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function HomePage() {
   const { user } = useAuth();
@@ -183,6 +242,12 @@ export default function HomePage() {
         }
       />
 
+      {/* ── Advanced Toolbox ──────────────────────────────────── */}
+      <ToolboxShowcase />
+
+      {/* ── AI Reading ────────────────────────────────────────── */}
+      <AIReadingShowcase onGetStarted={handleOpenApp} />
+
       {/* ── Galactic Mode ───────────────────────────────────── */}
       <section className="relative py-28 sm:py-36 md:py-44 px-4 sm:px-6 overflow-hidden bg-background">
         <div className="relative max-w-7xl mx-auto flex flex-col items-center gap-10 sm:gap-14">
@@ -207,6 +272,7 @@ export default function HomePage() {
         link="/features/financial"
         linkLabel="Explore financial astrology"
         gradientClass="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600"
+        visual={<MarketsMockVisual />}
       />
 
       {/* ── Live Sessions ───────────────────────────────────── */}
@@ -222,6 +288,7 @@ export default function HomePage() {
         link="/features/community"
         linkLabel="Explore the community"
         gradientClass="bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600"
+        visual={<CommunityMockVisual />}
       />
 
       {/* ── What's Included ───────────────────────────────────── */}
@@ -352,6 +419,77 @@ function GalacticCompact() {
       <p className="mt-6 sm:mt-8 text-base sm:text-lg md:text-xl leading-relaxed text-muted-foreground max-w-xl mx-auto">
         See your natal chart from a whole new perspective. Fly through your planets, aspect beams, and zodiac ring &mdash; rendered in real-time with bloom lighting you can orbit around.
       </p>
+    </div>
+  );
+}
+
+// ─── Community Mock Visual ────────────────────────────────────────────
+
+function CommunityMockVisual() {
+  const posts = [
+    {
+      author: 'stellarjane',
+      avatar: 'SJ',
+      topic: 'Natal Charts',
+      topicColor: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+      text: 'Can someone help me understand my Saturn in the 7th? It squares my Venus too...',
+      replies: 14,
+      likes: 23,
+      hasChart: true,
+    },
+    {
+      author: 'moonchild_88',
+      avatar: 'MC',
+      topic: 'Transits',
+      topicColor: 'bg-violet-500/10 text-violet-600 border-violet-500/20',
+      text: 'Pluto just crossed my Ascendant. Everything is shifting. Anyone else going through this?',
+      replies: 31,
+      likes: 47,
+      hasChart: false,
+    },
+    {
+      author: 'cosmicdave',
+      avatar: 'CD',
+      topic: 'Synastry',
+      topicColor: 'bg-sky-500/10 text-sky-600 border-sky-500/20',
+      text: 'My partner and I have a double-whammy Moon-Venus. Is this as good as it sounds?',
+      replies: 9,
+      likes: 18,
+      hasChart: true,
+    },
+  ];
+
+  return (
+    <div className="relative group flex items-center justify-center">
+      <div className="absolute -inset-10 bg-gradient-to-br from-sky-500/[0.06] to-indigo-500/[0.03] rounded-[2rem] blur-3xl opacity-70" />
+      <div className="relative w-full max-w-lg space-y-3">
+        {posts.map((post, i) => (
+          <div
+            key={i}
+            className="bg-white rounded-xl border border-black/[0.08] p-4 drop-shadow-sm text-left"
+          >
+            <div className="flex items-center gap-2.5 mb-2.5">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center text-[9px] font-bold text-white">
+                {post.avatar}
+              </div>
+              <span className="text-xs font-semibold text-black/70">@{post.author}</span>
+              <span className={`text-[9px] px-1.5 py-0.5 rounded-full border font-medium ${post.topicColor}`}>
+                {post.topic}
+              </span>
+            </div>
+            <p className="text-sm text-black/60 leading-relaxed">{post.text}</p>
+            {post.hasChart && (
+              <div className="mt-2.5 h-8 rounded-md bg-gradient-to-r from-amber-500/[0.06] to-orange-500/[0.04] border border-amber-500/10 flex items-center justify-center">
+                <span className="text-[9px] text-amber-600/60 font-medium">Natal Chart Attached</span>
+              </div>
+            )}
+            <div className="flex items-center gap-4 mt-2.5 text-[10px] text-black/30">
+              <span>{post.replies} replies</span>
+              <span>{post.likes} likes</span>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

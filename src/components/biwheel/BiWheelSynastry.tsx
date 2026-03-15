@@ -65,6 +65,7 @@ interface SavedChartDefaults {
   enabledAsteroidGroups: string[];
   enabledFixedStarGroups?: string[];
   straightAspects?: boolean;
+  aspectLineStyle?: import('./types').AspectLineStyle;
   showEffects?: boolean;
 }
 
@@ -341,6 +342,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   initialShowHouses = true,
   initialShowDegreeMarkers = true,
   initialStraightAspects,
+  initialAspectLineStyle,
   initialShowEffects,
   initialChartMode = 'synastry',
   onAspectClick,
@@ -528,7 +530,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     showSolarArc: initialShowSolarArc || false,
     // Aspect line display options
     straightAspects: initialStraightAspects ?? savedDefaults?.straightAspects ?? true,
-    showEffects: initialShowEffects ?? savedDefaults?.showEffects ?? true,
+    aspectLineStyle: initialAspectLineStyle ?? (savedDefaults?.aspectLineStyle as import('./types').AspectLineStyle) ?? 'modern',
+    showEffects: initialShowEffects ?? savedDefaults?.showEffects ?? false,
     // Birth time shift (rectification) state
     showBirthTimeShift: initialShowBirthTimeShift ?? false,
     timeShiftA: initialTimeShiftA ?? 0,
@@ -2340,6 +2343,10 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     setState((prev) => ({ ...prev, straightAspects: show }));
   }, []);
 
+  const setAspectLineStyle = useCallback((style: import('./types').AspectLineStyle) => {
+    setState((prev) => ({ ...prev, aspectLineStyle: style }));
+  }, []);
+
   const setShowEffects = useCallback((show: boolean) => {
     setState((prev) => ({ ...prev, showEffects: show }));
   }, []);
@@ -2772,6 +2779,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           declinationsA={declinationsA}
           declinationsB={declinationsB}
           straightLines={state.straightAspects}
+          lineStyle={state.aspectLineStyle}
           showEffects={state.showEffects}
           smoothTransitions={state.showBirthTimeShift && (state.timeShiftA !== 0 || state.timeShiftB !== 0)}
         />
@@ -3511,6 +3519,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
             onSetShowDecans={setShowDecans}
             straightAspects={state.straightAspects}
             onSetStraightAspects={setStraightAspects}
+            aspectLineStyle={state.aspectLineStyle}
+            onSetAspectLineStyle={setAspectLineStyle}
             showEffects={state.showEffects}
             onSetShowEffects={setShowEffects}
             onEnablePlanetGroup={enablePlanetGroup}

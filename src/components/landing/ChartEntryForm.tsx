@@ -5,7 +5,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, MapPin, Plus, X, ClipboardPaste } from 'lucide-react';
+import { Loader2, MapPin, Plus, X, ClipboardPaste, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { DateInput } from '@/components/ui/DateInput';
@@ -36,7 +36,7 @@ interface GeoResult {
 const emptyBirth = (): BirthData => ({
   name: '',
   date: '',
-  time: '12:00',
+  time: '',
   location: '',
   lat: null,
   lng: null,
@@ -285,20 +285,30 @@ export function ChartEntryForm() {
           )}
 
           {/* Calculate */}
-          <Button
-            onClick={calculateChart}
-            disabled={loading || !personA.date || personA.lat === null}
-            className="w-full h-11 text-sm rounded-xl"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                Calculating...
-              </>
-            ) : (
-              'Calculate Chart'
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={calculateChart}
+              disabled={loading || !personA.date || personA.lat === null}
+              className="flex-1 h-11 text-sm rounded-xl"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Calculating...
+                </>
+              ) : (
+                'Calculate Chart'
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/chart', { state: { openCurrentTransits: true } })}
+              className="h-11 px-4 text-sm rounded-xl gap-1.5"
+            >
+              <Globe className="w-4 h-4" />
+              <span className="hidden sm:inline">Current Sky</span>
+            </Button>
+          </div>
         </div>
       </div>
     </section>

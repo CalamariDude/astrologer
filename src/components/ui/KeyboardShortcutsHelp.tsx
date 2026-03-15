@@ -7,7 +7,7 @@ import {
 } from '@/components/ui/dialog';
 import { SHORTCUTS, formatShortcut, type ShortcutDef } from '@/lib/keyboardShortcuts';
 
-const CATEGORIES = ['Navigation', 'Chart', 'View', 'General'] as const;
+const CATEGORIES = ['Navigation', 'Chart Tabs', 'Chart', 'View', 'General'] as const;
 
 function ShortcutRow({ shortcut }: { shortcut: ShortcutDef }) {
   return (

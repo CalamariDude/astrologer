@@ -103,6 +103,8 @@ interface TogglePanelContentProps {
   // Aspect line display options
   straightAspects?: boolean;
   onSetStraightAspects?: (straight: boolean) => void;
+  aspectLineStyle?: import('../types').AspectLineStyle;
+  onSetAspectLineStyle?: (style: import('../types').AspectLineStyle) => void;
   showEffects?: boolean;
   onSetShowEffects?: (show: boolean) => void;
   // Solar return controls
@@ -477,6 +479,8 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
   // Aspect line display options
   straightAspects = false,
   onSetStraightAspects,
+  aspectLineStyle = 'modern',
+  onSetAspectLineStyle,
   showEffects = true,
   onSetShowEffects,
   // Solar return controls
@@ -937,26 +941,7 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
                   />
                 </div>
               )}
-              {/* Solar Arc toggle */}
-              {progressedPerson && onSetShowSolarArc && (
-                <button
-                  onClick={() => onSetShowSolarArc(!showSolarArc)}
-                  style={{
-                    marginTop: 8,
-                    width: '100%',
-                    padding: isMobile ? '10px 12px' : '5px 8px',
-                    fontSize: isMobile ? 13 : 10,
-                    background: showSolarArc ? '#FF8C00' : COLORS.backgroundAlt2,
-                    color: showSolarArc ? '#1a1a1a' : COLORS.textSecondary,
-                    border: `1px solid ${showSolarArc ? '#FF8C00' : COLORS.gridLineFaint}`,
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                    fontWeight: showSolarArc ? 600 : 400,
-                  }}
-                >
-                  Solar Arc {showSolarArc ? 'ON' : 'OFF'}
-                </button>
-              )}
+              {/* Solar Arc toggle — hidden for now */}
             </div>
           )}
 
@@ -1179,19 +1164,11 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
             isMobile={isMobile}
           />
         )}
-        {onSetStraightAspects && (
+        {onSetStraightAspects && !onSetAspectLineStyle && (
           <Checkbox
             label="Straight Lines"
             checked={straightAspects}
             onChange={() => onSetStraightAspects(!straightAspects)}
-            isMobile={isMobile}
-          />
-        )}
-        {onSetShowEffects && !isMobile && (
-          <Checkbox
-            label="Flow Effects"
-            checked={showEffects}
-            onChange={() => onSetShowEffects(!showEffects)}
             isMobile={isMobile}
           />
         )}
@@ -1263,6 +1240,40 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
           </div>
         )}
       </Section>
+
+      {/* Preferences */}
+      {(onSetAspectLineStyle || (onSetShowEffects && !isMobile)) && (
+        <Section title="Preferences" isMobile={isMobile}>
+          {onSetAspectLineStyle && (
+            <div className={`flex items-center justify-between ${isMobile ? 'py-1' : 'py-0.5'}`}>
+              <span className={`${isMobile ? 'text-sm' : 'text-xs'} text-muted-foreground`}>Line Style</span>
+              <div className="flex items-center gap-0.5 rounded-md border border-border/50 p-0.5">
+                {(['modern', 'classic', 'clean'] as const).map(style => (
+                  <button
+                    key={style}
+                    onClick={() => onSetAspectLineStyle(style)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors capitalize ${
+                      aspectLineStyle === style
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {style}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {onSetShowEffects && !isMobile && (
+            <Checkbox
+              label="Flow Effects"
+              checked={showEffects}
+              onChange={() => onSetShowEffects(!showEffects)}
+              isMobile={isMobile}
+            />
+          )}
+        </Section>
+      )}
 
       {/* Planets */}
       <Section title="Planets" isMobile={isMobile}>

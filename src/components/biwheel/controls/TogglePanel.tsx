@@ -112,6 +112,8 @@ interface TogglePanelProps {
   // Aspect line display options
   straightAspects?: boolean;
   onSetStraightAspects?: (straight: boolean) => void;
+  aspectLineStyle?: import('../types').AspectLineStyle;
+  onSetAspectLineStyle?: (style: import('../types').AspectLineStyle) => void;
   showEffects?: boolean;
   onSetShowEffects?: (show: boolean) => void;
   // Solar return controls
@@ -507,6 +509,8 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
   // Aspect line display options
   straightAspects = false,
   onSetStraightAspects,
+  aspectLineStyle = 'modern',
+  onSetAspectLineStyle,
   showEffects = true,
   onSetShowEffects,
   // Solar return controls
@@ -1411,18 +1415,11 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
             onChange={() => onSetDegreeSymbolMode(degreeSymbolMode === 'degree' ? 'sign' : 'degree')}
           />
         )}
-        {onSetStraightAspects && (
+        {onSetStraightAspects && !onSetAspectLineStyle && (
           <Checkbox
             label="Straight Lines"
             checked={straightAspects}
             onChange={() => onSetStraightAspects(!straightAspects)}
-          />
-        )}
-        {onSetShowEffects && (
-          <Checkbox
-            label="Flow Effects"
-            checked={showEffects}
-            onChange={() => onSetShowEffects(!showEffects)}
           />
         )}
         {onSetRotateToAscendant && (
@@ -1496,6 +1493,39 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
           </div>
         )}
       </Section>
+
+      {/* Preferences */}
+      {(onSetAspectLineStyle || onSetShowEffects) && (
+        <Section title="Preferences">
+          {onSetAspectLineStyle && (
+            <div className="flex items-center justify-between py-0.5">
+              <span className="text-xs text-muted-foreground">Line Style</span>
+              <div className="flex items-center gap-0.5 rounded-md border border-border/50 p-0.5">
+                {(['modern', 'classic', 'clean'] as const).map(style => (
+                  <button
+                    key={style}
+                    onClick={() => onSetAspectLineStyle(style)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors capitalize ${
+                      aspectLineStyle === style
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {style}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {onSetShowEffects && (
+            <Checkbox
+              label="Flow Effects"
+              checked={showEffects}
+              onChange={() => onSetShowEffects(!showEffects)}
+            />
+          )}
+        </Section>
+      )}
 
       {/* Aspects - Major and Minor sub-sections */}
       <Section title="Major Aspects" defaultOpen={true}>

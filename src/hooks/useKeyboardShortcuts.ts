@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { TAB_VALUES } from '@/lib/keyboardShortcuts';
 
 interface UseKeyboardShortcutsOptions {
   hasChart: boolean;
@@ -12,9 +11,11 @@ interface UseKeyboardShortcutsOptions {
   onSave: () => void;
   onToggleEdit: () => void;
   onToggleGalactic: () => void;
+  onToggleTransits?: () => void;
   onEscape: () => void;
   onShowHelp: () => void;
   onSpotlight?: () => void;
+  onLoadPreset?: (index: number) => void;
   // Chart tab shortcuts
   onNewChartTab?: () => void;
   onCloseChartTab?: () => void;
@@ -43,9 +44,11 @@ export function useKeyboardShortcuts({
   onSave,
   onToggleEdit,
   onToggleGalactic,
+  onToggleTransits,
   onEscape,
   onShowHelp,
   onSpotlight,
+  onLoadPreset,
   onNewChartTab,
   onCloseChartTab,
   onDuplicateChartTab,
@@ -91,12 +94,9 @@ export function useKeyboardShortcuts({
       // All remaining shortcuts are suppressed when an input is focused
       if (isInputFocused()) return;
 
-      // Number keys 1-9 → jump to tab
-      if (hasChart && e.key >= '1' && e.key <= '9') {
-        const idx = parseInt(e.key) - 1;
-        if (idx < TAB_VALUES.length) {
-          onTabChange(TAB_VALUES[idx]);
-        }
+      // 0-9 → load preset directly
+      if (e.key >= '0' && e.key <= '9' && !meta && !e.altKey) {
+        onLoadPreset?.(parseInt(e.key));
         return;
       }
 
@@ -122,6 +122,12 @@ export function useKeyboardShortcuts({
         return;
       }
 
+      // T → toggle transits
+      if (hasChart && (e.key === 't' || e.key === 'T') && !e.altKey) {
+        onToggleTransits?.();
+        return;
+      }
+
       // ? → show help
       if (e.key === '?') {
         onShowHelp();
@@ -131,5 +137,5 @@ export function useKeyboardShortcuts({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hasChart, isEditing, activeTab, onTabChange, onPrevTab, onNextTab, onCalculate, onSave, onToggleEdit, onToggleGalactic, onEscape, onShowHelp, onSpotlight, onNewChartTab, onCloseChartTab, onDuplicateChartTab, onPrevChartTab, onNextChartTab]);
+  }, [hasChart, isEditing, activeTab, onTabChange, onPrevTab, onNextTab, onCalculate, onSave, onToggleEdit, onToggleGalactic, onToggleTransits, onEscape, onShowHelp, onSpotlight, onLoadPreset, onNewChartTab, onCloseChartTab, onDuplicateChartTab, onPrevChartTab, onNextChartTab]);
 }
