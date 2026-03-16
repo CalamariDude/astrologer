@@ -479,7 +479,7 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
   // Aspect line display options
   straightAspects = false,
   onSetStraightAspects,
-  aspectLineStyle = 'modern',
+  aspectLineStyle = 'classic',
   onSetAspectLineStyle,
   showEffects = true,
   onSetShowEffects,

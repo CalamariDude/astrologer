@@ -206,11 +206,11 @@ export default function SettingsPage() {
           rotateToAscendant: d.rotateToAscendant ?? true,
           showHouses: d.showHouses ?? true,
           degreeSymbolMode: d.degreeSymbolMode ?? 'sign',
-          aspectLineStyle: d.aspectLineStyle ?? 'modern',
+          aspectLineStyle: d.aspectLineStyle ?? 'classic',
         };
       }
     } catch {}
-    return { straightAspects: false, showEffects: false, showDegreeMarkers: true, showRetrogrades: true, showDecans: false, rotateToAscendant: true, showHouses: true, degreeSymbolMode: 'sign' as const, aspectLineStyle: 'modern' as const };
+    return { straightAspects: false, showEffects: false, showDegreeMarkers: true, showRetrogrades: true, showDecans: false, rotateToAscendant: true, showHouses: true, degreeSymbolMode: 'sign' as const, aspectLineStyle: 'classic' as const };
   });
 
   const updateChartDefault = useCallback((key: string, value: boolean | string) => {

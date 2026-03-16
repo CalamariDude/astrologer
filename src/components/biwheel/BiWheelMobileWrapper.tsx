@@ -239,7 +239,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
 
   // Aspect line display options (lifted for mobile drawer access)
   const [straightAspects, setStraightAspects] = useState(savedDefaults?.straightAspects ?? true);
-  const [aspectLineStyle, setAspectLineStyle] = useState<import('./types').AspectLineStyle>(savedDefaults?.aspectLineStyle ?? 'modern');
+  const [aspectLineStyle, setAspectLineStyle] = useState<import('./types').AspectLineStyle>(savedDefaults?.aspectLineStyle ?? 'classic');
   const [mobileShowEffects, setMobileShowEffects] = useState(savedDefaults?.showEffects ?? false);
 
   // Display toggles (lifted for session sync)
