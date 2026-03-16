@@ -191,6 +191,7 @@ export default function SettingsPage() {
     rotateToAscendant: boolean;
     showHouses: boolean;
     degreeSymbolMode: 'sign' | 'degree';
+    aspectLineStyle: 'modern' | 'classic' | 'clean';
   }>(() => {
     try {
       const raw = localStorage.getItem('biwheel-chart-defaults');
@@ -205,10 +206,11 @@ export default function SettingsPage() {
           rotateToAscendant: d.rotateToAscendant ?? true,
           showHouses: d.showHouses ?? true,
           degreeSymbolMode: d.degreeSymbolMode ?? 'sign',
+          aspectLineStyle: d.aspectLineStyle ?? 'modern',
         };
       }
     } catch {}
-    return { straightAspects: false, showEffects: false, showDegreeMarkers: true, showRetrogrades: true, showDecans: false, rotateToAscendant: true, showHouses: true, degreeSymbolMode: 'sign' as const };
+    return { straightAspects: false, showEffects: false, showDegreeMarkers: true, showRetrogrades: true, showDecans: false, rotateToAscendant: true, showHouses: true, degreeSymbolMode: 'sign' as const, aspectLineStyle: 'modern' as const };
   });
 
   const updateChartDefault = useCallback((key: string, value: boolean | string) => {
@@ -1256,6 +1258,28 @@ export default function SettingsPage() {
                         <option value="sign">Zodiac sign</option>
                         <option value="degree">Sign degree</option>
                       </select>
+                    </div>
+                    {/* Aspect line style */}
+                    <div className="flex items-start gap-3 py-2.5 px-2 -mx-2">
+                      <div className="flex-1">
+                        <div className="text-sm font-medium">Aspect line style</div>
+                        <div className="text-xs text-muted-foreground">Visual style for aspect lines drawn between planets</div>
+                      </div>
+                      <div className="flex items-center gap-0.5 rounded-md border border-border p-0.5">
+                        {(['modern', 'classic', 'clean'] as const).map(style => (
+                          <button
+                            key={style}
+                            onClick={() => updateChartDefault('aspectLineStyle', style)}
+                            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors capitalize ${
+                              chartDefaults.aspectLineStyle === style
+                                ? 'bg-primary text-primary-foreground'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            {style}
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
                     <div className="pt-2">

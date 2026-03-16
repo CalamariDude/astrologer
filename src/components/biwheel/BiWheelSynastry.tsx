@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   COLORS,
   CHART_DIMENSIONS,
@@ -3286,7 +3287,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
       <UpgradeModal isOpen={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
 
-      {/* Tooltips — lazy-loaded on first interaction */}
+      {/* Tooltips — portaled to body to avoid transform offset from pan/zoom container */}
+      {createPortal(
       <React.Suspense fallback={null}>
       {/* Planet Tooltip (on hover) — disabled on mobile */}
       {state.hoveredPlanet && hoveredPlanetData && state.tooltipPosition && !state.selectedPlanet && window.innerWidth >= 500 && (
@@ -3435,7 +3437,9 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           onClose={() => setState((prev) => ({ ...prev, selectedAspect: null }))}
         />
       )}
-      </React.Suspense>
+      </React.Suspense>,
+      document.body
+      )}
 
       {/* Transit jog wheel — bottom-left overlay on chart (desktop only; mobile renders in BiWheelMobileWrapper) */}
       {showTogglePanel && state.showTransits && (

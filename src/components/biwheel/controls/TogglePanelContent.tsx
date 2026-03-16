@@ -1242,36 +1242,14 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
       </Section>
 
       {/* Preferences */}
-      {(onSetAspectLineStyle || (onSetShowEffects && !isMobile)) && (
+      {onSetShowEffects && !isMobile && (
         <Section title="Preferences" isMobile={isMobile}>
-          {onSetAspectLineStyle && (
-            <div className={`flex items-center justify-between ${isMobile ? 'py-1' : 'py-0.5'}`}>
-              <span className={`${isMobile ? 'text-sm' : 'text-xs'} text-muted-foreground`}>Line Style</span>
-              <div className="flex items-center gap-0.5 rounded-md border border-border/50 p-0.5">
-                {(['modern', 'classic', 'clean'] as const).map(style => (
-                  <button
-                    key={style}
-                    onClick={() => onSetAspectLineStyle(style)}
-                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors capitalize ${
-                      aspectLineStyle === style
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {style}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          {onSetShowEffects && !isMobile && (
-            <Checkbox
-              label="Flow Effects"
-              checked={showEffects}
-              onChange={() => onSetShowEffects(!showEffects)}
-              isMobile={isMobile}
-            />
-          )}
+          <Checkbox
+            label="Flow Effects"
+            checked={showEffects}
+            onChange={() => onSetShowEffects(!showEffects)}
+            isMobile={isMobile}
+          />
         </Section>
       )}
 
