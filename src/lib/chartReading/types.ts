@@ -297,6 +297,61 @@ export interface AgeDegreeActivation {
   years_ago: number;
 }
 
+// ─── Future Transit Timeline ────────────────────────────────────
+
+export interface FutureTransitEvent {
+  transit_planet: string;
+  natal_planet: string;
+  aspect_name: string;
+  aspect_angle: number;
+  estimated_date: string;
+  estimated_days_from_now: number;
+  transit_sign: string;
+  confidence: 'high' | 'medium' | 'low';
+  retrograde_risk: boolean;
+  significance: number;
+}
+
+export interface FutureTransitTimeline {
+  search_date: string;
+  search_horizon_months: number;
+  events: FutureTransitEvent[];
+  summary: string;
+}
+
+// ─── Question Weight (client-side mirror of edge function) ──────
+
+export type QuestionWeight = 'timing-heavy' | 'horary-electional' | 'natal-heavy' | 'balanced';
+
+const HORARY_KEYWORDS = [
+  'should i', 'is this a good time', 'is now a good time', 'when should i',
+  'when is the best time', 'will this work out', 'will it work',
+  'is this the right time', 'good day to', 'good time to',
+  'electional', 'horary', 'pick a date', 'best date', 'best time for', 'auspicious',
+  'should we', 'is today good', 'is this week good', 'timing for',
+];
+
+const TIMING_KEYWORDS = [
+  'right now', 'currently', 'this month', 'this week', 'this year',
+  'lately', 'recently', 'what\'s happening', 'going through', 'phase', 'period', 'season',
+  'today', 'upcoming', 'near future', 'soon', 'next few', 'these days',
+  'will i', 'will my', 'when will', 'forecast', 'prediction', 'outlook',
+  'what to expect', 'what lies ahead', 'coming up',
+];
+
+const NATAL_KEYWORDS = [
+  'my personality', 'who am i', 'my strengths', 'my weaknesses',
+  'what am i like', 'my nature', 'describe me', 'tell me about myself', 'my character',
+];
+
+export function detectQuestionWeight(question: string): QuestionWeight {
+  const q = question.toLowerCase();
+  if (HORARY_KEYWORDS.some(kw => q.includes(kw))) return 'horary-electional';
+  if (TIMING_KEYWORDS.some(kw => q.includes(kw))) return 'timing-heavy';
+  if (NATAL_KEYWORDS.some(kw => q.includes(kw))) return 'natal-heavy';
+  return 'balanced';
+}
+
 // ─── Vantage Tree ──────────────────────────────────────────────────
 
 export interface VantageTree {
@@ -307,6 +362,7 @@ export interface VantageTree {
   transit_context?: TransitContext;
   profection_context?: ProfectionContext;
   activations?: AgeDegreeActivation[];
+  future_transit_timeline?: FutureTransitTimeline;
 }
 
 // ─── Derived House Config ──────────────────────────────────────────
@@ -404,6 +460,7 @@ export interface ChartReadingTree {
   derived?: DerivedHouseConfig;
   profection_context?: ProfectionContext;
   all_activations?: AgeDegreeActivation[];
+  future_transit_timeline?: FutureTransitTimeline;
   synastry_context?: {
     source_person: 'A' | 'B';
     host_person: 'A' | 'B';

@@ -1241,18 +1241,6 @@ export const TogglePanelContent: React.FC<TogglePanelContentProps> = ({
         )}
       </Section>
 
-      {/* Preferences */}
-      {onSetShowEffects && !isMobile && (
-        <Section title="Preferences" isMobile={isMobile}>
-          <Checkbox
-            label="Flow Effects"
-            checked={showEffects}
-            onChange={() => onSetShowEffects(!showEffects)}
-            isMobile={isMobile}
-          />
-        </Section>
-      )}
-
       {/* Planets */}
       <Section title="Planets" isMobile={isMobile}>
         {/* Quick toggles */}

@@ -3,7 +3,7 @@
  * Shows detailed planet information on hover/click
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { Maximize2 } from 'lucide-react';
 import { PLANETS, COLORS, ASTEROIDS, ARABIC_PARTS } from '../utils/constants';
 import { formatLongitude, calculateDegreeSign } from '../utils/chartMath';
@@ -120,6 +120,46 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
   // Track which aspects are expanded
   const [expandedAspects, setExpandedAspects] = useState<Set<number>>(new Set());
 
+  // Drag state for pinned tooltips
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+
+  // Reset drag when planet changes or tooltip closes
+  useEffect(() => { setDragOffset(null); }, [planet, chart, visible]);
+
+  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    if (!onClose) return; // Only draggable when pinned
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    dragRef.current = {
+      startX: clientX,
+      startY: clientY,
+      origX: dragOffset?.x ?? 0,
+      origY: dragOffset?.y ?? 0,
+    };
+
+    const handleMove = (ev: MouseEvent | TouchEvent) => {
+      if (!dragRef.current) return;
+      const cx = 'touches' in ev ? ev.touches[0].clientX : ev.clientX;
+      const cy = 'touches' in ev ? ev.touches[0].clientY : ev.clientY;
+      setDragOffset({
+        x: dragRef.current.origX + (cx - dragRef.current.startX),
+        y: dragRef.current.origY + (cy - dragRef.current.startY),
+      });
+    };
+    const handleEnd = () => {
+      dragRef.current = null;
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleEnd);
+      window.removeEventListener('touchmove', handleMove);
+      window.removeEventListener('touchend', handleEnd);
+    };
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+    window.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('touchend', handleEnd);
+  }, [onClose, dragOffset]);
+
   const toggleAspectExpanded = (idx: number) => {
     setExpandedAspects((prev) => {
       const next = new Set(prev);
@@ -210,15 +250,38 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
     pinned: !!onClose,
   });
 
+  // Apply drag offset to the computed style
+  const finalStyle: React.CSSProperties = {
+    ...containerStyle,
+    ...(dragOffset && onClose ? {
+      left: (typeof containerStyle.left === 'number' ? containerStyle.left : 0) + dragOffset.x,
+      top: (typeof containerStyle.top === 'number' ? containerStyle.top : 0) + dragOffset.y,
+    } : {}),
+  };
+
   return (
     <div
       className="planet-tooltip"
-      style={containerStyle}
+      style={finalStyle}
       onClick={(e) => e.stopPropagation()}
     >
+      {/* Drag handle - only for pinned (clicked) tooltips on desktop */}
+      {onClose && !isTooltipMobile() && (
+        <div
+          onMouseDown={handleDragStart}
+          onTouchStart={handleDragStart}
+          style={{ display: 'flex', justifyContent: 'center', cursor: 'grab', padding: '2px 0 4px', marginTop: -4 }}
+        >
+          <div style={{ width: 32, height: 3, borderRadius: 2, backgroundColor: COLORS.gridLine, opacity: 0.6 }} />
+        </div>
+      )}
       {/* Mobile drag handle */}
       {isTooltipMobile() && (
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4 }}>
+        <div
+          onMouseDown={handleDragStart}
+          onTouchStart={handleDragStart}
+          style={{ display: 'flex', justifyContent: 'center', marginBottom: 4, cursor: 'grab' }}
+        >
           <div style={{ width: 28, height: 3, borderRadius: 2, backgroundColor: COLORS.gridLine }} />
         </div>
       )}

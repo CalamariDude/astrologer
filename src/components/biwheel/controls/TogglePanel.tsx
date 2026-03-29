@@ -1494,17 +1494,6 @@ export const TogglePanel: React.FC<TogglePanelProps> = ({
         )}
       </Section>
 
-      {/* Preferences */}
-      {onSetShowEffects && (
-        <Section title="Preferences">
-          <Checkbox
-            label="Flow Effects"
-            checked={showEffects}
-            onChange={() => onSetShowEffects(!showEffects)}
-          />
-        </Section>
-      )}
-
       {/* Aspects - Major and Minor sub-sections */}
       <Section title="Major Aspects" defaultOpen={true}>
         {majorAspects.map(([key, def]) => (

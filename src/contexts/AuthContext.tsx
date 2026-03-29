@@ -51,12 +51,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
+    // Periodic heartbeat — update last_active_at every 5 minutes while tab is active
+    const heartbeat = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        const currentUser = supabase.auth.getUser().then(({ data }) => {
+          if (data.user) trackActivity(data.user.id);
+        });
+      }
+    }, 5 * 60 * 1000);
+
     // Fallback timeout in case INITIAL_SESSION never fires
     const timeout = setTimeout(() => setLoading(false), 3000);
 
     return () => {
       subscription.unsubscribe();
       document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(heartbeat);
       clearTimeout(timeout);
     };
   }, []);

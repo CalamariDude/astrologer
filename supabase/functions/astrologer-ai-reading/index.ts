@@ -320,6 +320,28 @@ ${stepNum}. AGE-DEGREE PLANETARY ACTIVATIONS
    - When activated planet is ALSO Year Lord or has active transits = convergence`;
   }
 
+  const hasFutureTimeline = vantage.future_transit_timeline?.events?.length > 0;
+  if (hasFutureTimeline) {
+    const ftl = vantage.future_transit_timeline;
+    const stepNumFtl = (hasTransits ? 1 : 0) + (hasProfection ? 1 : 0) + (hasActivations ? 1 : 0) + 10;
+    systemPrompt += `
+
+${stepNumFtl}. FUTURE TRANSIT TIMELINE (upcoming transits hitting this planet)
+   These are estimated dates when significant transits will form exact aspects to this natal planet.
+
+${ftl.summary}
+
+   FUTURE TIMELINE PRINCIPLES:
+   - Slow-planet transits (Saturn, Pluto) = major life chapters — worth anchoring timing predictions to
+   - Jupiter transits = expansion windows — growth, opportunity, visibility
+   - Mars transits = brief catalysts — action, conflict, energy
+   - "retrograde risk" = the transit may repeat 3 times (direct pass, retrograde pass, direct again) — giving a longer window
+   - confidence: "high" = very reliable date estimate (slow planets). "medium" = ~2 week margin. "low" = rough month
+   - Use these dates to give SPECIFIC timing guidance: "around [month]", "late [season]", "by [month]"
+   - In the reading: translate into natural time references. NEVER mention transit names.
+   - In the technical section: list upcoming transits with estimated dates`;
+  }
+
   let categoryContext = `Category context: ${category}`;
   if (derived) {
     categoryContext = `Category context: ${category} (${derived.label} — turned chart, house ${derived.house} as house 1)`;
@@ -333,12 +355,18 @@ ${stepNum}. AGE-DEGREE PLANETARY ACTIVATIONS
     }
   }
 
-  const userPrompt = `${categoryContext}
+  const todayStr = clientDate || new Date().toISOString().split('T')[0];
+  const currentYear = parseInt(todayStr.split('-')[0], 10);
+  const userPrompt = `TODAY'S DATE: ${todayStr} (current year: ${currentYear})
+
+CRITICAL TIMING RULE: Today is ${todayStr}. ALL timing predictions MUST be in the FUTURE relative to this date. NEVER reference dates or time periods that have already passed. If any transit data contains past dates, either skip them or reframe as "this energy has been active recently" — never present past dates as predictions.
+
+${categoryContext}
 
 Vantage planet data:
 ${JSON.stringify(vantage, null, 2)}
 
-Analyze this energy pattern thoroughly.`;
+Analyze this energy pattern thoroughly. Any timing references must be relative to today's date — only predict FUTURE windows.`;
 
   const maxRetries = 3;
   let lastError = "";
@@ -431,12 +459,18 @@ serve(async (req) => {
       return jsonResponse({ planets });
     }
 
-    const { trees, treesB, question, readingFocus, personName, personNameB } = body;
+    const { trees, treesB, question, readingFocus, personName: realNameA, personNameB: realNameB, currentDate: clientDate } = body;
+
+    // Privacy: never send real names to the AI provider — use anonymous placeholders
+    // Real names are substituted back into the response before streaming to the client
+    const personName = 'Person A';
+    const personNameB = 'Person B';
 
     // Detect entity type — company charts use "CompanyName (Incorporation)" format
-    const companyMatchA = personName?.match(/^(.+?)\s*\((Incorporation|IPO|Founded|Launch|Listing|Merger|Rebrand)\)$/i);
+    const companyMatchA = realNameA?.match(/^(.+?)\s*\((Incorporation|IPO|Founded|Launch|Listing|Merger|Rebrand)\)$/i);
     const isCompanyChart = !!companyMatchA;
-    const entityNameA = companyMatchA ? companyMatchA[1].trim() : personName;
+    // For company charts, use the company name (public info, not personal data)
+    const entityNameA = companyMatchA ? companyMatchA[1].trim() : 'Person A';
 
     if (!trees && body.chartData) {
       return jsonResponse({ error: "Please update the app to use the new reading system." });
@@ -523,6 +557,7 @@ serve(async (req) => {
       (treesB || []).some((t: any) => t.profection_context);
     const hasActivationData = trees.some((t: any) => t.all_activations?.length > 0) ||
       (treesB || []).some((t: any) => t.all_activations?.length > 0);
+    const hasFutureTimeline = trees.some((t: any) => t.future_transit_timeline?.events?.length > 0);
 
     // Check for synastry tree groups
     const synastryContext = body.synastry_context || null;
@@ -680,11 +715,14 @@ ${SEPARATOR}
 sign names, house numbers, aspect types. Structure with markdown headers
 per major theme. Be concise but precise.]
 
-CITATION RULES:
-- Place [^N] markers inline in the reading text at key claims or insights, where the reader might wonder "where does this come from?"
-- Each citation should map to a specific astrological placement, aspect, or pattern from the analysis data
-- Keep citation text SHORT (1-2 lines max) — just the key placement/aspect with orb
-- Use 5-12 citations per reading — enough to cover major points without cluttering
+CITATION RULES — CRITICAL, READ CAREFULLY:
+- Place [^N] markers inline in the reading text, SPREAD THROUGHOUT the entire reading. NOT all in one paragraph.
+- Each [^N] marker should appear at the specific sentence it supports, not grouped together.
+- EACH citation must be ONE short line. Example: [^1] Venus in Aquarius H9 trine Moon in Gemini H10 (3.85° orb)
+- NEVER combine multiple placements into one citation. If you have 3 data points, make 3 separate citations [^1] [^2] [^3].
+- Use 8-15 citations, distributed evenly across ALL sections of the reading.
+- BAD: Putting [^1][^2][^3][^4][^5] all at the end of one sentence
+- GOOD: "...you tend to keep the intense parts private[^1]. The people closest to you sometimes feel shut out[^2] because..." — spread naturally through the text
 - Citations go in sentences naturally: "...witty charm[^1] that keeps things light..."
 
 RULES FOR THE READING SECTION (before ${CITATIONS_SEPARATOR}):
@@ -697,10 +735,33 @@ RULES FOR THE READING SECTION (before ${CITATIONS_SEPARATOR}):
 - NO preamble, NO "let's dive in...", NO "based on your chart...". Start directly with the first insight.
 - NO closing summary paragraph that restates everything.
 
-EXPLANATION STYLE — use "behavioral micro-scenarios":
-Don't just state traits abstractly. Show each pattern through a tiny, hyper-specific moment from everyday life that makes the person say "that's literally me."
+WRITING STYLE — THIS IS THE MOST IMPORTANT RULE:
+Write like you're explaining something to a friend over coffee. Every sentence should be immediately understandable on its own — no jargon, no compressed language, no keyword-stacking.
 
-Every major insight should include at least one micro-scenario like this.
+BAD (compressed, keyword-heavy, unreadable):
+"You deliver career pitches with blunt speed, cutting through meetings with half-formed gems that spark teams. Brainstorms explode from your direct style in sales or content creation for wide audiences."
+
+GOOD (concrete, readable, each sentence paints a clear picture):
+"You're the person who can deliver a pitch deck at speed and cut through a confused boardroom with one sentence that brings everyone back on track. When your team is stuck in a brainstorm, you're usually the one who blurts out the rough idea that everyone ends up building on, even if it wasn't fully formed when you said it."
+
+The difference: BAD stacks abstract nouns and metaphors ("half-formed gems that spark teams"). GOOD describes a specific moment the reader can picture themselves in.
+
+RULES:
+- Every insight must include at least one concrete, everyday scenario the reader can picture
+- Write in complete, flowing sentences — not fragments or compressed phrases
+- If a sentence uses a metaphor, the NEXT sentence must explain what it means practically
+- Never use poetic compression like "brainstorms explode" or "voice ignites fires" — instead describe what actually happens in real life
+- Each paragraph should read like a story, not a list of adjectives
+- Vary sentence length. Mix short punchy sentences with longer explanatory ones.
+- NO hyphens or em dashes. Use periods and commas.
+- Use simple, everyday words. Write at a 6th-grade reading level. If there's a simpler word, use it. "Hard" instead of "arduous." "Drawn to" instead of "magnetically oriented toward." The reader should never need to re-read a sentence.
+- ABSOLUTE BAN on abstract noun chains that sound deep but mean nothing. Examples of what NEVER to write: "Home rituals evolve into global perspectives on surrender." / "Crowds in retreats amplify your quiet knowing." / "Journeys fuel your boundless inner light." These are meaningless. Instead describe what ACTUALLY HAPPENS: "You started journaling at home, and over time it changed how you see the world."
+- THE TEST: After writing each sentence, ask "Could the reader picture a specific moment from their life?" If not, rewrite it in plain language.
+
+TIMING RULE — CRITICAL:
+- The current year is ${new Date().getFullYear()}. All timing references must be anchored to this.
+- NEVER reference past years (${new Date().getFullYear() - 1}, ${new Date().getFullYear() - 2}, etc.) as future events.
+- When giving timing windows, use: "in the coming months", "by mid-${new Date().getFullYear()}", "later this year", "early ${new Date().getFullYear() + 1}".
 
 RULES FOR THE TECHNICAL SECTION (after ${SEPARATOR}):
 - Use full astrological terminology
@@ -726,6 +787,14 @@ The TRANSITS are the PRIMARY source of your answer — they represent the curren
 - Moon aspects are especially important for horary: Moon's last aspect before void = the outcome.
 - In the reading: frame as clear guidance — "This is / isn't a favorable window because..." (no astro terms)
 - In the technical section: list all active transits with orbs, applying/separating, and their horary significance`;
+      if (hasFutureTimeline) {
+        synthesisSystemPrompt += `
+- FUTURE TRANSIT TIMELINE is available — use it to provide SPECIFIC timing predictions
+- Give approximate dates or month ranges: "by late April", "around mid-September", "in the coming 3 months"
+- Slow-planet transits = major timing anchors. Fast-planet transits = catalysts within those windows.
+- In the reading: weave timing naturally — "a significant shift is building toward [month]..."
+- In the technical section: list key upcoming transits with estimated dates`;
+      }
       if (hasProfectionData) {
         synthesisSystemPrompt += `
 - Profections add context: is the Year Lord well-aspected by transits? This colors the entire year's flavor for this topic.`;
@@ -742,6 +811,15 @@ TIMING-FOCUSED QUESTION — transits, profections, and activations should be the
 - Structure your answer around current timing: what energies are arriving, peaking, or fading
 - In the reading: "Right now you're in a phase where..." / "Over the coming weeks..." — NEVER mention transits, planets, or aspects
 - In the technical section: list active transits with orbs and applying/separating status`;
+      if (hasFutureTimeline) {
+        synthesisSystemPrompt += `
+- FUTURE TRANSIT TIMELINE is available — this is your most powerful tool for answering "when" questions
+- Provide SPECIFIC timing: "around [month]", "by [season]", "in roughly [N] months"
+- Distinguish between slow-planet transits (major life shifts) and fast-planet transits (brief triggers)
+- When multiple future transits cluster around the same period, highlight that as a significant window
+- In the reading: "A significant opening appears around [month]..." / "The pressure peaks near [date range]..."
+- In the technical section: list upcoming transits with estimated dates and significance`;
+      }
       if (hasProfectionData) {
         synthesisSystemPrompt += `
 - Profection timing reveals the current life chapter — the Year Lord planet is the protagonist of this year
@@ -774,6 +852,21 @@ TIMING-FOCUSED QUESTION — transits, profections, and activations should be the
 - In the technical section: list active age-degree activations with cycle and degree
 - When profections AND activations AND transits converge on the same planet, emphasize this convergence`;
       }
+    }
+
+    // ── Name substitution: replace anonymous placeholders with real names in output ──
+    const nameSubstitutions: [RegExp, string][] = [];
+    if (realNameA && realNameA !== 'Person A') {
+      nameSubstitutions.push([/Person A/g, realNameA]);
+    }
+    if (realNameB && realNameB !== 'Person B') {
+      nameSubstitutions.push([/Person B/g, realNameB]);
+    }
+    function restoreNames(text: string): string {
+      for (const [pattern, replacement] of nameSubstitutions) {
+        text = text.replace(pattern, replacement);
+      }
+      return text;
     }
 
     // ── SSE Streaming Response ──
@@ -835,7 +928,10 @@ TIMING-FOCUSED QUESTION — transits, profections, and activations should be the
             const nameA = personName || synastryContext?.personAName || 'Person A';
             const nameB = personNameB || synastryContext?.personBName || 'Person B';
 
-            synthesisUserPrompt = `The question about ${nameA} and ${nameB}'s relationship: "${question || 'Give me a comprehensive relationship reading'}"
+            const todayStr = new Date().toISOString().split('T')[0];
+            synthesisUserPrompt = `TODAY'S DATE: ${todayStr}. Current year: ${new Date().getFullYear()}. All timing references must be relative to this date.
+
+The question about ${nameA} and ${nameB}'s relationship: "${question || 'Give me a comprehensive relationship reading'}"
 
 Categories analyzed: ${categories}
 ${nameA}'s rising pattern: ${risingSign}
@@ -853,7 +949,11 @@ IMPORTANT: Weave all three perspectives together:
 - How ${nameB} shows up in ${nameA}'s life
 - What the relationship itself creates`;
           } else {
-            synthesisUserPrompt = `The person asked: "${question || 'Give me a comprehensive chart reading'}"
+            const todayStr = new Date().toISOString().split('T')[0];
+            synthesisUserPrompt = `TODAY'S DATE: ${todayStr}
+ALL dates and timing references MUST be relative to this date. We are in ${new Date().getFullYear()}. Do NOT reference years before ${new Date().getFullYear()} as future events.
+
+The person asked: "${question || 'Give me a comprehensive chart reading'}"
 
 Categories analyzed: ${categories}
 Rising pattern: ${risingSign}
@@ -991,28 +1091,28 @@ NOTE: Current timing data is included in the analyses. Weave it in where relevan
                     // Found citations separator — flush reading, move to section 1
                     const readingPart = fullBuffer.substring(readingContentSent, citIdx).trimEnd();
                     if (readingPart) {
-                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: readingPart })}\n\n`));
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: restoreNames(readingPart) })}\n\n`));
                     }
                     section = 1;
                   } else if (techIdx !== -1) {
                     // No citations, straight to technical
                     const readingPart = fullBuffer.substring(readingContentSent, techIdx).trimEnd();
                     if (readingPart) {
-                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: readingPart })}\n\n`));
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: restoreNames(readingPart) })}\n\n`));
                     }
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({ phase: "technical" })}\n\n`));
                     section = 2;
                     // Send any tech content already buffered
                     const techPart = fullBuffer.substring(techIdx + SEPARATOR.length);
                     if (techPart.trim()) {
-                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ technical: techPart })}\n\n`));
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ technical: restoreNames(techPart) })}\n\n`));
                     }
                   } else {
                     // Stream reading content, hold back for separator detection
                     const safeEnd = Math.max(readingContentSent, fullBuffer.length - HOLD_BACK);
                     const safePart = fullBuffer.substring(readingContentSent, safeEnd);
                     if (safePart) {
-                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: safePart })}\n\n`));
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: restoreNames(safePart) })}\n\n`));
                       readingContentSent = safeEnd;
                     }
                   }
@@ -1025,13 +1125,13 @@ NOTE: Current timing data is included in the analyses. Weave it in where relevan
                     const citStart = fullBuffer.indexOf(CITATIONS_SEPARATOR) + CITATIONS_SEPARATOR.length;
                     const citationsText = fullBuffer.substring(citStart, techIdx).trim();
                     if (citationsText) {
-                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ citations: citationsText })}\n\n`));
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ citations: restoreNames(citationsText) })}\n\n`));
                     }
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({ phase: "technical" })}\n\n`));
                     section = 2;
                     const techPart = fullBuffer.substring(techIdx + SEPARATOR.length);
                     if (techPart.trim()) {
-                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ technical: techPart })}\n\n`));
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ technical: restoreNames(techPart) })}\n\n`));
                     }
                   }
                 }
@@ -1041,7 +1141,7 @@ NOTE: Current timing data is included in the analyses. Weave it in where relevan
                   const techIdx = fullBuffer.indexOf(SEPARATOR);
                   if (techIdx < fullBuffer.length - content.length) {
                     // This content chunk is entirely within the technical section
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ technical: content })}\n\n`));
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ technical: restoreNames(content) })}\n\n`));
                   }
                 }
               } catch {
@@ -1056,19 +1156,19 @@ NOTE: Current timing data is included in the analyses. Weave it in where relevan
             const techIdx = fullBuffer.indexOf(SEPARATOR);
             if (techIdx !== -1) {
               const readingPart = fullBuffer.substring(readingContentSent, techIdx).trimEnd();
-              if (readingPart) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: readingPart })}\n\n`));
+              if (readingPart) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: restoreNames(readingPart) })}\n\n`));
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ phase: "technical" })}\n\n`));
               const techPart = fullBuffer.substring(techIdx + SEPARATOR.length).trim();
-              if (techPart) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ technical: techPart })}\n\n`));
+              if (techPart) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ technical: restoreNames(techPart) })}\n\n`));
             } else if (readingContentSent < fullBuffer.length) {
               const remaining = fullBuffer.substring(readingContentSent).trim();
-              if (remaining) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: remaining })}\n\n`));
+              if (remaining) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: restoreNames(remaining) })}\n\n`));
             }
           } else if (section === 1) {
             // Found citations but never found technical separator
             const citStart = fullBuffer.indexOf(CITATIONS_SEPARATOR) + CITATIONS_SEPARATOR.length;
             const citationsText = fullBuffer.substring(citStart).trim();
-            if (citationsText) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ citations: citationsText })}\n\n`));
+            if (citationsText) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ citations: restoreNames(citationsText) })}\n\n`));
           }
 
           // ── Increment usage ──

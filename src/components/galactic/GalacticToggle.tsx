@@ -22,11 +22,10 @@ export function GalacticToggle({ active, onToggle }: GalacticToggleProps) {
           : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30'
         }
       `}
-      title={active ? 'Switch to 2D chart' : 'Enter Galactic Mode'}
+      title={active ? 'Switch to 2D chart' : 'View chart in 3D'}
     >
       <Orbit className="w-3.5 h-3.5" />
-      {active ? '2D Chart' : 'Galactic Mode'}
-      {!active && <span className="px-1 py-0.5 text-[8px] font-bold uppercase bg-indigo-500/20 text-indigo-400 rounded">Beta</span>}
+      {active ? '2D Chart' : '3D Chart'}
     </button>
   );
 }

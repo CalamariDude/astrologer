@@ -32,14 +32,7 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "No auth header" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
+    const token = authHeader?.replace("Bearer ", "") || "";
 
     // Use service role to update profile (bypasses RLS)
     const supabaseAdmin = createClient(
@@ -47,23 +40,20 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Use user's token to verify identity
-    const supabaseUser = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseUser.auth.getUser(token);
-
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Try to identify the user from the JWT (optional — not required for insight verify)
+    let user: { id: string; email?: string } | null = null;
+    if (token && token !== Deno.env.get("SUPABASE_ANON_KEY")) {
+      try {
+        const supabaseUser = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_ANON_KEY")!,
+          { global: { headers: { Authorization: authHeader! } } }
+        );
+        const { data: { user: authUser } } = await supabaseUser.auth.getUser(token);
+        if (authUser) user = authUser;
+      } catch {
+        // Auth failed — continue without user for insight purchases
+      }
     }
 
     const { session_id } = await req.json();
@@ -84,12 +74,44 @@ serve(async (req) => {
     }
 
     // Retrieve the checkout session from Stripe
+    // Don't expand subscription for one-time payments (causes error)
     const session = await stripeGet(
-      `checkout/sessions/${session_id}?expand[]=subscription`,
+      `checkout/sessions/${session_id}`,
       stripeKey
     );
 
-    console.log(`Verify: user=${user.id}, session=${session_id}, status=${session.status}, payment=${session.payment_status}`);
+    console.log(`Verify: user=${user?.id ?? 'anonymous'}, session=${session_id}, status=${session.status}, payment=${session.payment_status}`);
+
+    // Only activate if payment was successful
+    if (session.payment_status !== "paid" && session.status !== "complete") {
+      return new Response(JSON.stringify({ error: "Payment not completed", status: session.status }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Insight one-time purchase? (no auth required — verified by Stripe session) ──
+    if (session.metadata?.type === "insight_reading") {
+      const moduleId = session.metadata?.module_id;
+      if (moduleId) {
+        await supabaseAdmin
+          .from("insight_purchases")
+          .update({ status: "completed", completed_at: new Date().toISOString() })
+          .eq("stripe_session_id", session_id);
+      }
+      return new Response(
+        JSON.stringify({ verified: true, type: "insight", module_id: moduleId }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ── Subscription verify — requires auth ──
+    if (!user) {
+      return new Response(JSON.stringify({ error: "Unauthorized — sign in to verify subscription" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Verify this session belongs to this user
     const { data: profile } = await supabaseAdmin
@@ -110,14 +132,6 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-    }
-
-    // Only activate if payment was successful
-    if (session.payment_status !== "paid" && session.status !== "complete") {
-      return new Response(JSON.stringify({ error: "Payment not completed", status: session.status }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     }
 
     // Horoscope tier price IDs
@@ -142,26 +156,31 @@ serve(async (req) => {
     let subscriptionId: string | null = null;
     let expiresAt: string | null = null;
 
-    const sub = session.subscription;
-    if (sub && typeof sub === "object") {
-      subscriptionId = sub.id;
-      const priceId = sub.items?.data?.[0]?.price?.id;
-      const interval = sub.items?.data?.[0]?.price?.recurring?.interval;
-      plan = interval === "year" ? "annual" : "monthly";
-      if (priceId && horoscopePriceIds.has(priceId)) {
-        tier = "horoscope";
-      } else if (priceId && astrologerPriceIds.has(priceId)) {
-        tier = "astrologer";
-      } else if (sub.metadata?.tier === "horoscope") {
-        tier = "horoscope";
-      } else if (sub.metadata?.tier === "astrologer") {
-        tier = "astrologer";
+    // Fetch the full subscription if one exists
+    const subId = session.subscription;
+    if (subId) {
+      const subIdStr = typeof subId === "object" ? subId.id : subId;
+      subscriptionId = subIdStr;
+      try {
+        const sub = await stripeGet(`subscriptions/${subIdStr}`, stripeKey);
+        const priceId = sub.items?.data?.[0]?.price?.id;
+        const interval = sub.items?.data?.[0]?.price?.recurring?.interval;
+        plan = interval === "year" ? "annual" : "monthly";
+        if (priceId && horoscopePriceIds.has(priceId)) {
+          tier = "horoscope";
+        } else if (priceId && astrologerPriceIds.has(priceId)) {
+          tier = "astrologer";
+        } else if (sub.metadata?.tier === "horoscope") {
+          tier = "horoscope";
+        } else if (sub.metadata?.tier === "astrologer") {
+          tier = "astrologer";
+        }
+        if (sub.current_period_end) {
+          expiresAt = new Date(sub.current_period_end * 1000).toISOString();
+        }
+      } catch (err) {
+        console.error("Failed to fetch subscription:", err);
       }
-      if (sub.current_period_end) {
-        expiresAt = new Date(sub.current_period_end * 1000).toISOString();
-      }
-    } else if (typeof sub === "string") {
-      subscriptionId = sub;
     }
 
     // Activate the subscription

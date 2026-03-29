@@ -142,6 +142,12 @@ export function LandingHeader({
           <a href="#pricing" className="text-sm hover:opacity-80 transition-colors duration-500" style={{ color: textSecondary }}>
             Pricing
           </a>
+          <Link to="/blog" className="text-sm hover:opacity-80 transition-colors duration-500" style={{ color: textSecondary }}>
+            Blog
+          </Link>
+          <Link to="/astrologers" className="text-sm hover:opacity-80 transition-colors duration-500" style={{ color: textSecondary }}>
+            Astrologers
+          </Link>
           <Button size="sm" className={inDarkZone ? 'bg-white text-black hover:bg-white/90' : ''} onClick={onOpenApp}>
             Open App
           </Button>
@@ -197,6 +203,22 @@ export function LandingHeader({
           >
             Pricing
           </a>
+          <Link
+            to="/blog"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block py-2 px-2 text-sm"
+            style={{ color: inDarkZone ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)' }}
+          >
+            Blog
+          </Link>
+          <Link
+            to="/astrologers"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block py-2 px-2 text-sm"
+            style={{ color: inDarkZone ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)' }}
+          >
+            Astrologers
+          </Link>
           <Button size="sm" className="w-full mt-1" onClick={() => { setMobileMenuOpen(false); onOpenApp(); }}>
             Open App
           </Button>

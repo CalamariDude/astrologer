@@ -12,6 +12,8 @@ export function LandingFooter() {
             <Link to="/features/charts" className="hover:text-foreground transition-colors">Features</Link>
             <a href="#learn" className="hover:text-foreground transition-colors">Learn</a>
             <a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a>
+            <Link to="/blog" className="hover:text-foreground transition-colors">Blog</Link>
+            <Link to="/astrologers" className="hover:text-foreground transition-colors">Find an Astrologer</Link>
             <Link to="/support" className="hover:text-foreground transition-colors">Support</Link>
           </div>
         </div>

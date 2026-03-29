@@ -7,6 +7,70 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// ── Branded marketing email template ──
+function buildMarketingEmail(subject: string, content: string, preheader: string, ctaText?: string, ctaUrl?: string): string {
+  // Convert markdown-ish content to HTML paragraphs
+  const htmlContent = content
+    .split('\n\n')
+    .filter(p => p.trim())
+    .map(p => `<p style="margin:0 0 16px;color:#3d3152;font-size:16px;line-height:1.7;">${p.trim().replace(/\n/g, '<br>')}</p>`)
+    .join('');
+
+  const ctaBlock = ctaText && ctaUrl ? `
+    <table role="presentation" cellspacing="0" cellpadding="0" style="margin:28px auto;">
+      <tr>
+        <td style="border-radius:12px;background:linear-gradient(135deg,#8b6cc1 0%,#c06c84 50%,#d4a574 100%);">
+          <a href="${ctaUrl}" target="_blank" style="display:inline-block;padding:14px 36px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;font-family:'Inter',Helvetica,Arial,sans-serif;letter-spacing:0.02em;">${ctaText}</a>
+        </td>
+      </tr>
+    </table>` : '';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>${subject}</title>
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
+</head>
+<body style="margin:0;padding:0;background-color:#f8f6fa;font-family:'Inter','Helvetica Neue',Helvetica,Arial,sans-serif;">
+${preheader ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${preheader}</div>` : ''}
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f8f6fa;">
+<tr><td style="padding:40px 16px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px;margin:0 auto;">
+
+  <!-- Header -->
+  <tr><td style="text-align:center;padding-bottom:32px;">
+    <span style="font-size:13px;letter-spacing:0.2em;text-transform:uppercase;color:#9a8daa;font-weight:500;">ASTROLOGER</span>
+  </td></tr>
+
+  <!-- Card -->
+  <tr><td style="background:#ffffff;border-radius:16px;padding:40px 36px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+
+    ${htmlContent}
+    ${ctaBlock}
+
+  </td></tr>
+
+  <!-- Footer -->
+  <tr><td style="text-align:center;padding:32px 16px 0;">
+    <p style="margin:0 0 8px;color:#b8afc4;font-size:12px;">
+      <a href="https://astrologerapp.org" style="color:#9a8daa;text-decoration:none;">astrologerapp.org</a>
+    </p>
+    <p style="margin:0;color:#d0c9da;font-size:11px;line-height:1.5;">
+      You're receiving this because you used Astrologer.<br>
+      <a href="mailto:unsubscribe@astrologerapp.org?subject=unsubscribe" style="color:#b8afc4;text-decoration:underline;">Unsubscribe</a>
+    </p>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+
 // ── Lightweight Stripe helpers using fetch ──
 
 async function stripeGet(endpoint: string, apiKey: string) {
@@ -668,6 +732,165 @@ serve(async (req) => {
         }));
 
         return json({ charts: enriched });
+      }
+
+      // ── Marketing Email System ──
+
+      case "marketing_audiences": {
+        // Fetch audience counts for targeting
+        const { count: allLeads } = await supabase.from("insight_leads").select("*", { count: "exact", head: true });
+        const { count: allUsers } = await supabase.from("astrologer_profiles").select("*", { count: "exact", head: true });
+
+        // Module-specific lead counts
+        const { data: moduleCounts } = await supabase.rpc("insight_leads_by_module") as any;
+        // If RPC doesn't exist, fallback
+        let modules: Record<string, number> = {};
+        if (moduleCounts) {
+          for (const m of moduleCounts) modules[m.module_id] = m.count;
+        }
+
+        // Unique lead emails (not already registered users)
+        const { count: uniqueLeads } = await supabase
+          .from("insight_leads")
+          .select("email", { count: "exact", head: true });
+
+        return json({
+          audiences: {
+            all_users: allUsers || 0,
+            all_leads: allLeads || 0,
+            unique_leads: uniqueLeads || 0,
+            by_module: modules,
+          },
+        });
+      }
+
+      case "marketing_send_history": {
+        const { data: history } = await supabase
+          .from("email_campaigns")
+          .select("*")
+          .order("sent_at", { ascending: false })
+          .limit(50);
+        return json({ campaigns: history || [] });
+      }
+
+      case "send_marketing_email": {
+        const resendKey = Deno.env.get("RESEND_API_KEY");
+        if (!resendKey) return json({ error: "RESEND_API_KEY not configured" }, 500);
+        if (!body.subject || !body.content) return json({ error: "Missing subject or content" }, 400);
+
+        const audience: string = body.audience || "all_users"; // all_users, all_leads, lead_module:<id>
+        let emails: string[] = [];
+
+        if (audience === "all_users") {
+          const { data: authUsers } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+          emails = (authUsers?.users || []).map(u => u.email).filter((e): e is string => !!e);
+        } else if (audience === "all_leads") {
+          const { data: leads } = await supabase
+            .from("insight_leads")
+            .select("email")
+            .order("created_at", { ascending: false });
+          const unique = new Set((leads || []).map(l => l.email).filter(Boolean));
+          emails = [...unique];
+        } else if (audience.startsWith("lead_module:")) {
+          const moduleId = audience.replace("lead_module:", "");
+          const { data: leads } = await supabase
+            .from("insight_leads")
+            .select("email")
+            .eq("module_id", moduleId);
+          const unique = new Set((leads || []).map(l => l.email).filter(Boolean));
+          emails = [...unique];
+        } else if (audience === "paid_users") {
+          const { data: profiles } = await supabase
+            .from("astrologer_profiles")
+            .select("id")
+            .in("subscription_status", ["active", "trialing"]);
+          if (profiles && profiles.length > 0) {
+            const ids = profiles.map(p => p.id);
+            const { data: authUsers } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+            emails = (authUsers?.users || [])
+              .filter(u => ids.includes(u.id))
+              .map(u => u.email)
+              .filter((e): e is string => !!e);
+          }
+        } else if (audience === "free_users") {
+          const { data: profiles } = await supabase
+            .from("astrologer_profiles")
+            .select("id")
+            .or("subscription_status.is.null,subscription_status.eq.expired,subscription_status.eq.canceled");
+          if (profiles && profiles.length > 0) {
+            const ids = profiles.map(p => p.id);
+            const { data: authUsers } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+            emails = (authUsers?.users || [])
+              .filter(u => ids.includes(u.id))
+              .map(u => u.email)
+              .filter((e): e is string => !!e);
+          }
+        }
+
+        if (emails.length === 0) return json({ error: "No recipients found for this audience" }, 400);
+
+        // Build branded HTML email
+        const brandedHtml = buildMarketingEmail(body.subject, body.content, body.preheader || "", body.cta_text, body.cta_url);
+
+        // Send in batches via Resend (individual sends for tracking)
+        const batchSize = 50;
+        let sent = 0;
+        let failed = 0;
+        const resendIds: string[] = [];
+
+        for (let i = 0; i < emails.length; i += batchSize) {
+          const batch = emails.slice(i, i + batchSize);
+          // Use Resend batch API for individual tracking
+          const batchPayload = batch.map(email => ({
+            from: body.from || "Astrologer <hello@astrologerapp.org>",
+            to: [email],
+            subject: body.subject,
+            html: brandedHtml,
+            headers: {
+              "List-Unsubscribe": `<mailto:unsubscribe@astrologerapp.org?subject=unsubscribe>`,
+            },
+            tags: [
+              { name: "campaign", value: body.campaign_name || "manual" },
+              { name: "audience", value: audience },
+            ],
+          }));
+
+          const res = await fetch("https://api.resend.com/emails/batch", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${resendKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(batchPayload),
+          });
+
+          if (res.ok) {
+            const result = await res.json();
+            sent += batch.length;
+            if (Array.isArray(result.data)) {
+              for (const r of result.data) if (r.id) resendIds.push(r.id);
+            }
+          } else {
+            failed += batch.length;
+          }
+        }
+
+        // Save campaign record
+        await supabase.from("email_campaigns").insert({
+          subject: body.subject,
+          content: body.content,
+          preheader: body.preheader || null,
+          cta_text: body.cta_text || null,
+          cta_url: body.cta_url || null,
+          audience,
+          campaign_name: body.campaign_name || "manual",
+          recipients_count: emails.length,
+          sent_count: sent,
+          failed_count: failed,
+          resend_ids: resendIds.slice(0, 100), // store first 100 for tracking
+        });
+
+        return json({ sent, failed, total: emails.length });
       }
 
       default:

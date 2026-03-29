@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import { PostHogProvider } from '@posthog/react';
 import { AuthProvider } from './contexts/AuthContext';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
@@ -26,13 +27,15 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       apiKey={import.meta.env.VITE_PUBLIC_POSTHOG_KEY}
       options={posthogOptions}
     >
-      <BrowserRouter>
-        <AuthProvider>
-          <SubscriptionProvider>
-            <App />
-          </SubscriptionProvider>
-        </AuthProvider>
-      </BrowserRouter>
+      <HelmetProvider>
+        <BrowserRouter>
+          <AuthProvider>
+            <SubscriptionProvider>
+              <App />
+            </SubscriptionProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </HelmetProvider>
     </PostHogProvider>
   </React.StrictMode>
 );

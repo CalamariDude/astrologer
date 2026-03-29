@@ -465,6 +465,8 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
   onLunarReturnStartDateChange,
   onLunarReturnLoadingChange,
   onLunarReturnDataChange,
+  // External highlight
+  highlightPlanet,
 }) => {
   // Subscription gating for astrocartography
   const { user } = useAuth();
@@ -551,6 +553,21 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
     lunarReturnData: null,
     lunarReturnLoading: false,
   });
+
+  // Sync external highlightPlanet into internal selectedPlanet state
+  useEffect(() => {
+    if (highlightPlanet) {
+      setState(prev => ({
+        ...prev,
+        selectedPlanet: { planet: highlightPlanet.planet, chart: highlightPlanet.chart },
+        hoveredPlanet: null,
+        selectedAspect: null,
+        pinnedTooltipOpen: false,
+      }));
+    } else if (highlightPlanet === null) {
+      setState(prev => prev.selectedPlanet ? { ...prev, selectedPlanet: null } : prev);
+    }
+  }, [highlightPlanet?.planet, highlightPlanet?.chart]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync birth time shift state from external props (mobile knobs in BiWheelMobileWrapper)
   useEffect(() => {
@@ -2668,6 +2685,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
 
       <svg
         ref={svgRef}
+        className="biwheel-svg"
         width="100%"
         viewBox={zoomViewBox ? `${zoomViewBox.x} ${zoomViewBox.y} ${zoomViewBox.w} ${zoomViewBox.h}` : `0 0 ${VIEWBOX_SIZE} ${VIEWBOX_SIZE}`}
         preserveAspectRatio="xMidYMid meet"

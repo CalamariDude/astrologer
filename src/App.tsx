@@ -33,6 +33,17 @@ const MarketsFeaturePage = lazy(() => import('./pages/features/MarketsFeaturePag
 const CommunityFeaturePage = lazy(() => import('./pages/features/CommunityFeaturePage'));
 const CelebrityChartsFeaturePage = lazy(() => import('./pages/features/CelebrityChartsFeaturePage'));
 const WaitlistPage = lazy(() => import('./pages/WaitlistPage'));
+const InsightPage = lazy(() => import('./pages/InsightPage'));
+const ReadingPage = lazy(() => import('./pages/ReadingPage'));
+
+// Blog
+const BlogIndexPage = lazy(() => import('./pages/blog/BlogIndexPage'));
+const BlogPostPage = lazy(() => import('./pages/blog/BlogPostPage'));
+
+// Astrologer Directory
+const AstrologerDirectoryPage = lazy(() => import('./pages/AstrologerDirectoryPage'));
+const AstrologerProfilePage = lazy(() => import('./pages/AstrologerProfilePage'));
+const AstrologerClaimPage = lazy(() => import('./pages/AstrologerClaimPage'));
 
 function App() {
   // Tie PostHog sessions to authenticated Supabase users
@@ -64,6 +75,8 @@ function App() {
           <Route path="/community/profile/:userId" element={<CommunityProfilePage />} />
           <Route path="/community/:spaceSlug" element={<CommunityPage />} />
           <Route path="/waitlist" element={<WaitlistPage />} />
+          <Route path="/insight/:moduleSlug" element={<InsightPage />} />
+          <Route path="/reading/:readingId" element={<ReadingPage />} />
           {/* Feature landing pages */}
           <Route path="/features/charts" element={<ChartsFeaturePage />} />
           <Route path="/features/compatibility" element={<SynastryFeaturePage />} />
@@ -73,6 +86,13 @@ function App() {
           <Route path="/features/financial" element={<MarketsFeaturePage />} />
           <Route path="/features/community" element={<CommunityFeaturePage />} />
           <Route path="/features/celebrities" element={<CelebrityChartsFeaturePage />} />
+          {/* Blog */}
+          <Route path="/blog" element={<BlogIndexPage />} />
+          <Route path="/blog/:slug" element={<BlogPostPage />} />
+          {/* Astrologer Directory */}
+          <Route path="/astrologers" element={<AstrologerDirectoryPage />} />
+          <Route path="/astrologers/claim/:token" element={<AstrologerClaimPage />} />
+          <Route path="/astrologers/:slug" element={<AstrologerProfilePage />} />
         </Routes>
       </Suspense>
     </>

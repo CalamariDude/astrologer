@@ -127,3 +127,33 @@ export function trackSessionReplayed(props: { session_id: string }) {
 export function trackSessionShared(props: { method: 'link' | 'email' }) {
   posthog.capture('session_shared', props);
 }
+
+// ── Insight Funnel ──────────────────────────────────────────────────
+
+export function trackInsightPageViewed(props: { module: string }) {
+  posthog.capture('insight_page_viewed', props);
+}
+
+export function trackInsightFormStarted(props: { module: string; field: string }) {
+  posthog.capture('insight_form_started', props);
+}
+
+export function trackInsightFormSubmitted(props: { module: string; has_birth_time: boolean }) {
+  posthog.capture('insight_form_submitted', props);
+}
+
+export function trackInsightTeaserViewed(props: { module: string; archetype: string }) {
+  posthog.capture('insight_teaser_viewed', props);
+}
+
+export function trackInsightUnlockClicked(props: { module: string }) {
+  posthog.capture('insight_unlock_clicked', props);
+}
+
+export function trackInsightPurchaseCompleted(props: { module: string }) {
+  posthog.capture('insight_purchase_completed', props);
+}
+
+export function trackInsightLeadCaptured(props: { module: string }) {
+  posthog.capture('insight_lead_captured', props);
+}

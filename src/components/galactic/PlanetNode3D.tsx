@@ -752,8 +752,11 @@ export function PlanetNode3D({ planet, selected, onSelect, animationDelay = 0, d
     [planetColor3D],
   );
 
-  // Orb glow size — larger like landing page, still capped. Skip for transit planets.
-  const auraSize = isTransit ? 0 : Math.min(planet.size * 5, planet.orb * 0.2 + planet.size * 2.5);
+  // Orb glow — proportional to the planet's orb in degrees.
+  // Sun (orb 10°) gets a huge aura, Chiron (orb 1°) gets a small one.
+  // The glow visually represents the planet's sphere of influence.
+  const orbFactor = planet.orb / 10; // 0.1 (chiron) to 1.0 (sun)
+  const auraSize = isTransit ? 0 : planet.size * 2 + planet.orb * 0.6;
 
   // Degree + sign + degree label text
   const { degreeText, degreeSymbol } = useMemo(() => {
@@ -849,8 +852,8 @@ export function PlanetNode3D({ planet, selected, onSelect, animationDelay = 0, d
     }
   });
 
-  // Glow size — bigger like landing page; transit planets have slightly smaller glow
-  const glowSize = planet.size * (isTransit ? 5 : 6);
+  // Glow size — proportional to orb; transit planets slightly smaller
+  const glowSize = planet.size * (isTransit ? 5 : 4) + planet.orb * 0.3;
   const isActive = hovered || selected;
   const dimFactor = dimmed ? 0.3 : 1;
   // Transit planets are slightly more transparent
@@ -910,13 +913,13 @@ export function PlanetNode3D({ planet, selected, onSelect, animationDelay = 0, d
         />
       </sprite>
 
-      {/* Orb aura — always on, energy field */}
+      {/* Orb aura — always on, size proportional to planet's orb degrees */}
       {auraSize > 0 && (
         <sprite ref={auraRef} scale={[auraSize, auraSize, 1]}>
           <spriteMaterial
             map={auraTexture}
             transparent
-            opacity={(isActive ? 0.55 : 0.35) * dimFactor * transitFactor}
+            opacity={(isActive ? 0.6 : 0.4) * dimFactor * transitFactor}
             blending={THREE.AdditiveBlending}
             depthWrite={false}
           />

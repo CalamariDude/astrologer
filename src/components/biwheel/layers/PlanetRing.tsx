@@ -564,8 +564,30 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
   // Scale factor for highlighted planets
   const highlightScale = 1.1;
 
+  // Check if a planet is the primary selected one (not just an aspect partner)
+  const isPrimarySelected = (planetKey: string, chart: 'A' | 'B' | 'Composite'): boolean => {
+    if (!selectedPlanet) return false;
+    return selectedPlanet.planet === planetKey && selectedPlanet.chart === chart;
+  };
+
   return (
     <g className="planet-rings">
+      {/* SVG defs for glow effect */}
+      <defs>
+        <filter id="planet-glow" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur stdDeviation="8" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        <style>{`
+          @keyframes planet-pulse {
+            0%, 100% { opacity: 0.15; r: 26; }
+            50% { opacity: 0.3; r: 32; }
+          }
+        `}</style>
+      </defs>
       {/* Degree pointer lines — drawn first so planets render on top */}
       <g className="degree-pointer-lines">
         {planetsA.map((planet) => {
@@ -735,6 +757,19 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
               );
             })()}
 
+            {/* Glow circle behind highlighted planet */}
+            {isPrimarySelected(planet.key, 'A') && (
+              <circle
+                cx={planetPos.x}
+                cy={planetPos.y}
+                r={28}
+                fill={planetColor}
+                opacity={0.2}
+                filter="url(#planet-glow)"
+                style={{ animation: 'planet-pulse 2.5s ease-in-out infinite' }}
+              />
+            )}
+
             {/* Planet symbol (outermost) - enlarged when highlighted, smaller for angles/asteroids */}
             {(() => {
               const sp = smoothPos(planetPos.x, planetPos.y, 'font-size 0.15s ease-out');
@@ -878,6 +913,19 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
                 </text>
               );
             })()}
+
+            {/* Glow circle behind highlighted planet */}
+            {isPrimarySelected(planet.key, 'B') && (
+              <circle
+                cx={planetPos.x}
+                cy={planetPos.y}
+                r={24}
+                fill={planetColor}
+                opacity={0.2}
+                filter="url(#planet-glow)"
+                style={{ animation: 'planet-pulse 2.5s ease-in-out infinite' }}
+              />
+            )}
 
             {/* Planet symbol (outermost) - enlarged when highlighted, smaller for angles/asteroids */}
             {(() => {

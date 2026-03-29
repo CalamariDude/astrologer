@@ -204,7 +204,7 @@ function generateAspectLines(
     const hasPlanetActive = hoveredPlanet || selectedPlanet;
 
     const baseOpacity = getAspectOpacity(asp.aspect.strength);
-    const opacity = isHighlighted ? 1 : hasPlanetActive ? baseOpacity * 0.4 : baseOpacity;
+    const opacity = isHighlighted ? 1 : hasPlanetActive ? baseOpacity * 0.12 : baseOpacity;
     const strokeWidth = isHighlighted
       ? getAspectStrokeWidth(asp.aspect.strength) + 1.5
       : getAspectStrokeWidth(asp.aspect.strength);
@@ -353,9 +353,9 @@ export const AspectGrid: React.FC<AspectGridProps> = ({
         // Animation durations (modern only)
         const flowDuration = 2.5 + (1 - strength) * 3;
 
-        // Opacity: classic is fully opaque for all, just dims non-highlighted
+        // Opacity: classic dims non-highlighted lines strongly when a planet is selected
         const effectiveOpacity = isClassic
-          ? (isHighlighted ? 1 : line.opacity > 0.3 ? 0.85 : line.opacity)
+          ? (isHighlighted ? 1 : line.opacity < 0.2 ? line.opacity : 0.85 * line.opacity)
           : line.opacity;
 
         return (

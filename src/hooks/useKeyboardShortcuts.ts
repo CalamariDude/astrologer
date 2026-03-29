@@ -22,6 +22,9 @@ interface UseKeyboardShortcutsOptions {
   onDuplicateChartTab?: () => void;
   onPrevChartTab?: () => void;
   onNextChartTab?: () => void;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
+  onZoomReset?: () => void;
 }
 
 function isInputFocused(): boolean {
@@ -54,18 +57,22 @@ export function useKeyboardShortcuts({
   onDuplicateChartTab,
   onPrevChartTab,
   onNextChartTab,
+  onZoomIn,
+  onZoomOut,
+  onZoomReset,
 }: UseKeyboardShortcutsOptions) {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       const meta = e.metaKey || e.ctrlKey;
+      const code = e.code;
 
       // Alt shortcuts — chart tab management (work everywhere except inputs)
       if (e.altKey && !meta && !isInputFocused()) {
-        if (e.key === 't') { e.preventDefault(); onNewChartTab?.(); return; }
-        if (e.key === 'w') { e.preventDefault(); onCloseChartTab?.(); return; }
-        if (e.key === 'd') { e.preventDefault(); onDuplicateChartTab?.(); return; }
-        if (e.key === 'ArrowLeft') { e.preventDefault(); onPrevChartTab?.(); return; }
-        if (e.key === 'ArrowRight') { e.preventDefault(); onNextChartTab?.(); return; }
+        if (code === 'KeyT') { e.preventDefault(); onNewChartTab?.(); return; }
+        if (code === 'KeyW') { e.preventDefault(); onCloseChartTab?.(); return; }
+        if (code === 'KeyD') { e.preventDefault(); onDuplicateChartTab?.(); return; }
+        if (code === 'ArrowLeft') { e.preventDefault(); onPrevChartTab?.(); return; }
+        if (code === 'ArrowRight') { e.preventDefault(); onNextChartTab?.(); return; }
       }
 
       // Meta shortcuts — work everywhere (including inputs)
@@ -100,13 +107,41 @@ export function useKeyboardShortcuts({
         return;
       }
 
-      // [ / ] → prev / next tab
+      // [ / ] → prev / next tool tab
       if (hasChart && e.key === '[') {
+        e.preventDefault();
         onPrevTab();
         return;
       }
       if (hasChart && e.key === ']') {
+        e.preventDefault();
         onNextTab();
+        return;
+      }
+
+      // Left / Right arrow (no modifiers) → prev / next chart tab
+      if (hasChart && !e.altKey && !meta && !e.shiftKey) {
+        if (code === 'ArrowLeft') {
+          e.preventDefault();
+          onPrevChartTab?.();
+          return;
+        }
+        if (code === 'ArrowRight') {
+          e.preventDefault();
+          onNextChartTab?.();
+          return;
+        }
+      }
+
+      // + / - / = → zoom
+      if (hasChart && (e.key === '+' || e.key === '=')) {
+        e.preventDefault();
+        onZoomIn?.();
+        return;
+      }
+      if (hasChart && e.key === '-') {
+        e.preventDefault();
+        onZoomOut?.();
         return;
       }
 
@@ -135,7 +170,9 @@ export function useKeyboardShortcuts({
       }
     }
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hasChart, isEditing, activeTab, onTabChange, onPrevTab, onNextTab, onCalculate, onSave, onToggleEdit, onToggleGalactic, onToggleTransits, onEscape, onShowHelp, onSpotlight, onLoadPreset, onNewChartTab, onCloseChartTab, onDuplicateChartTab, onPrevChartTab, onNextChartTab]);
+    // Use capture phase so our handler fires before Radix UI components
+    // (e.g. TabsList) can intercept and swallow arrow key events
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [hasChart, isEditing, activeTab, onTabChange, onPrevTab, onNextTab, onCalculate, onSave, onToggleEdit, onToggleGalactic, onToggleTransits, onEscape, onShowHelp, onSpotlight, onLoadPreset, onNewChartTab, onCloseChartTab, onDuplicateChartTab, onPrevChartTab, onNextChartTab, onZoomIn, onZoomOut, onZoomReset]);
 }

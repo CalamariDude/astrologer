@@ -21,11 +21,29 @@ import {
   enrichTreesWithTransits,
   enrichTreesWithProfections,
   enrichTreesWithActivations,
+  enrichTreesWithFutureTransits,
 } from '@/lib/chartReading/buildVantageTree';
 import { buildSynastryTreeGroups } from '@/lib/chartReading/buildSynastryTree';
-import { DEFAULT_PARAMS, detectCategories } from '@/lib/chartReading/types';
+import { buildFutureTimeline } from '@/lib/chartReading/transitFinder';
+import { DEFAULT_PARAMS, detectCategories, detectQuestionWeight } from '@/lib/chartReading/types';
 import type { NatalChart, ChartReadingTree, TreeGroup, VantageAnalysis } from '@/lib/chartReading/types';
 import * as analytics from '@/lib/analytics';
+
+/** Get a fresh access token, forcing a refresh if the current one is expired or about to expire */
+async function getFreshAccessToken(): Promise<string> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Not signed in');
+
+  // If token expires within 60s, force refresh
+  const expiresAt = session.expires_at ?? 0;
+  const nowSecs = Math.floor(Date.now() / 1000);
+  if (expiresAt - nowSecs < 60) {
+    const { data: { session: refreshed }, error } = await supabase.auth.refreshSession();
+    if (error || !refreshed) throw new Error('Session expired — please sign in again');
+    return refreshed.access_token;
+  }
+  return session.access_token;
+}
 
 interface AIReadingProps {
   chartA: NatalChart;
@@ -451,13 +469,13 @@ export function AIReading({ chartA, chartB, nameA, nameB, birthInfoA, birthInfoB
         if (isAmbiguous) {
           setLoadingPhase('Selecting relevant planets for your question...');
           try {
-            const session = await supabase.auth.getSession();
+            const phase0Token = await getFreshAccessToken();
             const chartSummary = buildCompactChartSummary(activeChart as NatalChart, DEFAULT_PARAMS);
             const phase0Response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/astrologer-ai-reading`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.data.session?.access_token}`,
+                'Authorization': `Bearer ${phase0Token}`,
                 'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
               },
               body: JSON.stringify({ phase0: true, chart_summary: chartSummary, question: userQuestion }),
@@ -504,6 +522,36 @@ export function AIReading({ chartA, chartB, nameA, nameB, birthInfoA, birthInfoB
             });
             if (transitData) {
               trees = enrichTreesWithTransits(trees, transitData, activeChart as NatalChart);
+
+              // Future transit timeline (for timing questions)
+              const questionWeight = detectQuestionWeight(userQuestion);
+              if (questionWeight === 'timing-heavy' || questionWeight === 'horary-electional') {
+                setLoadingPhase('Searching for upcoming transit events...');
+                try {
+                  // Build current transit position map from today's data
+                  const transitPositionMap: Record<string, { longitude: number; retrograde: boolean }> = {};
+                  for (const tp of transitData.transit_planets) {
+                    transitPositionMap[tp.planet.toLowerCase()] = {
+                      longitude: tp.longitude,
+                      retrograde: tp.retrograde,
+                    };
+                  }
+
+                  const categories = detectCategories(userQuestion);
+                  const timeline = buildFutureTimeline(
+                    activeChart as NatalChart,
+                    transitPositionMap,
+                    categories.map(c => c.key),
+                    12,
+                  );
+
+                  if (timeline.events.length > 0) {
+                    trees = enrichTreesWithFutureTransits(trees, timeline);
+                  }
+                } catch (err) {
+                  console.warn('Future transit search failed, continuing without:', err);
+                }
+              }
             }
           } catch (err) {
             console.warn('Transit fetch failed, continuing without:', err);
@@ -523,8 +571,7 @@ export function AIReading({ chartA, chartB, nameA, nameB, birthInfoA, birthInfoB
       setLoadingStep(2);
       setLoadingPhase(`Deep-analyzing ${totalVantages} planetary placements...`);
 
-      const session = await supabase.auth.getSession();
-      const accessToken = session.data.session?.access_token;
+      const accessToken = await getFreshAccessToken();
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const response = await fetch(`${supabaseUrl}/functions/v1/astrologer-ai-reading`, {

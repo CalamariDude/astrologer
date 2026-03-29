@@ -301,6 +301,8 @@ export interface BiWheelSynastryProps {
   onLunarReturnStartDateChange?: (startDate: string) => void;
   onLunarReturnLoadingChange?: (loading: boolean) => void;
   onLunarReturnDataChange?: (data: ReturnChartData | null) => void;
+  /** Externally highlight a specific planet (dims all others) */
+  highlightPlanet?: { planet: string; chart: 'A' | 'B' } | null;
 }
 
 // Available asteroid groups - matches constants.ts ASTEROIDS groups

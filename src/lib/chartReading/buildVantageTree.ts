@@ -668,6 +668,39 @@ export function enrichTreesWithTransits(
   }));
 }
 
+// ─── Future Transit Timeline Integration ────────────────────────
+
+import type { FutureTransitTimeline } from './types';
+
+/**
+ * Enrich trees with a future transit timeline.
+ * Attaches full timeline to each tree, and per-planet filtered timeline to each vantage.
+ */
+export function enrichTreesWithFutureTransits(
+  trees: ChartReadingTree[],
+  timeline: FutureTransitTimeline,
+): ChartReadingTree[] {
+  return trees.map(tree => ({
+    ...tree,
+    future_transit_timeline: timeline,
+    vantages: tree.vantages.map(v => {
+      const planetKey = v.planet.planet.toLowerCase();
+      const filtered = timeline.events.filter(e => e.natal_planet === planetKey);
+      if (filtered.length === 0) return v;
+      return {
+        ...v,
+        future_transit_timeline: {
+          ...timeline,
+          events: filtered,
+          summary: filtered.map(e =>
+            `Transit ${e.transit_planet.toUpperCase()} ${e.aspect_name} natal ${e.natal_planet.toUpperCase()} — est. ${e.estimated_date}`
+          ).join('\n'),
+        },
+      };
+    }),
+  }));
+}
+
 // ─── Profection Integration ──────────────────────────────────────
 
 /**

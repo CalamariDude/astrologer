@@ -55,8 +55,8 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'new-tab', key: 'T', alt: true, label: 'New chart tab', category: 'Chart Tabs' },
   { id: 'close-tab', key: 'W', alt: true, label: 'Close chart tab', category: 'Chart Tabs' },
   { id: 'dup-tab', key: 'D', alt: true, label: 'Duplicate chart tab', category: 'Chart Tabs' },
-  { id: 'prev-chart-tab', key: '←', alt: true, label: 'Previous chart tab', category: 'Chart Tabs' },
-  { id: 'next-chart-tab', key: '→', alt: true, label: 'Next chart tab', category: 'Chart Tabs' },
+  { id: 'prev-chart-tab', key: '←', label: 'Previous chart tab', category: 'Chart Tabs' },
+  { id: 'next-chart-tab', key: '→', label: 'Next chart tab', category: 'Chart Tabs' },
 
   // Chart
   { id: 'spotlight', key: 'K', meta: true, label: 'Command palette', category: 'Chart' },

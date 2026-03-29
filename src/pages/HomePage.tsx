@@ -22,6 +22,8 @@ import { AboutSection } from '@/components/landing/AboutSection';
 import { LearnSection } from '@/components/landing/LearnSection';
 import { ToolboxShowcase } from '@/components/landing/ToolboxShowcase';
 import { AIReadingShowcase } from '@/components/landing/AIReadingShowcase';
+import { FindAstrologerSection } from '@/components/landing/FindAstrologerSection';
+import { INSIGHT_MODULE_LIST } from '@/lib/insights/modules';
 
 const SpaceScene = lazy(() => import('@/components/landing/SpaceScene'));
 
@@ -277,6 +279,9 @@ export default function HomePage() {
 
       {/* ── Live Sessions ───────────────────────────────────── */}
       <LiveSessionsCompact />
+
+      {/* ── Find an Astrologer ─────────────────────────────── */}
+      <FindAstrologerSection />
 
       {/* ── Community Section ─────────────────────────────────── */}
       <FeaturePreview

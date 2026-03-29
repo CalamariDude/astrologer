@@ -252,10 +252,24 @@ export default function AdminPage() {
   const [maxRedemptions, setMaxRedemptions] = useState('1');
   const [deactivatePromo, setDeactivatePromo] = useState<PromoCode | null>(null);
 
-  // Broadcast
+  // Broadcast (legacy)
   const [broadcastSubject, setBroadcastSubject] = useState('');
   const [broadcastHtml, setBroadcastHtml] = useState('');
   const [sending, setSending] = useState(false);
+
+  // Marketing Email
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailContent, setEmailContent] = useState('');
+  const [emailPreheader, setEmailPreheader] = useState('');
+  const [emailCtaText, setEmailCtaText] = useState('');
+  const [emailCtaUrl, setEmailCtaUrl] = useState('');
+  const [emailAudience, setEmailAudience] = useState('all_users');
+  const [emailCampaignName, setEmailCampaignName] = useState('');
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailPreview, setEmailPreview] = useState(false);
+  const [audiences, setAudiences] = useState<{ all_users: number; all_leads: number; unique_leads: number; by_module: Record<string, number> }>({ all_users: 0, all_leads: 0, unique_leads: 0, by_module: {} });
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [emailLoaded, setEmailLoaded] = useState(false);
 
   // Analytics
   const [featureUsage, setFeatureUsage] = useState<FeatureRow[]>([]);
@@ -288,6 +302,20 @@ export default function AdminPage() {
   const [communityFlagsLoading, setCommunityFlagsLoading] = useState(false);
   const [moderatingPostId, setModeratingPostId] = useState<string | null>(null);
 
+  // Practitioners
+  const [practitionersList, setPractitionersList] = useState<any[]>([]);
+  const [practitionersLoading, setPractitionersLoading] = useState(false);
+  const [showCreatePractitioner, setShowCreatePractitioner] = useState(false);
+  const [editingPractitioner, setEditingPractitioner] = useState<any | null>(null);
+  const [practitionerForm, setPractitionerForm] = useState({
+    display_name: '', headline: '', bio: '', photo_url: '', booking_url: '',
+    specialties: '', location: '', website_url: '', instagram_handle: '',
+    tiktok_handle: '', youtube_url: '', linktree_url: '',
+    hourly_rate_min: '', hourly_rate_max: '', years_experience: '',
+    offers_virtual: true, offers_in_person: false,
+    is_featured: false, is_verified: false, sort_order: '1000', status: 'draft',
+  });
+
   // Per-user analytics (shown in user detail)
   const [userEvents, setUserEvents] = useState<FeatureRow[]>([]);
   const [userSessions, setUserSessions] = useState<UserSessionRow[]>([]);
@@ -310,6 +338,74 @@ export default function AdminPage() {
     if (error) throw new Error(error.message);
     return data;
   }, []);
+
+  const invokePractitioner = useCallback(async (body: Record<string, unknown>) => {
+    const { data, error } = await supabase.functions.invoke('astrologer-practitioner-admin', { body });
+    if (error) throw new Error(error.message);
+    return data;
+  }, []);
+
+  const loadPractitioners = useCallback(async () => {
+    setPractitionersLoading(true);
+    try {
+      const res = await invokePractitioner({ action: 'list' });
+      setPractitionersList(res.practitioners || []);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setPractitionersLoading(false); }
+  }, [invokePractitioner]);
+
+  const resetPractitionerForm = () => setPractitionerForm({
+    display_name: '', headline: '', bio: '', photo_url: '', booking_url: '',
+    specialties: '', location: '', website_url: '', instagram_handle: '',
+    tiktok_handle: '', youtube_url: '', linktree_url: '',
+    hourly_rate_min: '', hourly_rate_max: '', years_experience: '',
+    offers_virtual: true, offers_in_person: false,
+    is_featured: false, is_verified: false, sort_order: '1000', status: 'draft',
+  });
+
+  const handleSavePractitioner = async (isEdit: boolean) => {
+    try {
+      const payload: Record<string, unknown> = {
+        action: isEdit ? 'update' : 'create',
+        display_name: practitionerForm.display_name,
+        headline: practitionerForm.headline || null,
+        bio: practitionerForm.bio || null,
+        photo_url: practitionerForm.photo_url || null,
+        booking_url: practitionerForm.booking_url || null,
+        specialties: practitionerForm.specialties ? practitionerForm.specialties.split(',').map(s => s.trim()).filter(Boolean) : [],
+        location: practitionerForm.location || null,
+        website_url: practitionerForm.website_url || null,
+        instagram_handle: practitionerForm.instagram_handle || null,
+        tiktok_handle: practitionerForm.tiktok_handle || null,
+        youtube_url: practitionerForm.youtube_url || null,
+        linktree_url: practitionerForm.linktree_url || null,
+        hourly_rate_min: practitionerForm.hourly_rate_min ? parseInt(practitionerForm.hourly_rate_min) : null,
+        hourly_rate_max: practitionerForm.hourly_rate_max ? parseInt(practitionerForm.hourly_rate_max) : null,
+        years_experience: practitionerForm.years_experience ? parseInt(practitionerForm.years_experience) : null,
+        offers_virtual: practitionerForm.offers_virtual,
+        offers_in_person: practitionerForm.offers_in_person,
+        is_featured: practitionerForm.is_featured,
+        is_verified: practitionerForm.is_verified,
+        sort_order: parseInt(practitionerForm.sort_order) || 1000,
+        status: practitionerForm.status,
+      };
+      if (isEdit && editingPractitioner) payload.id = editingPractitioner.id;
+      await invokePractitioner(payload);
+      toast.success(isEdit ? 'Practitioner updated' : 'Practitioner created');
+      setShowCreatePractitioner(false);
+      setEditingPractitioner(null);
+      resetPractitionerForm();
+      loadPractitioners();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleCopyClaimLink = async (id: string) => {
+    try {
+      const res = await invokePractitioner({ action: 'generate_claim_link', id });
+      await navigator.clipboard.writeText(res.claim_url);
+      toast.success('Claim link copied!');
+    } catch (e: any) { toast.error(e.message); }
+  };
 
   // ── Data loaders ──
   const loadOverview = useCallback(async () => {
@@ -608,6 +704,61 @@ export default function AdminPage() {
     finally { setSending(false); }
   };
 
+  // ── Marketing Email ──
+  const loadEmailData = async () => {
+    try {
+      const [audData, histData] = await Promise.all([
+        invoke({ action: 'marketing_audiences' }),
+        invoke({ action: 'marketing_send_history' }),
+      ]);
+      if (audData.audiences) setAudiences(audData.audiences);
+      if (histData.campaigns) setCampaigns(histData.campaigns);
+      setEmailLoaded(true);
+    } catch (e: any) { toast.error('Failed to load email data: ' + e.message); }
+  };
+
+  const getAudienceCount = () => {
+    if (emailAudience === 'all_users') return audiences.all_users;
+    if (emailAudience === 'all_leads') return audiences.unique_leads;
+    if (emailAudience === 'paid_users') return '—';
+    if (emailAudience === 'free_users') return '—';
+    if (emailAudience.startsWith('lead_module:')) {
+      const mod = emailAudience.replace('lead_module:', '');
+      return audiences.by_module[mod] || 0;
+    }
+    return 0;
+  };
+
+  const handleSendMarketing = async () => {
+    if (!emailSubject.trim() || !emailContent.trim()) { toast.error('Subject and content are required'); return; }
+    if (!confirm(`Send "${emailSubject}" to ${getAudienceCount()} recipients?`)) return;
+    setEmailSending(true);
+    try {
+      const data = await invoke({
+        action: 'send_marketing_email',
+        subject: emailSubject,
+        content: emailContent,
+        preheader: emailPreheader,
+        cta_text: emailCtaText || undefined,
+        cta_url: emailCtaUrl || undefined,
+        audience: emailAudience,
+        campaign_name: emailCampaignName || emailSubject.slice(0, 40),
+      });
+      toast.success(`Sent to ${data.sent} recipients${data.failed ? ` (${data.failed} failed)` : ''}`);
+      setEmailSubject(''); setEmailContent(''); setEmailPreheader('');
+      setEmailCtaText(''); setEmailCtaUrl(''); setEmailCampaignName('');
+      loadEmailData(); // refresh history
+    } catch (e: any) { toast.error(e.message); }
+    finally { setEmailSending(false); }
+  };
+
+  const AUDIENCE_LABELS: Record<string, string> = {
+    all_users: 'All Registered Users',
+    all_leads: 'All Insight Leads',
+    paid_users: 'Paid Subscribers',
+    free_users: 'Free Users',
+  };
+
   // ── Filtered users ──
   const filteredUsers = users.filter(u => {
     if (search) {
@@ -654,7 +805,9 @@ export default function AdminPage() {
             <TabsTrigger value="charts" onClick={() => { if (!chartsLoaded) loadCharts(); }}>Charts</TabsTrigger>
             <TabsTrigger value="analytics" onClick={() => { if (featureUsage.length === 0) loadAnalytics(analyticsDays); }}>Analytics</TabsTrigger>
             <TabsTrigger value="promotions">Promotions</TabsTrigger>
+            <TabsTrigger value="email" onClick={() => { if (!emailLoaded) loadEmailData(); }}>Email</TabsTrigger>
             <TabsTrigger value="community" onClick={() => { if (!communityAppsLoaded) { loadCommunityApps(); loadCommunityFlags(); } }}>Community</TabsTrigger>
+            <TabsTrigger value="practitioners" onClick={() => { if (practitionersList.length === 0) loadPractitioners(); }}>Practitioners</TabsTrigger>
           </TabsList>
 
           {/* ── OVERVIEW ── */}
@@ -1149,6 +1302,167 @@ export default function AdminPage() {
             </div>
           </TabsContent>
 
+          {/* ── EMAIL MARKETING ── */}
+          <TabsContent value="email" className="space-y-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="border rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold">{audiences.all_users}</p>
+                <p className="text-xs text-muted-foreground">Registered Users</p>
+              </div>
+              <div className="border rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold">{audiences.unique_leads}</p>
+                <p className="text-xs text-muted-foreground">Insight Leads</p>
+              </div>
+              <div className="border rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold">{campaigns.length}</p>
+                <p className="text-xs text-muted-foreground">Campaigns Sent</p>
+              </div>
+              <div className="border rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold">{campaigns.reduce((s, c) => s + (c.sent_count || 0), 0)}</p>
+                <p className="text-xs text-muted-foreground">Total Emails Sent</p>
+              </div>
+            </div>
+
+            {/* Compose */}
+            <div className="border rounded-lg p-5 space-y-4">
+              <h3 className="font-semibold text-lg">Compose Email</h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>Audience</Label>
+                  <Select value={emailAudience} onValueChange={setEmailAudience}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all_users">All Registered Users ({audiences.all_users})</SelectItem>
+                      <SelectItem value="all_leads">All Insight Leads ({audiences.unique_leads})</SelectItem>
+                      <SelectItem value="paid_users">Paid Subscribers</SelectItem>
+                      <SelectItem value="free_users">Free Users</SelectItem>
+                      {Object.entries(audiences.by_module).map(([mod, count]) => (
+                        <SelectItem key={mod} value={`lead_module:${mod}`}>
+                          Leads: {mod} ({count})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Campaign Name <span className="text-muted-foreground">(for tracking)</span></Label>
+                  <Input value={emailCampaignName} onChange={e => setEmailCampaignName(e.target.value)} placeholder="e.g. March Launch, Weekly Update" />
+                </div>
+              </div>
+
+              <div>
+                <Label>Subject Line</Label>
+                <Input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Your stars have something to say..." />
+              </div>
+
+              <div>
+                <Label>Preview Text <span className="text-muted-foreground">(shows in inbox before opening)</span></Label>
+                <Input value={emailPreheader} onChange={e => setEmailPreheader(e.target.value)} placeholder="A personalized transit update just for you" />
+              </div>
+
+              <div>
+                <Label>Email Content <span className="text-muted-foreground">(plain text — auto-formatted into branded template)</span></Label>
+                <Textarea
+                  value={emailContent}
+                  onChange={e => setEmailContent(e.target.value)}
+                  placeholder={"Something big is shifting in the stars this week.\n\nJupiter is moving into Gemini for the first time in 12 years, and your chart might be feeling it.\n\nWe just launched a new deep reading that shows you exactly how this transit affects your career, relationships, and personal growth."}
+                  rows={8}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>CTA Button Text <span className="text-muted-foreground">(optional)</span></Label>
+                  <Input value={emailCtaText} onChange={e => setEmailCtaText(e.target.value)} placeholder="Get Your Reading" />
+                </div>
+                <div>
+                  <Label>CTA Button URL</Label>
+                  <Input value={emailCtaUrl} onChange={e => setEmailCtaUrl(e.target.value)} placeholder="https://astrologerapp.org/insight/partner" />
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div>
+                <Button variant="outline" size="sm" onClick={() => setEmailPreview(!emailPreview)}>
+                  {emailPreview ? 'Hide Preview' : 'Show Preview'}
+                </Button>
+              </div>
+
+              {emailPreview && (
+                <div className="border rounded-lg overflow-hidden bg-[#f8f6fa]">
+                  <div className="p-4">
+                    <div className="max-w-[580px] mx-auto">
+                      <p className="text-center text-[11px] tracking-[0.2em] uppercase text-[#9a8daa] font-medium mb-6">ASTROLOGER</p>
+                      <div className="bg-white rounded-2xl p-8 shadow-sm">
+                        {emailContent.split('\n\n').filter(p => p.trim()).map((p, i) => (
+                          <p key={i} className="text-[#3d3152] text-[15px] leading-[1.7] mb-4">{p}</p>
+                        ))}
+                        {emailCtaText && emailCtaUrl && (
+                          <div className="text-center my-7">
+                            <span className="inline-block px-9 py-3.5 rounded-xl text-white text-[14px] font-semibold" style={{ background: 'linear-gradient(135deg, #8b6cc1 0%, #c06c84 50%, #d4a574 100%)' }}>
+                              {emailCtaText}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-center text-[11px] text-[#b8afc4] mt-6">astrologerapp.org</p>
+                      <p className="text-center text-[10px] text-[#d0c9da] mt-1">
+                        You're receiving this because you used Astrologer. <span className="underline">Unsubscribe</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 pt-2">
+                <Button onClick={handleSendMarketing} disabled={emailSending || !emailSubject || !emailContent}>
+                  {emailSending ? 'Sending...' : `Send to ${getAudienceCount()} recipients`}
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Emails are sent individually via Resend with open/click tracking enabled.
+                </p>
+              </div>
+            </div>
+
+            {/* Campaign History */}
+            {campaigns.length > 0 && (
+              <div className="border rounded-lg p-5 space-y-3">
+                <h3 className="font-semibold text-lg">Campaign History</h3>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Subject</TableHead>
+                        <TableHead>Audience</TableHead>
+                        <TableHead className="text-right">Sent</TableHead>
+                        <TableHead className="text-right">Failed</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {campaigns.map(c => (
+                        <TableRow key={c.id}>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                            {new Date(c.sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </TableCell>
+                          <TableCell className="font-medium max-w-[200px] truncate">{c.subject}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-[10px]">
+                              {AUDIENCE_LABELS[c.audience] || c.audience}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">{c.sent_count}</TableCell>
+                          <TableCell className="text-right">{c.failed_count > 0 ? <span className="text-red-500">{c.failed_count}</span> : '0'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
           {/* ── COMMUNITY ── */}
           <TabsContent value="community" className="space-y-4">
             <div className="flex items-center justify-between">
@@ -1302,8 +1616,221 @@ export default function AdminPage() {
               )}
             </div>
           </TabsContent>
+
+          {/* ── PRACTITIONERS ── */}
+          <TabsContent value="practitioners" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Practitioners Directory</h2>
+              <Button size="sm" onClick={() => { resetPractitionerForm(); setEditingPractitioner(null); setShowCreatePractitioner(true); }}>
+                Create Practitioner
+              </Button>
+            </div>
+
+            {practitionersLoading ? (
+              <p className="text-muted-foreground">Loading...</p>
+            ) : practitionersList.length === 0 ? (
+              <p className="text-muted-foreground">No practitioners yet.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Claimed</TableHead>
+                    <TableHead>Featured</TableHead>
+                    <TableHead>Specialties</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {practitionersList.map((p: any) => (
+                    <TableRow key={p.id}>
+                      <TableCell>
+                        <div className="font-medium">{p.display_name}</div>
+                        <div className="text-xs text-muted-foreground">{p.slug}</div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={
+                          p.status === 'active' ? 'bg-green-500/20 text-green-500 border-green-500/30'
+                            : p.status === 'draft' ? 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30'
+                            : 'bg-red-500/20 text-red-500 border-red-500/30'
+                        }>{p.status}</Badge>
+                      </TableCell>
+                      <TableCell>{p.is_claimed ? 'Yes' : 'No'}</TableCell>
+                      <TableCell>{p.is_featured ? 'Yes' : '—'}</TableCell>
+                      <TableCell className="text-xs">{(p.specialties || []).join(', ')}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button variant="outline" size="sm" onClick={() => {
+                            setEditingPractitioner(p);
+                            setPractitionerForm({
+                              display_name: p.display_name || '',
+                              headline: p.headline || '',
+                              bio: p.bio || '',
+                              photo_url: p.photo_url || '',
+                              booking_url: p.booking_url || '',
+                              specialties: (p.specialties || []).join(', '),
+                              location: p.location || '',
+                              website_url: p.website_url || '',
+                              instagram_handle: p.instagram_handle || '',
+                              tiktok_handle: p.tiktok_handle || '',
+                              youtube_url: p.youtube_url || '',
+                              linktree_url: p.linktree_url || '',
+                              hourly_rate_min: p.hourly_rate_min?.toString() || '',
+                              hourly_rate_max: p.hourly_rate_max?.toString() || '',
+                              years_experience: p.years_experience?.toString() || '',
+                              offers_virtual: p.offers_virtual ?? true,
+                              offers_in_person: p.offers_in_person ?? false,
+                              is_featured: p.is_featured ?? false,
+                              is_verified: p.is_verified ?? false,
+                              sort_order: p.sort_order?.toString() || '1000',
+                              status: p.status || 'draft',
+                            });
+                            setShowCreatePractitioner(true);
+                          }}>Edit</Button>
+                          <Button variant="outline" size="sm" onClick={() => handleCopyClaimLink(p.id)}>
+                            Claim Link
+                          </Button>
+                          {p.status !== 'suspended' && (
+                            <Button variant="destructive" size="sm" onClick={async () => {
+                              try {
+                                await invokePractitioner({ action: 'delete', id: p.id });
+                                toast.success('Practitioner suspended');
+                                loadPractitioners();
+                              } catch (e: any) { toast.error(e.message); }
+                            }}>Suspend</Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
+
+      {/* ── Create/Edit Practitioner Dialog ── */}
+      <Dialog open={showCreatePractitioner} onOpenChange={setShowCreatePractitioner}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingPractitioner ? 'Edit Practitioner' : 'Create Practitioner'}</DialogTitle>
+            <DialogDescription>
+              {editingPractitioner ? 'Update practitioner details.' : 'Add a new practitioner to the directory.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Display Name *</Label>
+              <Input value={practitionerForm.display_name} onChange={e => setPractitionerForm(f => ({ ...f, display_name: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="text-xs">Headline</Label>
+              <Input value={practitionerForm.headline} onChange={e => setPractitionerForm(f => ({ ...f, headline: e.target.value }))} placeholder="Vedic Astrologer & Life Coach" />
+            </div>
+            <div>
+              <Label className="text-xs">Bio</Label>
+              <Textarea value={practitionerForm.bio} onChange={e => setPractitionerForm(f => ({ ...f, bio: e.target.value }))} rows={3} />
+            </div>
+            <div>
+              <Label className="text-xs">Photo URL</Label>
+              <Input value={practitionerForm.photo_url} onChange={e => setPractitionerForm(f => ({ ...f, photo_url: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="text-xs">Specialties (comma-separated)</Label>
+              <Input value={practitionerForm.specialties} onChange={e => setPractitionerForm(f => ({ ...f, specialties: e.target.value }))} placeholder="Natal, Synastry, Vedic" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Rate Min (cents)</Label>
+                <Input type="number" value={practitionerForm.hourly_rate_min} onChange={e => setPractitionerForm(f => ({ ...f, hourly_rate_min: e.target.value }))} placeholder="10000" />
+              </div>
+              <div>
+                <Label className="text-xs">Rate Max (cents)</Label>
+                <Input type="number" value={practitionerForm.hourly_rate_max} onChange={e => setPractitionerForm(f => ({ ...f, hourly_rate_max: e.target.value }))} placeholder="20000" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Booking URL</Label>
+              <Input value={practitionerForm.booking_url} onChange={e => setPractitionerForm(f => ({ ...f, booking_url: e.target.value }))} placeholder="https://calendly.com/..." />
+            </div>
+            <div>
+              <Label className="text-xs">Location</Label>
+              <Input value={practitionerForm.location} onChange={e => setPractitionerForm(f => ({ ...f, location: e.target.value }))} placeholder="Los Angeles, CA" />
+            </div>
+            <div>
+              <Label className="text-xs">Years Experience</Label>
+              <Input type="number" value={practitionerForm.years_experience} onChange={e => setPractitionerForm(f => ({ ...f, years_experience: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Website URL</Label>
+                <Input value={practitionerForm.website_url} onChange={e => setPractitionerForm(f => ({ ...f, website_url: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-xs">Instagram Handle</Label>
+                <Input value={practitionerForm.instagram_handle} onChange={e => setPractitionerForm(f => ({ ...f, instagram_handle: e.target.value }))} placeholder="username" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">TikTok Handle</Label>
+                <Input value={practitionerForm.tiktok_handle} onChange={e => setPractitionerForm(f => ({ ...f, tiktok_handle: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-xs">YouTube URL</Label>
+                <Input value={practitionerForm.youtube_url} onChange={e => setPractitionerForm(f => ({ ...f, youtube_url: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Linktree URL</Label>
+              <Input value={practitionerForm.linktree_url} onChange={e => setPractitionerForm(f => ({ ...f, linktree_url: e.target.value }))} />
+            </div>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={practitionerForm.offers_virtual} onChange={e => setPractitionerForm(f => ({ ...f, offers_virtual: e.target.checked }))} />
+                Virtual
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={practitionerForm.offers_in_person} onChange={e => setPractitionerForm(f => ({ ...f, offers_in_person: e.target.checked }))} />
+                In Person
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={practitionerForm.is_featured} onChange={e => setPractitionerForm(f => ({ ...f, is_featured: e.target.checked }))} />
+                Featured
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={practitionerForm.is_verified} onChange={e => setPractitionerForm(f => ({ ...f, is_verified: e.target.checked }))} />
+                Verified
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Sort Order</Label>
+                <Input type="number" value={practitionerForm.sort_order} onChange={e => setPractitionerForm(f => ({ ...f, sort_order: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-xs">Status</Label>
+                <Select value={practitionerForm.status} onValueChange={v => setPractitionerForm(f => ({ ...f, status: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="suspended">Suspended</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowCreatePractitioner(false); setEditingPractitioner(null); }}>Cancel</Button>
+            <Button onClick={() => handleSavePractitioner(!!editingPractitioner)} disabled={!practitionerForm.display_name}>
+              {editingPractitioner ? 'Save Changes' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── User Detail Dialog ── */}
       <Dialog open={showUserDetail} onOpenChange={setShowUserDetail}>
