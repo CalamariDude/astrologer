@@ -8,7 +8,7 @@ export type SubscriptionTier = 'lite' | 'horoscope' | 'astrologer' | 'profession
 
 export const TIER_LIMITS = {
   lite:         { ai: 3,   sessions: 0,  transcriptions: 0,  charts: 3  },
-  horoscope:    { ai: 3,   sessions: 0,  transcriptions: 0,  charts: 20 },
+  horoscope:    { ai: 50,  sessions: 0,  transcriptions: 0,  charts: 20 },
   astrologer:   { ai: 100, sessions: 5,  transcriptions: 3,  charts: -1 },
   professional: { ai: 300, sessions: 20, transcriptions: 20, charts: -1 },
 } as const;

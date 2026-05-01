@@ -7,12 +7,6 @@ import { useFadeIn } from '@/hooks/useFadeIn';
 /*  Mini panel previews for the toolbox showcase                       */
 /* ------------------------------------------------------------------ */
 
-const ZODIAC_GLYPHS: Record<string, string> = {
-  Aries: '\u2648', Taurus: '\u2649', Gemini: '\u264A', Cancer: '\u264B',
-  Leo: '\u264C', Virgo: '\u264D', Libra: '\u264E', Scorpio: '\u264F',
-  Sagittarius: '\u2650', Capricorn: '\u2651', Aquarius: '\u2652', Pisces: '\u2653',
-};
-
 function ZRMiniPanel() {
   const levels = [
     { label: 'L1', sign: 'Capricorn', years: '2019 \u2013 2046', active: true, element: 'earth' },
@@ -30,7 +24,7 @@ function ZRMiniPanel() {
         <div key={l.label} className="flex items-center gap-2">
           <span className="text-[9px] font-mono text-black/30 w-5">{l.label}</span>
           <div className={`w-1.5 h-1.5 rounded-full ${elementColors[l.element]}`} />
-          <span className="text-sm font-medium text-black/70">{ZODIAC_GLYPHS[l.sign]} {l.sign}</span>
+          <span className="text-sm font-medium text-black/70">{l.sign}</span>
           <span className="text-[9px] text-black/25 ml-auto">{l.years}</span>
         </div>
       ))}

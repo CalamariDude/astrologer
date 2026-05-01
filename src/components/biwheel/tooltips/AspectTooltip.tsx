@@ -23,6 +23,7 @@ interface AspectTooltipProps {
   position: { x: number; y: number };
   visible: boolean;
   onClose?: () => void; // Optional - if provided, shows close button
+  interpretContext?: 'synastry' | 'natal'; // defaults to 'synastry' for back-compat
 }
 
 export const AspectTooltip: React.FC<AspectTooltipProps> = ({
@@ -34,14 +35,12 @@ export const AspectTooltip: React.FC<AspectTooltipProps> = ({
   position,
   visible,
   onClose,
+  interpretContext = 'synastry',
 }) => {
-  // Get the interpretation for this aspect
-  // Try sign-specific first, then fall back to generic
   const interpretation = useMemo(() => {
-    const aspectName = aspect.aspect.type; // e.g., 'conjunction', 'trine'
+    const aspectName = aspect.aspect.type;
 
-    // Try sign-specific interpretation first (if we have sign data)
-    if (signA && signB) {
+    if (interpretContext === 'synastry' && signA && signB) {
       const signSpecific = getSignAspectInterpretation(
         aspect.planetA,
         signA,
@@ -59,8 +58,7 @@ export const AspectTooltip: React.FC<AspectTooltipProps> = ({
       }
     }
 
-    // Fall back to generic aspect interpretation
-    const generic = getAspectInterpretation(aspect.planetA, aspect.planetB, aspectName);
+    const generic = getAspectInterpretation(aspect.planetA, aspect.planetB, aspectName, interpretContext);
     if (generic) {
       return {
         title: generic.title,
@@ -71,7 +69,7 @@ export const AspectTooltip: React.FC<AspectTooltipProps> = ({
     }
 
     return null;
-  }, [aspect.planetA, aspect.planetB, aspect.aspect.type, signA, signB]);
+  }, [aspect.planetA, aspect.planetB, aspect.aspect.type, signA, signB, interpretContext]);
 
   if (!visible || !aspect) return null;
 

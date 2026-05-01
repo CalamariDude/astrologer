@@ -9,6 +9,7 @@ import { TimeInput } from '@/components/ui/TimeInput';
 import { swissEphemeris } from '@/api/swissEphemeris';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { useLightLandingTheme } from '@/hooks/useLightLandingTheme';
 import { SavedChartsList } from '@/components/charts/SavedChartsList';
 import { AuthModal } from '@/components/auth/AuthModal';
 import type { ParsedPerson } from '@/components/charts/AstroComImport';
@@ -163,6 +164,7 @@ function BirthForm({
 }
 
 export default function LandingPage() {
+  useLightLandingTheme();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { isPaid } = useSubscription();

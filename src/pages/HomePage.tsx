@@ -9,6 +9,7 @@ import { useScrollProgress } from '@/hooks/useScrollProgress';
 import { useWebGLSupport } from '@/hooks/useWebGLSupport';
 import { useFadeIn } from '@/hooks/useFadeIn';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { useLightLandingTheme } from '@/hooks/useLightLandingTheme';
 import { CSSFallback } from '@/components/landing/CSSFallback';
 import { LandingHeader } from '@/components/landing/LandingHeader';
 import { LandingFooter } from '@/components/landing/LandingFooter';
@@ -104,6 +105,7 @@ export default function HomePage() {
   useEffect(() => {
     setPrefersReducedMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   }, []);
+  useLightLandingTheme();
 
   const handleOpenApp = () => {
     navigate(user ? '/dashboard' : '/chart');
@@ -534,6 +536,8 @@ function LiveSessionsCompact() {
           </p>
         </div>
 
+        <LiveSessionGraphic />
+
         {/* 3-step flow */}
         <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
@@ -585,5 +589,132 @@ function LiveSessionsCompact() {
         </Link>
       </div>
     </section>
+  );
+}
+
+// Visual for the Live Sessions section: a mini chart wheel with two cursors
+// (astrologer + client), a live pulse, and synced highlight ribbons — communicates
+// the real-time-collaboration idea without needing screenshots.
+function LiveSessionGraphic() {
+  return (
+    <div className="w-full max-w-2xl">
+      <div className="relative rounded-3xl bg-white/60 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-6 sm:p-10 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_60px_-20px_rgba(244,63,94,0.18)]">
+        {/* LIVE indicator */}
+        <div className="absolute top-4 left-4 flex items-center gap-1.5 px-2 py-1 rounded-full bg-rose-500/10 border border-rose-500/20">
+          <span className="relative flex w-1.5 h-1.5">
+            <span className="absolute inset-0 rounded-full bg-rose-500 animate-ping opacity-75" />
+            <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-rose-500" />
+          </span>
+          <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-rose-500">Live</span>
+        </div>
+
+        {/* Participants */}
+        <div className="absolute top-4 right-4 flex items-center -space-x-1.5">
+          <div className="w-6 h-6 rounded-full ring-2 ring-white dark:ring-neutral-900 bg-gradient-to-br from-rose-400 to-rose-600 text-[10px] text-white font-bold flex items-center justify-center">A</div>
+          <div className="w-6 h-6 rounded-full ring-2 ring-white dark:ring-neutral-900 bg-gradient-to-br from-amber-400 to-orange-500 text-[10px] text-white font-bold flex items-center justify-center">C</div>
+        </div>
+
+        {/* Chart wheel */}
+        <div className="flex justify-center pt-6">
+          <svg viewBox="0 0 320 320" className="w-full max-w-[280px] h-auto">
+            <defs>
+              <radialGradient id="ls-wheel-fill" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="rgba(244,63,94,0.04)" />
+                <stop offset="100%" stopColor="rgba(244,63,94,0)" />
+              </radialGradient>
+              <linearGradient id="ls-highlight-a" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="rgba(244,63,94,0)" />
+                <stop offset="50%" stopColor="rgba(244,63,94,0.6)" />
+                <stop offset="100%" stopColor="rgba(244,63,94,0)" />
+              </linearGradient>
+            </defs>
+
+            {/* Outer ring */}
+            <circle cx="160" cy="160" r="140" fill="url(#ls-wheel-fill)" stroke="rgba(0,0,0,0.08)" strokeWidth="1" />
+            <circle cx="160" cy="160" r="140" fill="none" stroke="rgba(244,63,94,0.18)" strokeWidth="1" />
+            <circle cx="160" cy="160" r="118" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="1" />
+            <circle cx="160" cy="160" r="78" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="1" />
+
+            {/* Zodiac dividers (12 spokes) */}
+            {Array.from({ length: 12 }).map((_, i) => {
+              const angle = (i * 30) * Math.PI / 180;
+              const x1 = 160 + Math.cos(angle) * 118;
+              const y1 = 160 + Math.sin(angle) * 118;
+              const x2 = 160 + Math.cos(angle) * 140;
+              const y2 = 160 + Math.sin(angle) * 140;
+              return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(0,0,0,0.1)" strokeWidth="1" />;
+            })}
+
+            {/* House cusps */}
+            {Array.from({ length: 12 }).map((_, i) => {
+              const angle = (i * 30 + 15) * Math.PI / 180;
+              const x1 = 160 + Math.cos(angle) * 78;
+              const y1 = 160 + Math.sin(angle) * 78;
+              const x2 = 160 + Math.cos(angle) * 118;
+              const y2 = 160 + Math.sin(angle) * 118;
+              return <line key={`h-${i}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(0,0,0,0.04)" strokeWidth="1" />;
+            })}
+
+            {/* Sample planet markers */}
+            {[
+              { angle: 35, r: 100, color: '#f59e0b' },
+              { angle: 110, r: 100, color: '#8b5cf6' },
+              { angle: 175, r: 100, color: '#06b6d4' },
+              { angle: 240, r: 100, color: '#10b981' },
+              { angle: 295, r: 100, color: '#ef4444' },
+            ].map((p, i) => {
+              const a = p.angle * Math.PI / 180;
+              const x = 160 + Math.cos(a) * p.r;
+              const y = 160 + Math.sin(a) * p.r;
+              return <circle key={i} cx={x} cy={y} r="3.5" fill={p.color} opacity="0.7" />;
+            })}
+
+            {/* Highlighted aspect line — what the astrologer is currently pointing at */}
+            <line x1="244" y1="113" x2="100" y2="207" stroke="url(#ls-highlight-a)" strokeWidth="2" strokeDasharray="4 4">
+              <animate attributeName="stroke-dashoffset" values="0;-16" dur="1.2s" repeatCount="indefinite" />
+            </line>
+
+            {/* Astrologer cursor (rose) — near upper-right planet */}
+            <g transform="translate(248 109)">
+              <path d="M0 0 L0 14 L4 11 L7 16 L10 14 L7 9 L12 9 Z" fill="#f43f5e" stroke="white" strokeWidth="1" strokeLinejoin="round" />
+              <g transform="translate(14 14)">
+                <rect x="0" y="0" width="34" height="14" rx="3" fill="#f43f5e" />
+                <text x="17" y="10" textAnchor="middle" fontSize="9" fontWeight="700" fill="white" fontFamily="Inter, system-ui, sans-serif">You</text>
+              </g>
+            </g>
+
+            {/* Client cursor (amber) — near lower-left planet */}
+            <g transform="translate(94 211)">
+              <path d="M0 0 L0 14 L4 11 L7 16 L10 14 L7 9 L12 9 Z" fill="#f97316" stroke="white" strokeWidth="1" strokeLinejoin="round" />
+              <g transform="translate(-44 -2)">
+                <rect x="0" y="0" width="42" height="14" rx="3" fill="#f97316" />
+                <text x="21" y="10" textAnchor="middle" fontSize="9" fontWeight="700" fill="white" fontFamily="Inter, system-ui, sans-serif">Client</text>
+              </g>
+            </g>
+
+            {/* Center dot */}
+            <circle cx="160" cy="160" r="3" fill="rgba(0,0,0,0.4)" />
+          </svg>
+        </div>
+
+        {/* Caption strip */}
+        <div className="mt-6 flex items-center justify-center gap-2 text-[11px] text-foreground/50">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+            Recording
+          </span>
+          <span className="text-foreground/20">&middot;</span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            Cursors synced
+          </span>
+          <span className="text-foreground/20">&middot;</span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            AI transcript
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }

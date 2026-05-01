@@ -3436,6 +3436,7 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           position={state.tooltipPosition}
           visible={true}
           onClose={() => setState((prev) => ({ ...prev, selectedAspect: null }))}
+          interpretContext={state.chartMode === 'synastry' ? 'synastry' : 'natal'}
         />
       )}
       </React.Suspense>,

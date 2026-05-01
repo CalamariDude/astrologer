@@ -334,7 +334,7 @@ export function PlanetDetailDialog({
                   <span style={{ textAlign: 'right' }}>Orb</span>
                 </div>
 
-                {/* Synastry aspects */}
+                {/* Synastry / natal aspects — context determines which interpretation corpus to use */}
                 {allAspects.map((asp, idx) => {
                   const partnerPlanet = chart === 'A' ? asp.planetB : asp.planetA;
                   return (
@@ -351,11 +351,12 @@ export function PlanetDetailDialog({
                       partnerChart={partnerChart}
                       data={data}
                       isLast={idx === allAspects.length - 1}
+                      interpretContext={partnerChart ? 'synastry' : 'natal'}
                     />
                   );
                 })}
 
-                {/* Transit aspects */}
+                {/* Transit aspects — never synastry */}
                 {filteredTransitAspects.map((asp, idx) => {
                   const natalPlanet = asp.planetB;
                   const chartLabel = asp.natalChart === 'A' ? nameA : asp.natalChart === 'B' ? nameB : 'Composite';
@@ -374,6 +375,7 @@ export function PlanetDetailDialog({
                       partnerChart={partnerChart}
                       data={data}
                       isLast={idx === filteredTransitAspects.length - 1}
+                      interpretContext="natal"
                     />
                   );
                 })}
@@ -467,6 +469,7 @@ function AspectRow({
   partnerChart,
   data,
   isLast,
+  interpretContext,
 }: {
   asp: SynastryAspect;
   fromSymbol: string;
@@ -479,6 +482,7 @@ function AspectRow({
   partnerChart?: NatalChart;
   data: PlanetData;
   isLast: boolean;
+  interpretContext: 'synastry' | 'natal';
 }) {
   const toPlanetDef = PLANETS[toPlanet as keyof typeof PLANETS];
   const toAsteroidDef = ASTEROIDS[toPlanet as keyof typeof ASTEROIDS];
@@ -487,16 +491,17 @@ function AspectRow({
   const toPlanetName = toPlanetDef?.name || toAsteroidDef?.name || toArabicDef?.name || toPlanet;
   const isTight = asp.aspect.exactOrb < TIGHT_ORB_THRESHOLD;
 
-  // Get interpretation
+  // Get interpretation — synastry-flavored text only fits cross-chart (synastry) context;
+  // for natal/transit, fall back to the natal corpus and skip the synastry sign-aspect lookup.
   const thisPlanetSign = data.sign;
   const partnerPlanetSign = partnerChart?.planets[toPlanet]?.sign;
   let interpretation: { title: string; description: string; isPositive: boolean } | null = null;
 
-  if (thisPlanetSign && partnerPlanetSign) {
-    interpretation = getSignAspectInterpretation(planet, thisPlanetSign, toPlanet, partnerPlanetSign, asp.aspect.type);
+  if (interpretContext === 'synastry' && thisPlanetSign && partnerPlanetSign) {
+    interpretation = getSignAspectInterpretation(planet, thisPlanetSign, toPlanet, partnerPlanetSign, asp.aspect.type) ?? null;
   }
   if (!interpretation) {
-    interpretation = getAspectInterpretation(planet, toPlanet, asp.aspect.type);
+    interpretation = getAspectInterpretation(planet, toPlanet, asp.aspect.type, interpretContext) ?? null;
   }
 
   // Classify aspect type

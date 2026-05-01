@@ -9,7 +9,7 @@ const corsHeaders = {
 const XAI_API_KEY = Deno.env.get("XAI_API_KEY") || Deno.env.get("COSMOSIS_GROK_API_KEY")!;
 const TIER_AI_LIMITS: Record<string, number> = {
   lite: 3,
-  horoscope: 3,
+  horoscope: 50,
   astrologer: 100,
   professional: 300,
 };
@@ -146,6 +146,7 @@ async function analyzeVantage(
   derived?: { label: string; house: number } | null,
   synastryContext?: { source_person: string; host_person: string; mode: string; sourcePersonName?: string; hostPersonName?: string } | null,
   questionWeight: QuestionWeight = 'balanced',
+  clientDate?: string,
 ): Promise<string> {
   let systemPrompt: string;
 
@@ -887,7 +888,7 @@ TIMING-FOCUSED QUESTION — transits, profections, and activations should be the
           const analysisPromises = vantagesWithContext.map(({ vantage, category, hasTransits, derived, synastryCtx, label }, idx) =>
             // Stagger requests by 200ms each to avoid rate limits
             new Promise(r => setTimeout(r, idx * 200)).then(() =>
-              analyzeVantage(vantage, category, hasTransits, derived, synastryCtx, questionWeight).then(analysis => ({
+              analyzeVantage(vantage, category, hasTransits, derived, synastryCtx, questionWeight, clientDate).then(analysis => ({
                 planet: label || vantage.planet?.planet || `vantage_${idx}`,
                 analysis,
                 index: idx,

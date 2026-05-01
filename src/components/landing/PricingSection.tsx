@@ -46,7 +46,7 @@ export function PricingToggle({ onSubscribe }: { onSubscribe: () => void }) {
           <div className="mt-6 space-y-2.5 text-left">
             {[
               'Daily horoscopes',
-              '3 AI readings/mo',
+              '50 AI readings/mo',
               '20 saved charts',
             ].map((f) => (
               <div key={f} className="flex items-center gap-2.5">

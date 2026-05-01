@@ -302,11 +302,12 @@ export function PlanetInfoPanel({ planet, aspects, onClose }: PlanetInfoPanelPro
                   const aspDef = ASPECTS[asp.aspect.type as keyof typeof ASPECTS];
                   const isExpanded = expandedAspect === asp.id;
 
-                  // Look up interpretation
+                  // Galactic 3D is always single-chart (no partner), so use natal corpus.
                   const interp = getAspectInterpretation(
                     planet.key.replace('transit_', ''),
                     otherKey,
                     asp.aspect.type,
+                    'natal',
                   );
 
                   return (

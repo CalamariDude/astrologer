@@ -4,6 +4,9 @@
  */
 
 import interpretationsData from '../data/interpretations.json';
+import natalInterpretationsData from '../data/interpretations.natal.json';
+
+export type InterpretationContext = 'synastry' | 'natal';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -21,6 +24,7 @@ export interface AspectInterpretation extends BaseInterpretation {
   planet1: string;
   planet2: string;
   aspect: string;
+  context?: InterpretationContext;
 }
 
 export interface SignCompatibilityInterpretation extends BaseInterpretation {
@@ -76,6 +80,7 @@ export type Interpretation =
 // ============================================================================
 
 let aspectIndex: Map<string, AspectInterpretation> | null = null;
+let natalAspectIndex: Map<string, AspectInterpretation> | null = null;
 let signAspectIndex: Map<string, SignAspectInterpretation> | null = null;
 let signCompatIndex: Map<string, SignCompatibilityInterpretation> | null = null;
 let stelliumIndex: Map<string, StelliumInterpretation> | null = null;
@@ -139,6 +144,7 @@ function ensureIndexes(): void {
   if (initialized) return;
 
   aspectIndex = new Map();
+  natalAspectIndex = new Map();
   signAspectIndex = new Map();
   signCompatIndex = new Map();
   stelliumIndex = new Map();
@@ -146,13 +152,22 @@ function ensureIndexes(): void {
   houseOverlayIndex = new Map();
   signHouseOverlayIndex = new Map();
 
-  const data = interpretationsData as { interpretations: Interpretation[] };
+  const synData = interpretationsData as { interpretations: Interpretation[] };
+  const natData = natalInterpretationsData as { interpretations: Interpretation[] };
+  const allEntries = [
+    ...synData.interpretations,
+    ...natData.interpretations.map(i => ({ ...i, context: 'natal' as const })),
+  ];
 
-  for (const interp of data.interpretations) {
+  for (const interp of allEntries) {
     switch (interp.type) {
       case 'aspect': {
         const key = aspectKey(interp.planet1, interp.planet2, interp.aspect);
-        aspectIndex.set(key, interp);
+        if (interp.context === 'natal') {
+          natalAspectIndex.set(key, interp);
+        } else {
+          aspectIndex.set(key, interp);
+        }
         break;
       }
       case 'signAspect': {
@@ -204,10 +219,13 @@ function ensureIndexes(): void {
 export function getAspectInterpretation(
   planet1: string,
   planet2: string,
-  aspect: string
+  aspect: string,
+  context: InterpretationContext = 'synastry'
 ): AspectInterpretation | undefined {
   ensureIndexes();
-  return aspectIndex!.get(aspectKey(planet1, planet2, aspect));
+  const key = aspectKey(planet1, planet2, aspect);
+  if (context === 'natal') return natalAspectIndex!.get(key);
+  return aspectIndex!.get(key);
 }
 
 /**

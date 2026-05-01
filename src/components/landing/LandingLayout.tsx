@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useScrollProgress } from '@/hooks/useScrollProgress';
+import { useLightLandingTheme } from '@/hooks/useLightLandingTheme';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { LandingHeader } from './LandingHeader';
@@ -20,6 +21,7 @@ export function LandingLayout({
   const [showAuth, setShowAuth] = useState(false);
   const [pendingDashboard, setPendingDashboard] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  useLightLandingTheme();
 
   const inDarkZone = scrollProgress < darkZoneThreshold;
 

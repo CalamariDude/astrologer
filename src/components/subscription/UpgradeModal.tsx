@@ -11,7 +11,7 @@ interface UpgradeModalProps {
 
 const HOROSCOPE_FEATURES = [
   'Daily horoscopes',
-  '3 AI readings/mo',
+  '50 AI readings/mo',
   '20 saved charts',
 ];
 

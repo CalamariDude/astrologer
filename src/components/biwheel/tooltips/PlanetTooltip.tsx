@@ -519,14 +519,15 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
               const isExpanded = expandedAspects.has(idx);
               const canExpand = onClose; // Only allow expand in pinned mode
 
-              // Get interpretation for this aspect
+              // Get interpretation for this aspect — sign-specific (synastry-flavored) lookup
+              // is only valid when there's an actual partner chart; otherwise use the natal corpus.
+              const interpretContext: 'synastry' | 'natal' = partnerChart ? 'synastry' : 'natal';
               const getInterpretation = () => {
                 const aspectType = asp.aspect.type;
                 const thisPlanetSign = data.sign;
                 const partnerPlanetSign = partnerChart?.planets[partnerPlanet]?.sign;
 
-                // Try sign-specific first
-                if (thisPlanetSign && partnerPlanetSign) {
+                if (interpretContext === 'synastry' && thisPlanetSign && partnerPlanetSign) {
                   const signSpecific = getSignAspectInterpretation(
                     planet, thisPlanetSign,
                     partnerPlanet, partnerPlanetSign,
@@ -541,8 +542,7 @@ export const PlanetTooltip: React.FC<PlanetTooltipProps> = ({
                   }
                 }
 
-                // Fall back to generic
-                const generic = getAspectInterpretation(planet, partnerPlanet, aspectType);
+                const generic = getAspectInterpretation(planet, partnerPlanet, aspectType, interpretContext);
                 if (generic) {
                   return { ...generic, isSignSpecific: false, signs: null };
                 }
