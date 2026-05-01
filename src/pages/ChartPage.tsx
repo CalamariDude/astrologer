@@ -28,7 +28,6 @@ import { supabase } from '@/lib/supabase';
 import type { TransitData, CompositeData, ProgressedData, RelocatedData, AsteroidsParam, AsteroidGroup, ChartMode } from '@/components/biwheel/types';
 import { ASTEROID_GROUPS } from '@/components/biwheel/types';
 import { GalacticToggle } from '@/components/galactic/GalacticToggle';
-import { NewTabPicker, type NewTabType } from '@/components/NewTabPicker';
 import { useWebGLSupport } from '@/hooks/useWebGLSupport';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -568,9 +567,6 @@ export default function ChartPage() {
     return sessionRestore?.activeTabIndex ?? 0;
   });
 
-  // New tab picker state
-  const [showNewTabPicker, setShowNewTabPicker] = useState(false);
-
   // Tab context menu state
   const [tabContextMenu, setTabContextMenu] = useState<{ x: number; y: number; tabIndex: number } | null>(null);
 
@@ -655,7 +651,16 @@ export default function ChartPage() {
   // Tab CRUD handlers
   const handleNewTab = useCallback(() => {
     if (tabs.length >= 10) return;
-    setShowNewTabPicker(true);
+    const newTab: ChartTab = {
+      id: generateTabId(),
+      personAData: emptyBirth(),
+      personBData: null,
+      chartA: null,
+      chartB: null,
+      editing: true,
+    };
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabIndex(tabs.length);
   }, [tabs.length]);
 
   const handleCloseTab = useCallback((index: number) => {
@@ -678,7 +683,6 @@ export default function ChartPage() {
 
   const handleSwitchTab = useCallback((index: number) => {
     setActiveTabIndex(index);
-    setShowNewTabPicker(false);
   }, []);
 
   // Close context menu on click outside or Escape
@@ -743,38 +747,6 @@ export default function ChartPage() {
       );
     }
   }, [tabs.length]);
-
-  const handleNewTabType = useCallback((type: NewTabType) => {
-    if (tabs.length >= 10) return;
-    setShowNewTabPicker(false);
-
-    // For transits, reuse the existing current transits handler
-    if (type === 'transits') {
-      handleCurrentTransits();
-      return;
-    }
-
-    const newTab: ChartTab = {
-      id: generateTabId(),
-      personAData: emptyBirth(),
-      personBData: type === 'synastry' ? emptyBirth() : null,
-      chartA: null,
-      chartB: null,
-      editing: true,
-    };
-    const newIdx = tabs.length;
-    setTabs(prev => [...prev, newTab]);
-    setActiveTabIndex(newIdx);
-
-    // Pre-select the appropriate tool tab for certain types
-    if (type === 'returns') {
-      setActiveTab('planet-returns');
-    } else if (type === 'ai-reading') {
-      setActiveTab('ai-reading');
-    } else if (type === 'calendar') {
-      setActiveTab('transits');
-    }
-  }, [tabs.length, handleCurrentTransits]);
 
   // Full person data for chart (combines birth data + chart)
   const personA: PersonData | null = chartA ? { ...personAData, natalChart: chartA } : null;
@@ -1917,18 +1889,8 @@ export default function ChartPage() {
         </div>
       )}
 
-      {/* ── New Tab Picker ──────────────────────────────────── */}
-      {showNewTabPicker && (
-        <div className="container px-3 md:px-6">
-          <NewTabPicker
-            onSelect={handleNewTabType}
-            onCancel={() => setShowNewTabPicker(false)}
-          />
-        </div>
-      )}
-
       {/* ── Birth Data Panel ────────────────────────────────── */}
-      {!showNewTabPicker && editing && (
+      {editing && (
         <div className="border-b border-border/50 bg-gradient-to-b from-background to-muted/20">
           <div className="container px-3 md:px-6">
             <div className="py-5 space-y-4 max-w-2xl mx-auto">
@@ -2022,7 +1984,7 @@ export default function ChartPage() {
       )}
 
       {/* ── Chart Content ───────────────────────────────────── */}
-      {!showNewTabPicker && hasChart && personA ? (
+      {hasChart && personA ? (
         liveSession.isSessionActive && viewMode === 'video' ? (
         /* Video gallery mode: top-down on mobile, side-by-side on desktop */
         <div className="relative flex flex-col md:flex-row h-[calc(100vh-64px)]" style={{ marginTop: 0 }}>

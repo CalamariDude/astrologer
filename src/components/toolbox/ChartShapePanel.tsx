@@ -173,13 +173,19 @@ function detectShape(planets: PlanetEntry[]): ShapeResult {
             if (g > wMaxGap) wMaxGap = g;
           }
           if (wMaxGap > 200) {
+            // For a Bucket, the empty hemisphere is split by the handle.
+            // Highlight the whole empty zone (bowl-trailing-edge → bowl-leading-edge,
+            // wrapping clockwise around the handle) so the handle sits visibly inside it.
+            const handleIdx = sorted.findIndex(s => s.key === p.key);
+            const beforeIdx = (handleIdx - 1 + sorted.length) % sorted.length;
+            const afterIdx = (handleIdx + 1) % sorted.length;
             return {
               shape: 'Bucket',
               description: `Bowl spanning ${Math.round(occupiedSpan)}° with ${symbolFor(p.key)} ${labelFor(p.key)} as the handle planet.`,
               psychological: 'The handle planet becomes the focal point through which all bowl energy is directed. It acts as a funnel, giving tremendous drive and purpose. The handle planet\'s sign and house are critically important.',
               largestGap: maxGap.size,
-              gapStart: maxGap.startLong,
-              gapEnd: maxGap.endLong,
+              gapStart: sorted[beforeIdx].longitude,
+              gapEnd: sorted[afterIdx].longitude,
               handlePlanet: p.key,
               occupiedSpan,
             };

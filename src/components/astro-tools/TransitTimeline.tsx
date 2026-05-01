@@ -13,6 +13,7 @@ import { swissEphemeris } from '@/api/swissEphemeris';
 import { PLANETS, ASPECTS } from '@/components/biwheel/utils/constants';
 import type { NatalChart } from '@/components/biwheel/types';
 import { detectTransitEvents } from '@/lib/transitTimeline';
+import { AstroSearchBar } from './AstroSearchBar';
 import type { TransitEvent } from '@/lib/transitTimeline';
 import { LIFE_THEMES } from '@/lib/astroThemes';
 import { downloadTransitICS } from '@/lib/icalExport';
@@ -445,6 +446,14 @@ export function TransitTimeline({ natalChart, personName }: TransitTimelineProps
         <h3 className="text-base font-semibold">{personName}'s Transit Timeline</h3>
         <p className="text-xs text-muted-foreground">Upcoming transits to natal chart &mdash; track ingress, exact, and egress dates</p>
       </div>
+
+      <AstroSearchBar
+        natalChart={natalChart}
+        onHit={(hit) => {
+          if (hit.view === 'transit') setView('timeline');
+          if (hit.date) setSelectedCalendarDay(hit.date);
+        }}
+      />
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-muted/20 p-3">

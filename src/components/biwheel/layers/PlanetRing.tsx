@@ -11,7 +11,7 @@
  * - composite: Single ring with composite planets
  */
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { PLANETS, ZODIAC_SIGNS, COLORS, ASTEROIDS, ARABIC_PARTS, FIXED_STARS, getElementColor, getThemeAwarePlanetColor } from '../utils/constants';
 import { longitudeToXY, calculateDecan, calculateDegreeSign, getZodiacSignSymbol } from '../utils/chartMath';
 import type { ChartDimensions, NatalChart, PlacedPlanet, PlanetData, ChartMode, CompositeData } from '../types';
@@ -22,6 +22,33 @@ import type { SynastryAspect } from '../utils/aspectCalculations';
 // Smooth animation timing for birth-time shift scrubbing
 const SMOOTH_EASE = 'cubic-bezier(0.25, 0.1, 0.25, 1)';
 const SMOOTH_DURATION = '0.5s';
+
+/**
+ * CSS rotation angle (degrees, CW from top) for a longitude + rotationOffset.
+ * Matches the position produced by longitudeToXY when used with arcTransform below.
+ */
+function longitudeToCssAngle(longitude: number, rotationOffset: number): number {
+  return -(longitude + rotationOffset);
+}
+
+/**
+ * Adjust a new angle to take the shortest path from the previous angle (within ±180°).
+ * Without this, planets near 0°/360° would animate the long way around the circle.
+ */
+function shortestPathAngle(newAngle: number, prevAngle: number): number {
+  let delta = newAngle - prevAngle;
+  delta = ((delta + 180) % 360 + 360) % 360 - 180;
+  return prevAngle + delta;
+}
+
+/**
+ * CSS transform that places an element at (angle, radius) around (cx, cy).
+ * The rotate→translate→counter-rotate chain lets `transition: transform` slide
+ * the element along the arc instead of cutting a chord through the center.
+ */
+function arcTransform(angle: number, radius: number, cx: number, cy: number): string {
+  return `translate(${cx}px, ${cy}px) rotate(${angle}deg) translateY(${-radius}px) rotate(${-angle}deg)`;
+}
 
 
 interface PlanetRingProps {
@@ -376,17 +403,45 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
     decanInner, tickBToA
   } = dimensions;
 
-  // Smooth positioning: always uses CSS transform for positioning to avoid rendering-method
-  // switch glitches. When smoothTransitions is true, adds CSS transition for animation.
-  // Returns { posProps, posStyle } — spread posProps on the element and merge posStyle into style
-  const smoothPos = (x: number, y: number, extraTransition?: string): { posProps: { x?: number; y?: number }; posStyle: React.CSSProperties } => {
+  // Tracked CSS rotation angle per (chart, planet) so smooth transitions follow
+  // the shortest arc path instead of jumping when crossing 0°/360°.
+  const trackedAnglesRef = useRef<Map<string, number>>(new Map());
+  const getTrackedAngle = (key: string, displayLongitude: number): number => {
+    const rawAngle = longitudeToCssAngle(displayLongitude, rotationOffset);
+    const map = trackedAnglesRef.current;
+    const prev = map.get(key);
+    const tracked = prev !== undefined ? shortestPathAngle(rawAngle, prev) : rawAngle;
+    map.set(key, tracked);
+    return tracked;
+  };
+
+  // Positions a ring element via CSS transform.
+  // - When smoothTransitions is on, uses an arc-based transform (rotate→translate→counter-rotate)
+  //   so CSS transitions glide the element along the ring, matching the transit ring behavior.
+  // - Otherwise, uses a plain translate so static rendering is unchanged.
+  const smoothPos = (
+    longitude: number,
+    radius: number,
+    trackKey: string,
+    extraTransition?: string,
+  ): { posProps: { x?: number; y?: number }; posStyle: React.CSSProperties } => {
     const transitions: string[] = [];
     if (smoothTransitions) transitions.push(`transform ${SMOOTH_DURATION} ${SMOOTH_EASE}`);
     if (extraTransition) transitions.push(extraTransition);
+
+    let transform: string;
+    if (smoothTransitions) {
+      const angle = getTrackedAngle(trackKey, longitude);
+      transform = arcTransform(angle, radius, cx, cy);
+    } else {
+      const pos = longitudeToXY(longitude, cx, cy, radius, rotationOffset);
+      transform = `translate(${pos.x}px, ${pos.y}px)`;
+    }
+
     return {
       posProps: {},
       posStyle: {
-        transform: `translate(${x}px, ${y}px)`,
+        transform,
         ...(transitions.length ? { transition: transitions.join(', ') } : {}),
       },
     };
@@ -681,10 +736,8 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
         const effectiveMinuteRing = isSingleWheel ? singleMinRadius : minuteARing;
         const effectivePlanetRing = isSingleWheel ? singleRingRadius : planetARing;
 
-        // Calculate positions at different radii
-        const degreePos = effectiveDegreeRing ? longitudeToXY(planet.displayLongitude, cx, cy, effectiveDegreeRing, rotationOffset) : null;
-        const signPos = effectiveSignRing ? longitudeToXY(planet.displayLongitude, cx, cy, effectiveSignRing, rotationOffset) : null;
-        const minutePos = effectiveMinuteRing ? longitudeToXY(planet.displayLongitude, cx, cy, effectiveMinuteRing, rotationOffset) : null;
+        // planetPos is used for glow circle, retrograde marker, and text rotation pivot.
+        // Other ring elements (degree/sign/minute) position themselves via smoothPos directly.
         const planetPos = longitudeToXY(planet.displayLongitude, cx, cy, effectivePlanetRing, rotationOffset);
 
         return (
@@ -702,8 +755,8 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             onDoubleClick={(e) => { e.stopPropagation(); onPlanetDoubleClick?.(planet.key, 'A', e); }}
           >
             {/* Degree (innermost) */}
-            {degreePos && (() => {
-              const sp = smoothPos(degreePos.x, degreePos.y);
+            {effectiveDegreeRing && (() => {
+              const sp = smoothPos(planet.displayLongitude, effectiveDegreeRing, `A-${planet.key}`);
               return (
                 <text
                   {...sp.posProps}
@@ -721,8 +774,8 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             })()}
 
             {/* Sign/degree symbol (between degrees and minutes, colored by element) */}
-            {signPos && (() => {
-              const sp = smoothPos(signPos.x, signPos.y, 'font-size 0.15s ease-out');
+            {effectiveSignRing && (() => {
+              const sp = smoothPos(planet.displayLongitude, effectiveSignRing, `A-${planet.key}`, 'font-size 0.15s ease-out');
               return (
                 <text
                   {...sp.posProps}
@@ -740,8 +793,8 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             })()}
 
             {/* Minutes */}
-            {minutePos && (() => {
-              const sp = smoothPos(minutePos.x, minutePos.y);
+            {effectiveMinuteRing && (() => {
+              const sp = smoothPos(planet.displayLongitude, effectiveMinuteRing, `A-${planet.key}`);
               return (
                 <text
                   {...sp.posProps}
@@ -772,7 +825,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
 
             {/* Planet symbol (outermost) - enlarged when highlighted, smaller for angles/asteroids */}
             {(() => {
-              const sp = smoothPos(planetPos.x, planetPos.y, 'font-size 0.15s ease-out');
+              const sp = smoothPos(planet.displayLongitude, effectivePlanetRing, `A-${planet.key}`, 'font-size 0.15s ease-out');
               return (
                 <text
                   {...sp.posProps}
@@ -838,10 +891,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
         const effectiveMinuteRing = isSingleWheel ? singleMinRadius : minuteBRing;
         const effectivePlanetRing = isSingleWheel ? singleRingRadius : planetBRing;
 
-        // Calculate positions at different radii
-        const degreePos = effectiveDegreeRing ? longitudeToXY(planet.displayLongitude, cx, cy, effectiveDegreeRing, rotationOffset) : null;
-        const signPos = effectiveSignRing ? longitudeToXY(planet.displayLongitude, cx, cy, effectiveSignRing, rotationOffset) : null;
-        const minutePos = effectiveMinuteRing ? longitudeToXY(planet.displayLongitude, cx, cy, effectiveMinuteRing, rotationOffset) : null;
+        // planetPos is used for glow circle, retrograde marker, and text rotation pivot.
         const planetPos = longitudeToXY(planet.displayLongitude, cx, cy, effectivePlanetRing, rotationOffset);
 
         return (
@@ -859,8 +909,8 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             onDoubleClick={(e) => { e.stopPropagation(); onPlanetDoubleClick?.(planet.key, 'B', e); }}
           >
             {/* Degree (innermost) */}
-            {degreePos && (() => {
-              const sp = smoothPos(degreePos.x, degreePos.y);
+            {effectiveDegreeRing && (() => {
+              const sp = smoothPos(planet.displayLongitude, effectiveDegreeRing, `B-${planet.key}`);
               return (
                 <text
                   {...sp.posProps}
@@ -878,8 +928,8 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             })()}
 
             {/* Sign/degree symbol (between degrees and minutes, colored by element) */}
-            {signPos && (() => {
-              const sp = smoothPos(signPos.x, signPos.y, 'font-size 0.15s ease-out');
+            {effectiveSignRing && (() => {
+              const sp = smoothPos(planet.displayLongitude, effectiveSignRing, `B-${planet.key}`, 'font-size 0.15s ease-out');
               return (
                 <text
                   {...sp.posProps}
@@ -897,8 +947,8 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             })()}
 
             {/* Minutes */}
-            {minutePos && (() => {
-              const sp = smoothPos(minutePos.x, minutePos.y);
+            {effectiveMinuteRing && (() => {
+              const sp = smoothPos(planet.displayLongitude, effectiveMinuteRing, `B-${planet.key}`);
               return (
                 <text
                   {...sp.posProps}
@@ -929,7 +979,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
 
             {/* Planet symbol (outermost) - enlarged when highlighted, smaller for angles/asteroids */}
             {(() => {
-              const sp = smoothPos(planetPos.x, planetPos.y, 'font-size 0.15s ease-out');
+              const sp = smoothPos(planet.displayLongitude, effectivePlanetRing, `B-${planet.key}`, 'font-size 0.15s ease-out');
               return (
                 <text
                   {...sp.posProps}
@@ -988,10 +1038,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
         const displayColorIndexC = zodiacSignC ? zodiacSignC.signIndex : deg.degreeIndex;
         const textRotation = isTextLabel(planet.key) ? getRadialRotation(planet.displayLongitude) : 0;
 
-        // Calculate positions at single-wheel radii
-        const degreePos = singleDegRadius ? longitudeToXY(planet.displayLongitude, cx, cy, singleDegRadius, rotationOffset) : null;
-        const signPos = singleSignRadius ? longitudeToXY(planet.displayLongitude, cx, cy, singleSignRadius, rotationOffset) : null;
-        const minutePos = singleMinRadius ? longitudeToXY(planet.displayLongitude, cx, cy, singleMinRadius, rotationOffset) : null;
+        // planetPos is used for retrograde marker and text rotation pivot.
         const planetPos = longitudeToXY(planet.displayLongitude, cx, cy, singleRingRadius, rotationOffset);
 
         return (
@@ -1009,8 +1056,8 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             onDoubleClick={(e) => { e.stopPropagation(); onPlanetDoubleClick?.(planet.key, 'Composite', e); }}
           >
             {/* Degree (innermost) */}
-            {degreePos && (() => {
-              const sp = smoothPos(degreePos.x, degreePos.y);
+            {singleDegRadius && (() => {
+              const sp = smoothPos(planet.displayLongitude, singleDegRadius, `C-${planet.key}`);
               return (
                 <text
                   {...sp.posProps}
@@ -1028,8 +1075,8 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             })()}
 
             {/* Sign/degree symbol (between degrees and minutes, colored by element) */}
-            {signPos && (() => {
-              const sp = smoothPos(signPos.x, signPos.y, 'font-size 0.15s ease-out');
+            {singleSignRadius && (() => {
+              const sp = smoothPos(planet.displayLongitude, singleSignRadius, `C-${planet.key}`, 'font-size 0.15s ease-out');
               return (
                 <text
                   {...sp.posProps}
@@ -1047,8 +1094,8 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             })()}
 
             {/* Minutes */}
-            {minutePos && (() => {
-              const sp = smoothPos(minutePos.x, minutePos.y);
+            {singleMinRadius && (() => {
+              const sp = smoothPos(planet.displayLongitude, singleMinRadius, `C-${planet.key}`);
               return (
                 <text
                   {...sp.posProps}
@@ -1066,7 +1113,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
 
             {/* Planet symbol (outermost) - enlarged when highlighted, smaller for angles/asteroids */}
             {(() => {
-              const sp = smoothPos(planetPos.x, planetPos.y, 'font-size 0.15s ease-out');
+              const sp = smoothPos(planet.displayLongitude, singleRingRadius, `C-${planet.key}`, 'font-size 0.15s ease-out');
               return (
                 <text
                   {...sp.posProps}
@@ -1126,9 +1173,6 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
         const displayColorIndexD = zodiacSignD ? zodiacSignD.signIndex : deg.degreeIndex;
         const textRotation = isTextLabel(planet.key) ? getRadialRotation(planet.displayLongitude) : 0;
 
-        const degreePos = singleDegRadius ? longitudeToXY(planet.displayLongitude, cx, cy, singleDegRadius, rotationOffset) : null;
-        const signPos = singleSignRadius ? longitudeToXY(planet.displayLongitude, cx, cy, singleSignRadius, rotationOffset) : null;
-        const minutePos = singleMinRadius ? longitudeToXY(planet.displayLongitude, cx, cy, singleMinRadius, rotationOffset) : null;
         const planetPos = longitudeToXY(planet.displayLongitude, cx, cy, singleRingRadius, rotationOffset);
 
         return (
@@ -1141,20 +1185,20 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             onClick={(e) => { e.stopPropagation(); onPlanetClick?.(planet.key, 'Composite', e); }}
             onDoubleClick={(e) => { e.stopPropagation(); onPlanetDoubleClick?.(planet.key, 'Composite', e); }}
           >
-            {degreePos && (() => {
-              const sp = smoothPos(degreePos.x, degreePos.y);
+            {singleDegRadius && (() => {
+              const sp = smoothPos(planet.displayLongitude, singleDegRadius, `D-${planet.key}`);
               return (<text {...sp.posProps} fill={COLORS.textSecondary} fontSize={degreeASize} fontFamily="Arial, sans-serif" fontWeight="bold" textAnchor="middle" dominantBaseline="central" style={{ userSelect: 'none', ...sp.posStyle }}>{degInSign}°</text>);
             })()}
-            {signPos && (() => {
-              const sp = smoothPos(signPos.x, signPos.y, 'font-size 0.15s ease-out');
+            {singleSignRadius && (() => {
+              const sp = smoothPos(planet.displayLongitude, singleSignRadius, `D-${planet.key}`, 'font-size 0.15s ease-out');
               return (<text {...sp.posProps} fill={getSignColor(displayColorIndexD * 30)} fontSize={highlighted ? signASize * highlightScale : signASize} fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif" fontWeight="bold" textAnchor="middle" dominantBaseline="central" style={{ userSelect: 'none', ...sp.posStyle }}>{displaySymbolD}</text>);
             })()}
-            {minutePos && (() => {
-              const sp = smoothPos(minutePos.x, minutePos.y);
+            {singleMinRadius && (() => {
+              const sp = smoothPos(planet.displayLongitude, singleMinRadius, `D-${planet.key}`);
               return (<text {...sp.posProps} fill={COLORS.textSecondary} fontSize={minuteASize} fontFamily="Arial, sans-serif" textAnchor="middle" dominantBaseline="central" style={{ userSelect: 'none', ...sp.posStyle }}>{minutes.toString().padStart(2, '0')}'</text>);
             })()}
             {(() => {
-              const sp = smoothPos(planetPos.x, planetPos.y, 'font-size 0.15s ease-out');
+              const sp = smoothPos(planet.displayLongitude, singleRingRadius, `D-${planet.key}`, 'font-size 0.15s ease-out');
               return (<text {...sp.posProps} fill={planetColor} fontSize={getPlanetFontSize(planet.key, true, highlighted)} fontFamily="'Segoe UI Symbol', 'DejaVu Sans', Arial, sans-serif" fontWeight="900" textAnchor="middle" dominantBaseline="central" style={{ userSelect: 'none', ...sp.posStyle }} stroke={planetColor} strokeWidth={isAsteroid(planet.key) ? 0.3 : 0.5} {...(!smoothTransitions && textRotation ? { transform: `rotate(${textRotation}, ${planetPos.x}, ${planetPos.y})` } : {})}>{getPlanetDescription(planet.key) && <title>{getPlanetDescription(planet.key)}</title>}{getPlanetSymbol(planet.key)}</text>);
             })()}
             {showRetrogrades && planet.data.retrograde && (() => {

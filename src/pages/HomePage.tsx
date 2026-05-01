@@ -315,7 +315,7 @@ export default function HomePage() {
               },
               {
                 title: 'Deep analysis tools',
-                items: ['Aspect grid with orb control', 'Transit timeline & forecasting', 'Profections & activations', 'Essential & accidental dignities', 'Declination & fixed stars'],
+                items: ['Aspect grid with orb control', 'Transit timeline & forecasting', 'Transit finder (search in plain English)', 'Profections & activations', 'Essential & accidental dignities', 'Declination & fixed stars'],
               },
               {
                 title: 'Full customization',

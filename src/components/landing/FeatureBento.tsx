@@ -29,7 +29,7 @@ const BENTO_ITEMS: BentoItem[] = [
   },
   {
     title: 'Transit Timeline',
-    subtitle: 'What the planets have planned for you.',
+    subtitle: 'Search in plain English: "next full moon", "Saturn square my Sun".',
     image: '/transits.webp',
     href: '/features/charts',
     large: false,

@@ -51,6 +51,11 @@ export function TimeInput({ value, onChange, className, style, unstyled }: TimeI
   const mmValRef = React.useRef(mm);
   hhValRef.current = hh;
   mmValRef.current = mm;
+  // Stash the value at focus time so we can restore it if the user blurs without typing.
+  // We clear the input on focus (instead of relying on select()) because mobile browsers
+  // often ignore select() inside onFocus, leaving the user with appended-rather-than-replaced digits.
+  const stashedHhRef = React.useRef('');
+  const stashedMmRef = React.useRef('');
 
   // Track focus at the container level so hh→mm transitions don't create a gap
   const handleContainerFocus = () => {
@@ -101,18 +106,45 @@ export function TimeInput({ value, onChange, className, style, unstyled }: TimeI
     }
   };
 
+  const handleFocus = (segment: 'hh' | 'mm') => {
+    // Clear the segment on focus so the next keystroke replaces (not appends).
+    // The stash lets us restore on blur if the user didn't actually type anything.
+    if (segment === 'hh') {
+      stashedHhRef.current = hhValRef.current;
+      if (hhValRef.current !== '') {
+        hhValRef.current = '';
+        setHh('');
+      }
+    } else {
+      stashedMmRef.current = mmValRef.current;
+      if (mmValRef.current !== '') {
+        mmValRef.current = '';
+        setMm('');
+      }
+    }
+  };
+
   const handleBlur = (segment: 'hh' | 'mm') => {
     // Read from refs to avoid stale closure values (e.g. when hh auto-focuses mm)
     let newHh = hhValRef.current, newMm = mmValRef.current;
-    if (segment === 'hh' && newHh) {
-      const n = clamp(parseInt(newHh, 10), 1, 12);
-      newHh = String(n);
+    if (segment === 'hh') {
+      if (newHh === '') {
+        // User focused but didn't type — restore the stashed value
+        newHh = stashedHhRef.current;
+      } else {
+        newHh = String(clamp(parseInt(newHh, 10), 1, 12));
+      }
       setHh(newHh);
+      hhValRef.current = newHh;
     }
-    if (segment === 'mm' && newMm) {
-      const n = clamp(parseInt(newMm, 10), 0, 59);
-      newMm = String(n).padStart(2, '0');
+    if (segment === 'mm') {
+      if (newMm === '') {
+        newMm = stashedMmRef.current;
+      } else {
+        newMm = String(clamp(parseInt(newMm, 10), 0, 59)).padStart(2, '0');
+      }
       setMm(newMm);
+      mmValRef.current = newMm;
     }
     emitChange(newHh, newMm, period);
   };
@@ -177,9 +209,9 @@ export function TimeInput({ value, onChange, className, style, unstyled }: TimeI
         value={hh}
         onChange={(e) => handleChange('hh', e.target.value)}
         onKeyDown={(e) => handleKeyDown('hh', e)}
-        onFocus={(e) => e.target.select()}
+        onFocus={() => handleFocus('hh')}
         onBlur={() => handleBlur('hh')}
-        placeholder="--"
+        placeholder={stashedHhRef.current || '--'}
         inputMode="numeric"
         pattern="[0-9]*"
         style={segStyle}
@@ -191,9 +223,9 @@ export function TimeInput({ value, onChange, className, style, unstyled }: TimeI
         value={mm}
         onChange={(e) => handleChange('mm', e.target.value)}
         onKeyDown={(e) => handleKeyDown('mm', e)}
-        onFocus={(e) => e.target.select()}
+        onFocus={() => handleFocus('mm')}
         onBlur={() => handleBlur('mm')}
-        placeholder="--"
+        placeholder={stashedMmRef.current || '--'}
         inputMode="numeric"
         pattern="[0-9]*"
         style={segStyle}

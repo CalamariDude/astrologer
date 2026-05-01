@@ -8,7 +8,7 @@ import { BiWheelSynastry } from './BiWheelSynastry';
 import { TogglePanelContent } from './controls/TogglePanelContent';
 import type { BiWheelSynastryProps, AsteroidGroup, FixedStarGroup, ChartMode, LocationData } from './types';
 import { ASTEROID_GROUPS, FIXED_STAR_GROUPS } from './types';
-import { ASTEROIDS, ASTEROID_GROUP_INFO, DEFAULT_VISIBLE_PLANETS, applyTheme } from './utils/constants';
+import { ASTEROIDS, ASTEROID_GROUP_INFO, COLORS, DEFAULT_VISIBLE_PLANETS, applyTheme } from './utils/constants';
 import { THEMES, type ThemeName } from './utils/themes';
 import { BirthTimeShiftKnob } from './controls/BirthTimeShiftKnob';
 import { TransitJogWheel } from './controls/TransitJogWheel';
@@ -1452,20 +1452,28 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                         )}
                       </div>
                     )}
-                    {/* Birth time shift knob A */}
+                    {/* Birth time shift knob A (or B if in personB mode) */}
                     {showBirthTimeShift && biWheelProps.enableBirthTimeShift && chartMode !== 'composite' && (
                       <BirthTimeShiftKnob
-                        label="A"
-                        timeShiftMinutes={timeShiftA}
-                        onTimeShiftChange={(offset) => { setTimeShiftA(offset); biWheelProps.onTimeShiftAChange?.(offset); }}
-                        onReset={() => { setTimeShiftA(0); biWheelProps.onTimeShiftAChange?.(0); }}
+                        label={chartMode === 'personB' ? (biWheelProps.nameB || 'Person B') : (biWheelProps.nameA || 'Person A')}
+                        labelColor={chartMode === 'personB' ? COLORS.personB : COLORS.personA}
+                        timeShiftMinutes={chartMode === 'personB' ? timeShiftB : timeShiftA}
+                        onTimeShiftChange={(offset) => {
+                          if (chartMode === 'personB') { setTimeShiftB(offset); biWheelProps.onTimeShiftBChange?.(offset); }
+                          else { setTimeShiftA(offset); biWheelProps.onTimeShiftAChange?.(offset); }
+                        }}
+                        onReset={() => {
+                          if (chartMode === 'personB') { setTimeShiftB(0); biWheelProps.onTimeShiftBChange?.(0); }
+                          else { setTimeShiftA(0); biWheelProps.onTimeShiftAChange?.(0); }
+                        }}
                         size={80}
                       />
                     )}
-                    {/* Birth time shift knob B */}
-                    {showBirthTimeShift && biWheelProps.enableBirthTimeShift && chartMode !== 'composite' && biWheelProps.birthTimeB && (chartMode === 'synastry' || chartMode === 'personB') && (
+                    {/* Birth time shift knob B (synastry only — personB single-wheel uses the A knob slot above) */}
+                    {showBirthTimeShift && biWheelProps.enableBirthTimeShift && chartMode === 'synastry' && biWheelProps.birthTimeB && (
                       <BirthTimeShiftKnob
-                        label="B"
+                        label={biWheelProps.nameB || 'Person B'}
+                        labelColor={COLORS.personB}
                         timeShiftMinutes={timeShiftB}
                         onTimeShiftChange={(offset) => { setTimeShiftB(offset); biWheelProps.onTimeShiftBChange?.(offset); }}
                         onReset={() => { setTimeShiftB(0); biWheelProps.onTimeShiftBChange?.(0); }}

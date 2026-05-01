@@ -2653,36 +2653,6 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       {/* SVG Chart - wrapper keeps square aspect ratio, SVG scales via viewBox */}
       <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
 
-      {/* Birth time shift knobs — above chart */}
-      {enableBirthTimeShift && state.showBirthTimeShift && state.chartMode !== 'composite' && (
-        <div style={{
-          display: 'flex',
-          justifyContent: birthTimeB && (state.chartMode === 'synastry' || state.chartMode === 'personB')
-            ? 'space-between' : 'center',
-          alignItems: 'flex-start',
-          padding: '0 48px 8px',
-        }}>
-          <BirthTimeShiftKnob
-            label="A"
-            timeShiftMinutes={state.timeShiftA}
-            onTimeShiftChange={setTimeShiftA}
-            onReset={resetTimeShiftA}
-            loading={state.birthTimeShiftLoading && state.timeShiftA !== 0}
-            size={88}
-          />
-          {birthTimeB && (state.chartMode === 'synastry' || state.chartMode === 'personB') && (
-            <BirthTimeShiftKnob
-              label="B"
-              timeShiftMinutes={state.timeShiftB}
-              onTimeShiftChange={setTimeShiftB}
-              onReset={resetTimeShiftB}
-              loading={state.birthTimeShiftLoading && state.timeShiftB !== 0}
-              size={88}
-            />
-          )}
-        </div>
-      )}
-
       <svg
         ref={svgRef}
         className="biwheel-svg"
@@ -3095,17 +3065,26 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
           );
         })()}
 
-        {/* Legend (fixed position, not rotated) */}
+        {/* Legend (fixed position, not rotated)
+            When the wheel-time knob is shown, the knob's label acts as the person-name legend,
+            so we suppress the redundant name entries here and only render transit/progressed rows. */}
         {(() => {
-          // Calculate legend height dynamically
-          const baseItems = state.chartMode === 'synastry' ? 2 : 1;
+          const knobShown = enableBirthTimeShift && state.showBirthTimeShift && state.chartMode !== 'composite';
+          const showPersonRow = !knobShown;
+          const personRowCount = showPersonRow
+            ? (state.chartMode === 'synastry' ? 2 : 1)
+            : 0;
           const transitItem = outerRingPlanets ? 1 : 0;
           const progressedItem = state.showProgressed && state.progressedData ? 1 : 0;
-          const totalItems = baseItems + transitItem + progressedItem;
+          const totalItems = personRowCount + transitItem + progressedItem;
+          if (totalItems === 0) return null;
           const legendHeight = totalItems * 18 + 14;
+          // Vertical offset where transit/progressed rows start (after person rows, if any)
+          const extraRowBaseY = showPersonRow ? (state.chartMode === 'synastry' ? 46 : 28) : 10;
+          const extraRowTextBaseY = showPersonRow ? (state.chartMode === 'synastry' ? 50 : 32) : 14;
           return (
             <g transform={`translate(${VIEWBOX_SIZE - 90}, ${VIEWBOX_SIZE - legendHeight})`}>
-              {state.chartMode === 'synastry' ? (
+              {showPersonRow && state.chartMode === 'synastry' && (
                 <>
                   <circle cx={10} cy={10} r={6} fill={COLORS.personA} />
                   <text x={22} y={14} fill={COLORS.textSecondary} fontSize={10}>
@@ -3116,39 +3095,43 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
                     {displayNameB}
                   </text>
                 </>
-              ) : state.chartMode === 'personA' ? (
+              )}
+              {showPersonRow && state.chartMode === 'personA' && (
                 <>
                   <circle cx={10} cy={10} r={6} fill={COLORS.personA} />
                   <text x={22} y={14} fill={COLORS.textSecondary} fontSize={10}>
                     {displayNameA}
                   </text>
                 </>
-              ) : state.chartMode === 'personB' ? (
+              )}
+              {showPersonRow && state.chartMode === 'personB' && (
                 <>
                   <circle cx={10} cy={10} r={6} fill={COLORS.personB} />
                   <text x={22} y={14} fill={COLORS.textSecondary} fontSize={10}>
                     {displayNameB}
                   </text>
                 </>
-              ) : state.chartMode === 'composite' && state.compositeData ? (
+              )}
+              {state.chartMode === 'composite' && state.compositeData && (
                 <>
                   <circle cx={10} cy={10} r={6} fill={COLORS.composite} />
                   <text x={22} y={14} fill={COLORS.textSecondary} fontSize={10}>
                     {displayNameA} + {displayNameB}
                   </text>
                 </>
-              ) : state.chartMode === 'davison' && state.davisonData ? (
+              )}
+              {state.chartMode === 'davison' && state.davisonData && (
                 <>
                   <circle cx={10} cy={10} r={6} fill="#9333ea" />
                   <text x={22} y={14} fill={COLORS.textSecondary} fontSize={10}>
                     Davison
                   </text>
                 </>
-              ) : null}
+              )}
               {outerRingPlanets && (
                 <>
-                  <circle cx={10} cy={state.chartMode === 'synastry' ? 46 : 28} r={6} fill={state.showSolarReturn ? '#DAA520' : state.showLunarReturn ? '#8B8BCD' : '#228B22'} />
-                  <text x={22} y={state.chartMode === 'synastry' ? 50 : 32} fill={COLORS.textSecondary} fontSize={10}>
+                  <circle cx={10} cy={extraRowBaseY} r={6} fill={state.showSolarReturn ? '#DAA520' : state.showLunarReturn ? '#8B8BCD' : '#228B22'} />
+                  <text x={22} y={extraRowTextBaseY} fill={COLORS.textSecondary} fontSize={10}>
                     {state.showSolarReturn ? `${state.solarReturnYear} Solar Return` : state.showLunarReturn ? 'Lunar Return' : 'Transits'}
                   </text>
                 </>
@@ -3157,13 +3140,13 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
                 <>
                   <circle
                     cx={10}
-                    cy={(state.chartMode === 'synastry' ? 46 : 28) + (transitItem * 18)}
+                    cy={extraRowBaseY + (transitItem * 18)}
                     r={6}
                     fill="#FFD700"
                   />
                   <text
                     x={22}
-                    y={(state.chartMode === 'synastry' ? 50 : 32) + (transitItem * 18)}
+                    y={extraRowTextBaseY + (transitItem * 18)}
                     fill={COLORS.textSecondary}
                     fontSize={10}
                   >
@@ -3517,7 +3500,40 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         </div>
       )}
 
-      {/* Birth time shift knobs are now rendered above the chart SVG */}
+      {/* Birth time shift knobs — bottom-right overlay (mirrors transit jog wheel at bottom-left, desktop only) */}
+      {showTogglePanel && enableBirthTimeShift && state.showBirthTimeShift && state.chartMode !== 'composite' && (
+        <div style={{
+          position: 'absolute',
+          bottom: 80,
+          right: 16,
+          zIndex: 999,
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          gap: 8,
+        }}>
+          <BirthTimeShiftKnob
+            label={state.chartMode === 'personB' ? displayNameB : displayNameA}
+            labelColor={state.chartMode === 'personB' ? COLORS.personB : COLORS.personA}
+            timeShiftMinutes={state.chartMode === 'personB' ? state.timeShiftB : state.timeShiftA}
+            onTimeShiftChange={state.chartMode === 'personB' ? setTimeShiftB : setTimeShiftA}
+            onReset={state.chartMode === 'personB' ? resetTimeShiftB : resetTimeShiftA}
+            loading={state.birthTimeShiftLoading && (state.chartMode === 'personB' ? state.timeShiftB !== 0 : state.timeShiftA !== 0)}
+            size={88}
+          />
+          {birthTimeB && state.chartMode === 'synastry' && (
+            <BirthTimeShiftKnob
+              label={displayNameB}
+              labelColor={COLORS.personB}
+              timeShiftMinutes={state.timeShiftB}
+              onTimeShiftChange={setTimeShiftB}
+              onReset={resetTimeShiftB}
+              loading={state.birthTimeShiftLoading && state.timeShiftB !== 0}
+              size={88}
+            />
+          )}
+        </div>
+      )}
       </div>
 
 

@@ -10,7 +10,8 @@ import React, { useState, useRef, useCallback } from 'react';
 import { COLORS } from '../utils/constants';
 
 interface BirthTimeShiftKnobProps {
-  label: string;                         // "A" or "B"
+  label: string;                         // Person's display name (or "A"/"B" fallback)
+  labelColor?: string;                   // Optional tint for the label text (matches person's accent color)
   timeShiftMinutes: number;              // Current offset in minutes (0 = original)
   onTimeShiftChange: (offset: number) => void;
   onReset: () => void;
@@ -77,6 +78,7 @@ function formatOffset(minutes: number): string {
 
 export const BirthTimeShiftKnob: React.FC<BirthTimeShiftKnobProps> = ({
   label,
+  labelColor,
   timeShiftMinutes,
   onTimeShiftChange,
   onReset,
@@ -210,16 +212,23 @@ export const BirthTimeShiftKnob: React.FC<BirthTimeShiftKnobProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-      {/* Label above knob */}
+      {/* Label above knob — displays the person's name (acts as the chart legend) */}
       <span
         style={{
-          color: textMuted,
-          fontSize: Math.max(10, size * 0.12),
-          fontWeight: 600,
+          color: labelColor ?? textMuted,
+          fontSize: Math.max(11, size * 0.14),
+          fontWeight: 700,
           fontFamily: "'Inter', system-ui, sans-serif",
           lineHeight: 1,
-          opacity: 0.7,
+          opacity: labelColor ? 0.95 : 0.7,
+          letterSpacing: '0.02em',
+          maxWidth: size * 2,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          textAlign: 'center',
         }}
+        title={label}
       >
         {label}
       </span>

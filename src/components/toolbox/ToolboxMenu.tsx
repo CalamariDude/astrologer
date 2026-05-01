@@ -16,6 +16,7 @@ export interface ToolDef {
   requiresBirthDate?: boolean;
   difficulty?: 'beginner' | 'intermediate' | 'advanced';
   popular?: boolean;
+  beta?: boolean;
 }
 
 const CATEGORIES = [
@@ -33,15 +34,15 @@ export const TOOLS: ToolDef[] = [
   { id: 'zodiacal-releasing', label: 'Zodiacal Releasing', description: 'See the major chapters and themes of your life timeline', category: 'timing', requiresBirthDate: true, difficulty: 'advanced', popular: true },
   { id: 'firdaria', label: 'Firdaria', description: 'Which planet is running the show in your life right now?', category: 'timing', requiresBirthDate: true, difficulty: 'intermediate', popular: true },
   { id: 'primary-directions', label: 'Primary Directions', description: 'Pinpoint the ages when major life events are most likely', category: 'timing', requiresBirthDate: true, difficulty: 'advanced' },
-  { id: 'dynamic-hits', label: 'Dynamic Hits', description: 'All major celestial events on one timeline — eclipses, ingresses, stations', category: 'timing', requiresBirthDate: true, difficulty: 'intermediate' },
+  { id: 'dynamic-hits', label: 'Dynamic Hits', description: 'All major celestial events on one timeline — eclipses, ingresses, stations', category: 'timing', requiresBirthDate: true, difficulty: 'intermediate', beta: true },
   { id: 'daily-profections', label: 'Daily Profections', description: 'Today\'s ruling planet and house theme based on your age', category: 'timing', requiresBirthDate: true, difficulty: 'beginner' },
   { id: 'progressed-moon', label: 'Progressed Moon Calendar', description: 'Track your emotional evolution month by month through signs and houses', category: 'timing', requiresBirthDate: true, difficulty: 'intermediate' },
 
   // Chart Analysis
   { id: 'dominant-planets', label: 'Dominant Planets & Elements', description: 'Find which planet and element dominate your personality', category: 'analysis', difficulty: 'beginner', popular: true },
-  { id: 'chart-shape', label: 'Chart Shape Detection', description: 'Discover the overall pattern your planets form — bowl, bundle, splay, and more', category: 'analysis', difficulty: 'beginner' },
+  { id: 'chart-shape', label: 'Chart Shape Detection', description: 'Discover the overall pattern your planets form — bowl, bundle, splay, and more', category: 'analysis', difficulty: 'beginner', beta: true },
   { id: 'sabian-symbols', label: 'Sabian Symbols', description: 'Discover the poetic symbol hidden in each of your planet placements', category: 'analysis', difficulty: 'beginner', popular: true },
-  { id: 'midpoint-trees', label: 'Midpoint Trees', description: 'Find hidden connections where two planets meet in the middle', category: 'analysis', difficulty: 'advanced' },
+  { id: 'midpoint-trees', label: 'Midpoint Trees', description: 'Find hidden connections where two planets meet in the middle', category: 'analysis', difficulty: 'advanced', beta: true },
 
   // Traditional
   { id: 'antiscia', label: 'Antiscia & Contra-Antiscia', description: 'Mirror points that reveal secret connections between planets', category: 'traditional', difficulty: 'advanced' },
@@ -54,7 +55,7 @@ export const TOOLS: ToolDef[] = [
   { id: 'planetary-returns', label: 'Planetary Returns', description: 'Jupiter, Saturn, and other planet return charts for life milestones', category: 'charts', requiresBirthDate: true, difficulty: 'intermediate' },
 
   // Uranian / Cosmobiology
-  { id: 'uranian-ephemeris', label: 'Uranian Graphic Ephemeris', description: 'Visualize planetary motion on a 45° or 90° dial over time', category: 'uranian', difficulty: 'advanced' },
+  { id: 'uranian-ephemeris', label: 'Uranian Graphic Ephemeris', description: 'Visualize planetary motion on a 45° or 90° dial over time', category: 'uranian', difficulty: 'advanced', beta: true },
 
   // Daily Tools
   { id: 'planetary-hours', label: 'Planetary Hours', description: 'Find the best time today for different activities', category: 'daily', difficulty: 'beginner', popular: true },
@@ -63,8 +64,8 @@ export const TOOLS: ToolDef[] = [
   { id: 'eclipse-tracker', label: 'Eclipse Tracker', description: 'See which eclipses light up specific areas of your chart', category: 'daily', requiresBirthDate: true, difficulty: 'intermediate' },
 
   // Visual
-  { id: 'sky-map', label: 'Sky Map', description: 'An animated view of the real sky with constellations and planets', category: 'visual', requiresBirthDate: true, difficulty: 'beginner' },
-  { id: 'eclipse-maps', label: 'Eclipse Maps', description: 'Solar eclipse paths drawn on a world map', category: 'visual', difficulty: 'beginner' },
+  { id: 'sky-map', label: 'Sky Map', description: 'An animated view of the real sky with constellations and planets', category: 'visual', requiresBirthDate: true, difficulty: 'beginner', beta: true },
+  { id: 'eclipse-maps', label: 'Eclipse Maps', description: 'Solar eclipse paths drawn on a world map', category: 'visual', difficulty: 'beginner', beta: true },
 ];
 
 interface ToolboxMenuProps {
@@ -190,6 +191,14 @@ function ToolRow({ tool, onClick, disabled }: { tool: ToolDef; onClick: () => vo
           <span className="text-xs font-medium">{tool.label}</span>
           {tool.popular && (
             <span className="text-[11px] text-amber-500" title="Popular">&#10022;</span>
+          )}
+          {tool.beta && (
+            <span
+              className="text-[9px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20 shrink-0"
+              title="Beta — graphical tool, may have rough edges"
+            >
+              Beta
+            </span>
           )}
           {tool.difficulty && (
             <span className={`w-1.5 h-1.5 rounded-full ${difficultyColor} shrink-0`} title={difficultyLabel} />
