@@ -754,6 +754,8 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             onClick={(e) => { e.stopPropagation(); onPlanetClick?.(planet.key, 'A', e); }}
             onDoubleClick={(e) => { e.stopPropagation(); onPlanetDoubleClick?.(planet.key, 'A', e); }}
           >
+            {/* Invisible hit area — gives the planet glyph a circular hover target */}
+            <circle cx={planetPos.x} cy={planetPos.y} r={14} fill="transparent" pointerEvents="all" />
             {/* Degree (innermost) */}
             {effectiveDegreeRing && (() => {
               const sp = smoothPos(planet.displayLongitude, effectiveDegreeRing, `A-${planet.key}`);
@@ -908,6 +910,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             onClick={(e) => { e.stopPropagation(); onPlanetClick?.(planet.key, 'B', e); }}
             onDoubleClick={(e) => { e.stopPropagation(); onPlanetDoubleClick?.(planet.key, 'B', e); }}
           >
+            <circle cx={planetPos.x} cy={planetPos.y} r={14} fill="transparent" pointerEvents="all" />
             {/* Degree (innermost) */}
             {effectiveDegreeRing && (() => {
               const sp = smoothPos(planet.displayLongitude, effectiveDegreeRing, `B-${planet.key}`);
@@ -1055,6 +1058,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             onClick={(e) => { e.stopPropagation(); onPlanetClick?.(planet.key, 'Composite', e); }}
             onDoubleClick={(e) => { e.stopPropagation(); onPlanetDoubleClick?.(planet.key, 'Composite', e); }}
           >
+            <circle cx={planetPos.x} cy={planetPos.y} r={14} fill="transparent" pointerEvents="all" />
             {/* Degree (innermost) */}
             {singleDegRadius && (() => {
               const sp = smoothPos(planet.displayLongitude, singleDegRadius, `C-${planet.key}`);
@@ -1185,6 +1189,7 @@ export const PlanetRing: React.FC<PlanetRingProps> = ({
             onClick={(e) => { e.stopPropagation(); onPlanetClick?.(planet.key, 'Composite', e); }}
             onDoubleClick={(e) => { e.stopPropagation(); onPlanetDoubleClick?.(planet.key, 'Composite', e); }}
           >
+            <circle cx={planetPos.x} cy={planetPos.y} r={14} fill="transparent" pointerEvents="all" />
             {singleDegRadius && (() => {
               const sp = smoothPos(planet.displayLongitude, singleDegRadius, `D-${planet.key}`);
               return (<text {...sp.posProps} fill={COLORS.textSecondary} fontSize={degreeASize} fontFamily="Arial, sans-serif" fontWeight="bold" textAnchor="middle" dominantBaseline="central" style={{ userSelect: 'none', ...sp.posStyle }}>{degInSign}°</text>);

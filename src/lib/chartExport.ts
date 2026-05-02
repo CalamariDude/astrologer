@@ -226,3 +226,499 @@ function escapeHtml(str: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
+
+// ─── Pro-grade multi-page PDF report ─────────────────────────────────────────
+
+const REPORT_SIGNS_LONG = [
+  'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
+  'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces',
+] as const;
+
+const REPORT_PLANET_ORDER = [
+  'sun', 'moon', 'mercury', 'venus', 'mars',
+  'jupiter', 'saturn', 'uranus', 'neptune', 'pluto',
+  'northnode', 'southnode', 'chiron', 'lilith',
+  'juno', 'ceres', 'pallas', 'vesta',
+  'ascendant', 'midheaven', 'descendant', 'ic',
+];
+
+const REPORT_PLANET_LABELS: Record<string, string> = {
+  sun: 'Sun', moon: 'Moon', mercury: 'Mercury', venus: 'Venus', mars: 'Mars',
+  jupiter: 'Jupiter', saturn: 'Saturn', uranus: 'Uranus', neptune: 'Neptune', pluto: 'Pluto',
+  northnode: 'N. Node', southnode: 'S. Node', chiron: 'Chiron', lilith: 'Lilith',
+  juno: 'Juno', ceres: 'Ceres', pallas: 'Pallas', vesta: 'Vesta',
+  ascendant: 'Ascendant', midheaven: 'Midheaven', descendant: 'Descendant', ic: 'Imum Coeli',
+};
+
+function formatLng(lng: number): string {
+  const norm = ((lng % 360) + 360) % 360;
+  const signIdx = Math.floor(norm / 30);
+  const within = norm - signIdx * 30;
+  const deg = Math.floor(within);
+  const min = Math.floor((within - deg) * 60);
+  return `${deg}°${min.toString().padStart(2, '0')}′ ${REPORT_SIGNS_LONG[signIdx]}`;
+}
+
+function houseFromLongitude(lng: number, houses?: Record<string, number>): number | null {
+  if (!houses) return null;
+  const cusps: number[] = [];
+  for (let i = 1; i <= 12; i++) {
+    const v = houses[`house_${i}`];
+    if (typeof v !== 'number') return null;
+    cusps.push(((v % 360) + 360) % 360);
+  }
+  const norm = ((lng % 360) + 360) % 360;
+  for (let i = 0; i < 12; i++) {
+    const start = cusps[i];
+    const end = cusps[(i + 1) % 12];
+    // Handle wrap-around (e.g., start=350, end=20)
+    const inHouse = start <= end
+      ? norm >= start && norm < end
+      : norm >= start || norm < end;
+    if (inHouse) return i + 1;
+  }
+  return null;
+}
+
+export interface ReportPlanet {
+  longitude: number;
+  retrograde?: boolean;
+  speed?: number;
+}
+
+export interface ReportChart {
+  planets: Record<string, ReportPlanet>;
+  houses?: Record<string, number>;
+  angles?: { ascendant: number; midheaven: number };
+}
+
+export interface ReportPerson {
+  name: string;
+  chart: ReportChart;
+  birth?: {
+    date?: string;
+    time?: string;
+    location?: string;
+  };
+}
+
+export interface ReportAspect {
+  planetA: string;
+  planetB: string;
+  aspectName: string;
+  exactOrb: number;
+  isApplying?: boolean;
+  nature?: 'harmonious' | 'challenging' | 'neutral';
+}
+
+export interface ChartReportOptions {
+  container: HTMLElement;
+  filename?: string;
+  title?: string;
+  mode: 'natal' | 'synastry' | 'composite' | 'progressed' | 'transits';
+  personA: ReportPerson;
+  personB?: ReportPerson;
+  aspects?: ReportAspect[];
+  notes?: string[];
+  brand?: string;
+}
+
+interface PageCtx {
+  pdf: jsPDF;
+  pageWidth: number;
+  pageHeight: number;
+  margin: number;
+  brand: string;
+  filenameBase: string;
+}
+
+function addFooter(ctx: PageCtx, pageNum: number, totalPages: number) {
+  const { pdf, pageWidth, pageHeight, brand } = ctx;
+  pdf.setFontSize(8);
+  pdf.setTextColor(140);
+  pdf.text(brand, ctx.margin, pageHeight - 6);
+  pdf.text(`Page ${pageNum} of ${totalPages}`, pageWidth - ctx.margin, pageHeight - 6, { align: 'right' });
+  pdf.setTextColor(0);
+}
+
+function drawTableHeader(
+  pdf: jsPDF,
+  x: number,
+  y: number,
+  cols: { label: string; width: number; align?: 'left' | 'right' | 'center' }[],
+  rowHeight: number,
+) {
+  pdf.setFillColor(240, 240, 245);
+  const totalWidth = cols.reduce((s, c) => s + c.width, 0);
+  pdf.rect(x, y, totalWidth, rowHeight, 'F');
+  pdf.setFontSize(9);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(50);
+  let cx = x;
+  for (const c of cols) {
+    const tx = c.align === 'right' ? cx + c.width - 2
+             : c.align === 'center' ? cx + c.width / 2
+             : cx + 2;
+    pdf.text(c.label, tx, y + rowHeight - 2, { align: c.align ?? 'left' });
+    cx += c.width;
+  }
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(0);
+}
+
+function drawTableRow(
+  pdf: jsPDF,
+  x: number,
+  y: number,
+  cols: { width: number; align?: 'left' | 'right' | 'center' }[],
+  values: string[],
+  rowHeight: number,
+  zebra: boolean,
+) {
+  if (zebra) {
+    pdf.setFillColor(250, 250, 252);
+    const totalWidth = cols.reduce((s, c) => s + c.width, 0);
+    pdf.rect(x, y, totalWidth, rowHeight, 'F');
+  }
+  pdf.setFontSize(9);
+  let cx = x;
+  for (let i = 0; i < cols.length; i++) {
+    const c = cols[i];
+    const tx = c.align === 'right' ? cx + c.width - 2
+             : c.align === 'center' ? cx + c.width / 2
+             : cx + 2;
+    pdf.text(values[i] ?? '', tx, y + rowHeight - 2, { align: c.align ?? 'left' });
+    cx += c.width;
+  }
+}
+
+function drawPlanetTable(
+  ctx: PageCtx,
+  x: number,
+  y: number,
+  width: number,
+  title: string,
+  chart: ReportChart,
+): number {
+  const { pdf } = ctx;
+  pdf.setFontSize(11);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text(title, x, y);
+  pdf.setFont('helvetica', 'normal');
+  let cy = y + 4;
+
+  // Column widths (sum should equal `width`)
+  const colPlanet = width * 0.30;
+  const colPos = width * 0.42;
+  const colHouse = width * 0.16;
+  const colR = width * 0.12;
+  const cols = [
+    { label: 'Planet', width: colPlanet, align: 'left' as const },
+    { label: 'Position', width: colPos, align: 'left' as const },
+    { label: 'House', width: colHouse, align: 'center' as const },
+    { label: 'R', width: colR, align: 'center' as const },
+  ];
+  const rowH = 5;
+  drawTableHeader(pdf, x, cy, cols, rowH);
+  cy += rowH;
+
+  let zebra = false;
+  for (const key of REPORT_PLANET_ORDER) {
+    const p = chart.planets[key];
+    if (!p) continue;
+    const house = houseFromLongitude(p.longitude, chart.houses);
+    drawTableRow(
+      pdf, x, cy, cols,
+      [
+        REPORT_PLANET_LABELS[key] ?? key,
+        formatLng(p.longitude),
+        house != null ? String(house) : '—',
+        p.retrograde ? '℞' : '',
+      ],
+      rowH, zebra,
+    );
+    cy += rowH;
+    zebra = !zebra;
+  }
+
+  // Border around table
+  pdf.setDrawColor(220);
+  pdf.rect(x, y + 4, width, cy - (y + 4));
+  pdf.setDrawColor(0);
+  return cy;
+}
+
+function drawHouseCuspsTable(
+  ctx: PageCtx,
+  x: number,
+  y: number,
+  width: number,
+  title: string,
+  houses: Record<string, number>,
+): number {
+  const { pdf } = ctx;
+  pdf.setFontSize(11);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text(title, x, y);
+  pdf.setFont('helvetica', 'normal');
+  let cy = y + 4;
+
+  const colHouse = width * 0.30;
+  const colCusp = width * 0.70;
+  const cols = [
+    { label: 'House', width: colHouse, align: 'left' as const },
+    { label: 'Cusp', width: colCusp, align: 'left' as const },
+  ];
+  const rowH = 5;
+  drawTableHeader(pdf, x, cy, cols, rowH);
+  cy += rowH;
+
+  let zebra = false;
+  for (let i = 1; i <= 12; i++) {
+    const v = houses[`house_${i}`];
+    if (typeof v !== 'number') continue;
+    drawTableRow(
+      pdf, x, cy, cols,
+      [`H${i}`, formatLng(v)],
+      rowH, zebra,
+    );
+    cy += rowH;
+    zebra = !zebra;
+  }
+
+  pdf.setDrawColor(220);
+  pdf.rect(x, y + 4, width, cy - (y + 4));
+  pdf.setDrawColor(0);
+  return cy;
+}
+
+function drawAspectsTable(
+  ctx: PageCtx,
+  x: number,
+  y: number,
+  width: number,
+  title: string,
+  aspects: ReportAspect[],
+): number {
+  const { pdf, pageHeight, margin } = ctx;
+  pdf.setFontSize(11);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text(title, x, y);
+  pdf.setFont('helvetica', 'normal');
+  let cy = y + 4;
+
+  const colA = width * 0.26;
+  const colAsp = width * 0.30;
+  const colB = width * 0.26;
+  const colOrb = width * 0.10;
+  const colDir = width * 0.08;
+  const cols = [
+    { label: 'Planet A', width: colA, align: 'left' as const },
+    { label: 'Aspect', width: colAsp, align: 'left' as const },
+    { label: 'Planet B', width: colB, align: 'left' as const },
+    { label: 'Orb', width: colOrb, align: 'right' as const },
+    { label: 'A/S', width: colDir, align: 'center' as const },
+  ];
+  const rowH = 5;
+  drawTableHeader(pdf, x, cy, cols, rowH);
+  cy += rowH;
+
+  let zebra = false;
+  let tableTop = y + 4;
+  for (const a of aspects) {
+    if (cy + rowH > pageHeight - margin - 10) {
+      pdf.setDrawColor(220);
+      pdf.rect(x, tableTop, width, cy - tableTop);
+      pdf.setDrawColor(0);
+      pdf.addPage();
+      cy = margin;
+      tableTop = cy;
+      drawTableHeader(pdf, x, cy, cols, rowH);
+      cy += rowH;
+      zebra = false;
+    }
+    const orbDeg = Math.floor(a.exactOrb);
+    const orbMin = Math.floor((a.exactOrb - orbDeg) * 60);
+    const orbStr = `${orbDeg}°${orbMin.toString().padStart(2, '0')}′`;
+    const dir = a.isApplying === true ? 'A' : a.isApplying === false ? 'S' : '';
+    drawTableRow(
+      pdf, x, cy, cols,
+      [
+        REPORT_PLANET_LABELS[a.planetA] ?? a.planetA,
+        a.aspectName,
+        REPORT_PLANET_LABELS[a.planetB] ?? a.planetB,
+        orbStr,
+        dir,
+      ],
+      rowH, zebra,
+    );
+    cy += rowH;
+    zebra = !zebra;
+  }
+
+  pdf.setDrawColor(220);
+  pdf.rect(x, tableTop, width, cy - tableTop);
+  pdf.setDrawColor(0);
+  return cy;
+}
+
+export async function exportChartAsReport(opts: ChartReportOptions): Promise<void> {
+  const {
+    container,
+    filename,
+    title,
+    mode,
+    personA,
+    personB,
+    aspects,
+    notes,
+    brand = 'Astrologer',
+  } = opts;
+
+  const svg = container.querySelector('svg');
+  if (!svg) throw new Error('No chart found');
+
+  // Capture chart as image first (async)
+  const canvas = await svgToCanvas(svg as SVGSVGElement, 3);
+  const imgData = canvas.toDataURL('image/png');
+
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 15;
+  const contentWidth = pageWidth - margin * 2;
+
+  const filenameBase = filename ?? `${personA.name.replace(/[^\w-]+/g, '_')}-report.pdf`;
+  const ctx: PageCtx = { pdf, pageWidth, pageHeight, margin, brand, filenameBase };
+
+  const modeLabel = ({
+    natal: 'Natal Chart',
+    synastry: 'Synastry Chart',
+    composite: 'Composite Chart',
+    progressed: 'Progressed Chart',
+    transits: 'Transit Chart',
+  } as const)[mode];
+
+  const reportTitle = title
+    ?? (personB ? `${personA.name} & ${personB.name}` : personA.name);
+
+  // ── Page 1: Header + chart wheel ──
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(20);
+  pdf.text(reportTitle, pageWidth / 2, margin + 4, { align: 'center' });
+
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(11);
+  pdf.setTextColor(100);
+  pdf.text(modeLabel, pageWidth / 2, margin + 10, { align: 'center' });
+  pdf.setTextColor(0);
+
+  // Birth data block
+  let infoY = margin + 18;
+  pdf.setFontSize(9);
+  const fmtBirth = (p: ReportPerson) => {
+    const parts: string[] = [p.name];
+    if (p.birth?.date) parts.push(p.birth.date);
+    if (p.birth?.time) parts.push(p.birth.time);
+    if (p.birth?.location) parts.push(p.birth.location);
+    return parts.join(' · ');
+  };
+
+  pdf.setTextColor(60);
+  pdf.text(fmtBirth(personA), pageWidth / 2, infoY, { align: 'center' });
+  if (personB) {
+    infoY += 4.5;
+    pdf.text(fmtBirth(personB), pageWidth / 2, infoY, { align: 'center' });
+  }
+  pdf.setTextColor(0);
+
+  // Chart wheel image
+  const wheelTop = infoY + 6;
+  const wheelMaxH = pageHeight - wheelTop - margin - 14;
+  const wheelSize = Math.min(contentWidth, wheelMaxH);
+  const wheelX = (pageWidth - wheelSize) / 2;
+  pdf.addImage(imgData, 'PNG', wheelX, wheelTop, wheelSize, wheelSize);
+
+  // Generated timestamp at bottom of page 1
+  const stamp = new Date().toLocaleString();
+  pdf.setFontSize(8);
+  pdf.setTextColor(140);
+  pdf.text(`Generated ${stamp}`, pageWidth / 2, pageHeight - 12, { align: 'center' });
+  pdf.setTextColor(0);
+
+  // ── Page 2: Planet positions ──
+  pdf.addPage();
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(14);
+  pdf.text('Planet Positions', margin, margin + 2);
+  pdf.setFont('helvetica', 'normal');
+
+  if (personB) {
+    const colW = (contentWidth - 6) / 2;
+    drawPlanetTable(ctx, margin, margin + 8, colW, personA.name, personA.chart);
+    drawPlanetTable(ctx, margin + colW + 6, margin + 8, colW, personB.name, personB.chart);
+  } else {
+    drawPlanetTable(ctx, margin, margin + 8, contentWidth, personA.name, personA.chart);
+  }
+
+  // ── Page 3: House cusps + aspects ──
+  pdf.addPage();
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(14);
+  pdf.text('Houses & Aspects', margin, margin + 2);
+  pdf.setFont('helvetica', 'normal');
+
+  let cursorY = margin + 8;
+
+  // Houses (side-by-side if synastry, single if not)
+  if (personA.chart.houses) {
+    if (personB?.chart.houses) {
+      const colW = (contentWidth - 6) / 2;
+      const yA = drawHouseCuspsTable(ctx, margin, cursorY, colW, `${personA.name} — Houses`, personA.chart.houses);
+      const yB = drawHouseCuspsTable(ctx, margin + colW + 6, cursorY, colW, `${personB.name} — Houses`, personB.chart.houses);
+      cursorY = Math.max(yA, yB) + 6;
+    } else {
+      const colW = contentWidth * 0.5;
+      cursorY = drawHouseCuspsTable(ctx, margin, cursorY, colW, 'Houses', personA.chart.houses) + 6;
+    }
+  }
+
+  // Aspects
+  if (aspects && aspects.length > 0) {
+    if (cursorY > pageHeight - margin - 30) {
+      pdf.addPage();
+      cursorY = margin + 2;
+    }
+    const aspectTitle = personB ? 'Synastry Aspects' : 'Natal Aspects';
+    drawAspectsTable(ctx, margin, cursorY, contentWidth, aspectTitle, aspects);
+  }
+
+  // ── Optional Page: Notes ──
+  if (notes && notes.length > 0) {
+    pdf.addPage();
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(14);
+    pdf.text('Chart Notes', margin, margin + 2);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(10);
+    let ny = margin + 10;
+    notes.forEach((note, i) => {
+      const lines = pdf.splitTextToSize(`${i + 1}. ${note}`, contentWidth);
+      if (ny + lines.length * 5 > pageHeight - margin - 10) {
+        pdf.addPage();
+        ny = margin + 2;
+      }
+      pdf.text(lines, margin, ny);
+      ny += lines.length * 5 + 2;
+    });
+  }
+
+  // Add page numbers/footer to all pages
+  const totalPages = pdf.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    pdf.setPage(i);
+    addFooter(ctx, i, totalPages);
+  }
+
+  pdf.save(filenameBase);
+}

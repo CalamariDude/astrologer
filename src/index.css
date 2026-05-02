@@ -59,4 +59,62 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+  .print-only {
+    display: none;
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Hide app chrome that has no place on paper */
+  nav,
+  .no-print,
+  [data-no-print],
+  [role="navigation"],
+  [role="dialog"]:not([data-print]),
+  [data-radix-popper-content-wrapper],
+  .vaul-drawer,
+  .toaster,
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  /* Force ink-friendly chart rendering */
+  svg text {
+    fill: #000000 !important;
+  }
+
+  /* Avoid splitting charts and tables across pages */
+  svg,
+  table,
+  .chart-print-block {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Expand chart container to full width on paper */
+  [data-chart-container] {
+    width: 100% !important;
+    max-width: 100% !important;
+    transform: none !important;
+  }
+
+  a[href]::after {
+    content: "";
+  }
 }

@@ -2608,8 +2608,33 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         };
       }
     }
+    // For Composite (and Davison) chart, build data from compositeData
+    if (state.hoveredPlanet.chart === 'Composite' && state.compositeData?.planets) {
+      const cp = state.compositeData.planets.find(
+        (p) => p.planet.toLowerCase() === state.hoveredPlanet!.planet.toLowerCase()
+      );
+      if (cp) {
+        return {
+          longitude: cp.longitude,
+          latitude: cp.latitude,
+          sign: cp.sign,
+          degree: cp.degree,
+          minute: cp.minute,
+          retrograde: cp.retrograde,
+          decan: cp.decan,
+          decanSign: cp.decanSign,
+        };
+      }
+      // Angles
+      if (state.hoveredPlanet.planet === 'ascendant' && state.compositeData.houses?.ascendant !== undefined) {
+        return { longitude: state.compositeData.houses.ascendant, sign: '', retrograde: false };
+      }
+      if (state.hoveredPlanet.planet === 'midheaven' && state.compositeData.houses?.mc !== undefined) {
+        return { longitude: state.compositeData.houses.mc, sign: '', retrograde: false };
+      }
+    }
     return null;
-  }, [state.hoveredPlanet, displayChartA.planets, displayChartB.planets, state.transitData]);
+  }, [state.hoveredPlanet, displayChartA.planets, displayChartB.planets, state.transitData, state.compositeData]);
 
   // Get selected planet data for pinned tooltip
   const selectedPlanetData = React.useMemo(() => {
@@ -2630,8 +2655,32 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
         };
       }
     }
+    // For Composite (and Davison) chart, build data from compositeData
+    if (state.selectedPlanet.chart === 'Composite' && state.compositeData?.planets) {
+      const cp = state.compositeData.planets.find(
+        (p) => p.planet.toLowerCase() === state.selectedPlanet!.planet.toLowerCase()
+      );
+      if (cp) {
+        return {
+          longitude: cp.longitude,
+          latitude: cp.latitude,
+          sign: cp.sign,
+          degree: cp.degree,
+          minute: cp.minute,
+          retrograde: cp.retrograde,
+          decan: cp.decan,
+          decanSign: cp.decanSign,
+        };
+      }
+      if (state.selectedPlanet.planet === 'ascendant' && state.compositeData.houses?.ascendant !== undefined) {
+        return { longitude: state.compositeData.houses.ascendant, sign: '', retrograde: false };
+      }
+      if (state.selectedPlanet.planet === 'midheaven' && state.compositeData.houses?.mc !== undefined) {
+        return { longitude: state.compositeData.houses.mc, sign: '', retrograde: false };
+      }
+    }
     return null;
-  }, [state.selectedPlanet, displayChartA.planets, displayChartB.planets, state.transitData]);
+  }, [state.selectedPlanet, displayChartA.planets, displayChartB.planets, state.transitData, state.compositeData]);
 
   return (
     <div
@@ -3292,74 +3341,82 @@ export const BiWheelSynastry: React.FC<BiWheelSynastryProps> = ({
       {createPortal(
       <React.Suspense fallback={null}>
       {/* Planet Tooltip (on hover) — disabled on mobile */}
-      {state.hoveredPlanet && hoveredPlanetData && state.tooltipPosition && !state.selectedPlanet && window.innerWidth >= 500 && (
+      {state.hoveredPlanet && hoveredPlanetData && state.tooltipPosition && !state.selectedPlanet && window.innerWidth >= 500 && (() => {
+        const hp = state.hoveredPlanet;
+        const isSingleViewChart = hp.chart === 'Transit' || hp.chart === 'Composite';
+        const ownAsc = hp.chart === 'A' ? (displayChartA.angles?.ascendant ?? 0)
+                     : hp.chart === 'B' ? (displayChartB.angles?.ascendant ?? 0)
+                     : 0;
+        const partnerAsc = hp.chart === 'A' ? (displayChartB.angles?.ascendant ?? 0)
+                         : hp.chart === 'B' ? (displayChartA.angles?.ascendant ?? 0)
+                         : 0;
+        return (
         <PlanetTooltip
-          planet={state.hoveredPlanet.planet}
-          chart={state.hoveredPlanet.chart}
-          name={state.hoveredPlanet.chart === 'Transit' ? 'Transit' : state.hoveredPlanet.chart === 'A' ? displayNameA : displayNameB}
-          partnerName={isSingleWheel || state.hoveredPlanet.chart === 'Transit' ? undefined : state.hoveredPlanet.chart === 'A' ? displayNameB : displayNameA}
+          planet={hp.planet}
+          chart={hp.chart}
+          name={hp.chart === 'Transit' ? 'Transit' : hp.chart === 'Composite' ? 'Composite' : hp.chart === 'A' ? displayNameA : displayNameB}
+          partnerName={isSingleWheel || isSingleViewChart ? undefined : hp.chart === 'A' ? displayNameB : displayNameA}
           data={hoveredPlanetData}
-          ownHouse={state.hoveredPlanet.chart === 'Transit' ? undefined :
+          ownHouse={isSingleViewChart ? undefined :
             hoveredPlanetData.longitude !== undefined ?
-              calculateHouseFromLongitude(
-                hoveredPlanetData.longitude,
-                state.hoveredPlanet.chart === 'A' ? (displayChartA.angles?.ascendant ?? 0) : (displayChartB.angles?.ascendant ?? 0),
-                houseSystem === 'whole_sign'
-              ) : undefined}
-          partnerHouse={isSingleWheel || state.hoveredPlanet.chart === 'Transit' ? undefined :
+              calculateHouseFromLongitude(hoveredPlanetData.longitude, ownAsc, houseSystem === 'whole_sign')
+              : undefined}
+          partnerHouse={isSingleWheel || isSingleViewChart ? undefined :
             hoveredPlanetData.longitude !== undefined ?
-              calculateHouseFromLongitude(
-                hoveredPlanetData.longitude,
-                state.hoveredPlanet.chart === 'A' ? (displayChartB.angles?.ascendant ?? 0) : (displayChartA.angles?.ascendant ?? 0),
-                houseSystem === 'whole_sign'
-              ) : undefined}
-          aspects={state.hoveredPlanet.chart === 'Transit' ? [] : aspects}
+              calculateHouseFromLongitude(hoveredPlanetData.longitude, partnerAsc, houseSystem === 'whole_sign')
+              : undefined}
+          aspects={isSingleViewChart ? [] : aspects}
           visibleAspects={state.visibleAspects}
           position={state.tooltipPosition}
           visible={true}
-          partnerChart={isSingleWheel || state.hoveredPlanet.chart === 'Transit' ? undefined : state.hoveredPlanet.chart === 'A' ? displayChartB : displayChartA}
-          transitDate={state.hoveredPlanet.chart === 'Transit' ? state.transitDate : undefined}
-          transitAspects={state.hoveredPlanet.chart === 'Transit' ? transitAspects : undefined}
+          partnerChart={isSingleWheel || isSingleViewChart ? undefined : hp.chart === 'A' ? displayChartB : displayChartA}
+          transitDate={hp.chart === 'Transit' ? state.transitDate : undefined}
+          transitAspects={hp.chart === 'Transit' ? transitAspects : undefined}
           nameA={displayNameA}
           nameB={displayNameB}
         />
-      )}
+        );
+      })()}
 
       {/* Planet Tooltip (on double-click - with close button) */}
-      {state.selectedPlanet && selectedPlanetData && state.tooltipPosition && state.pinnedTooltipOpen && (
+      {state.selectedPlanet && selectedPlanetData && state.tooltipPosition && state.pinnedTooltipOpen && (() => {
+        const sp = state.selectedPlanet;
+        const isSingleViewChart = sp.chart === 'Transit' || sp.chart === 'Composite';
+        const ownAsc = sp.chart === 'A' ? (displayChartA.angles?.ascendant ?? 0)
+                     : sp.chart === 'B' ? (displayChartB.angles?.ascendant ?? 0)
+                     : 0;
+        const partnerAsc = sp.chart === 'A' ? (displayChartB.angles?.ascendant ?? 0)
+                         : sp.chart === 'B' ? (displayChartA.angles?.ascendant ?? 0)
+                         : 0;
+        return (
         <PlanetTooltip
-          planet={state.selectedPlanet.planet}
-          chart={state.selectedPlanet.chart}
-          name={state.selectedPlanet.chart === 'Transit' ? 'Transit' : state.selectedPlanet.chart === 'A' ? displayNameA : displayNameB}
-          partnerName={isSingleWheel || state.selectedPlanet.chart === 'Transit' ? undefined : state.selectedPlanet.chart === 'A' ? displayNameB : displayNameA}
+          planet={sp.planet}
+          chart={sp.chart}
+          name={sp.chart === 'Transit' ? 'Transit' : sp.chart === 'Composite' ? 'Composite' : sp.chart === 'A' ? displayNameA : displayNameB}
+          partnerName={isSingleWheel || isSingleViewChart ? undefined : sp.chart === 'A' ? displayNameB : displayNameA}
           data={selectedPlanetData}
-          ownHouse={state.selectedPlanet.chart === 'Transit' ? undefined :
+          ownHouse={isSingleViewChart ? undefined :
             selectedPlanetData.longitude !== undefined ?
-              calculateHouseFromLongitude(
-                selectedPlanetData.longitude,
-                state.selectedPlanet.chart === 'A' ? (displayChartA.angles?.ascendant ?? 0) : (displayChartB.angles?.ascendant ?? 0),
-                houseSystem === 'whole_sign'
-              ) : undefined}
-          partnerHouse={isSingleWheel || state.selectedPlanet.chart === 'Transit' ? undefined :
+              calculateHouseFromLongitude(selectedPlanetData.longitude, ownAsc, houseSystem === 'whole_sign')
+              : undefined}
+          partnerHouse={isSingleWheel || isSingleViewChart ? undefined :
             selectedPlanetData.longitude !== undefined ?
-              calculateHouseFromLongitude(
-                selectedPlanetData.longitude,
-                state.selectedPlanet.chart === 'A' ? (displayChartB.angles?.ascendant ?? 0) : (displayChartA.angles?.ascendant ?? 0),
-                houseSystem === 'whole_sign'
-              ) : undefined}
-          aspects={state.selectedPlanet.chart === 'Transit' ? [] : aspects}
+              calculateHouseFromLongitude(selectedPlanetData.longitude, partnerAsc, houseSystem === 'whole_sign')
+              : undefined}
+          aspects={isSingleViewChart ? [] : aspects}
           visibleAspects={state.visibleAspects}
           position={state.tooltipPosition}
           visible={true}
           onClose={() => setState((prev) => ({ ...prev, selectedPlanet: null, pinnedTooltipOpen: false, expandedPlanetOpen: false }))}
           onExpand={() => setState((prev) => ({ ...prev, expandedPlanetOpen: true }))}
-          partnerChart={isSingleWheel || state.selectedPlanet.chart === 'Transit' ? undefined : state.selectedPlanet.chart === 'A' ? displayChartB : displayChartA}
-          transitDate={state.selectedPlanet.chart === 'Transit' ? state.transitDate : undefined}
-          transitAspects={state.selectedPlanet.chart === 'Transit' ? transitAspects : undefined}
+          partnerChart={isSingleWheel || isSingleViewChart ? undefined : sp.chart === 'A' ? displayChartB : displayChartA}
+          transitDate={sp.chart === 'Transit' ? state.transitDate : undefined}
+          transitAspects={sp.chart === 'Transit' ? transitAspects : undefined}
           nameA={displayNameA}
           nameB={displayNameB}
         />
-      )}
+        );
+      })()}
 
       {/* Planet Detail Dialog (expanded view) */}
       {state.expandedPlanetOpen && state.selectedPlanet && selectedPlanetData && (

@@ -13,14 +13,16 @@ import { THEMES, type ThemeName } from './utils/themes';
 import { BirthTimeShiftKnob } from './controls/BirthTimeShiftKnob';
 import { TransitJogWheel } from './controls/TransitJogWheel';
 import { Drawer } from 'vaul';
-import { Settings2, Download, Image, FileText, Mail, Loader2, Share2, Link2, Check, Plus, X, Bookmark, MessageSquare } from 'lucide-react';
+import { Settings2, Download, Image, FileText, FileBarChart, Mail, Loader2, Share2, Link2, Check, Plus, X, Bookmark, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { type ChartPreset, loadPresets, savePreset, deletePreset, reorderPresets, buildPresetFromState, loadPresetsFromProfile, savePresetsToProfile } from './utils/presets';
 import { calculateHarmonicChart } from '@/lib/harmonics';
+import { calculateNatalAspects, calculateSynastryAspects } from './utils/aspectCalculations';
 import { convertToSidereal, AYANAMSA_SYSTEMS } from '@/lib/sidereal';
 import { convertToDraconic } from '@/lib/draconic';
 // Lazy-import chart export (pulls in jsPDF ~357KB) — only needed on export button click
 const getChartExport = () => import('@/lib/chartExport');
+import type { ReportAspect } from '@/lib/chartExport';
 import * as analytics from '@/lib/analytics';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -43,6 +45,8 @@ interface BiWheelMobileWrapperProps extends Omit<BiWheelSynastryProps, 'size' | 
   onVisibleAspectsChange?: (aspects: Set<string>) => void;
   /** Birth data for generating shareable links */
   shareBirthData?: { name: string; date: string; time: string; lat: number; lng: number; location: string };
+  /** Optional birth data for Person B (synastry) — used for PDF report header */
+  shareBirthDataB?: { name: string; date: string; time: string; lat: number; lng: number; location: string };
   /** localStorage key for chart notes (enables "share notes" checkbox in email modal) */
   chartNotesKey?: string;
   /** Initial asteroid groups to enable (from shared link) */
@@ -124,6 +128,7 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
   onVisiblePlanetsChange,
   onVisibleAspectsChange,
   shareBirthData,
+  shareBirthDataB,
   chartNotesKey,
   initialEnabledAsteroidGroups,
   readOnly,
@@ -681,6 +686,100 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
     }
   }, [biWheelProps.nameA, biWheelProps.nameB]);
 
+  const handleExportReport = useCallback(async () => {
+    if (!chartContainerRef.current) return;
+    setExporting(true);
+    setShowExportMenu(false);
+    try {
+      const nameA = biWheelProps.nameA || 'Person A';
+      const nameB = biWheelProps.nameB;
+      const chartA = biWheelProps.chartA;
+      const chartB = biWheelProps.chartB;
+
+      // Determine report mode from chartMode + whether B is meaningful
+      const isSynastry = chartMode === 'synastry' && chartB && nameB && nameB !== nameA;
+      const reportMode: 'natal' | 'synastry' | 'composite' =
+        chartMode === 'composite' ? 'composite'
+        : isSynastry ? 'synastry'
+        : 'natal';
+
+      // Compute aspects respecting current visiblePlanets / visibleAspects
+      const allowedPlanets = visiblePlanets;
+      const allowedAspects = visibleAspects as Set<any>;
+      let aspects: ReportAspect[] = [];
+      if (reportMode === 'synastry' && chartB) {
+        const computed = calculateSynastryAspects(
+          chartA.planets as any, chartB.planets as any,
+          allowedPlanets, allowedAspects,
+        );
+        aspects = computed.map(a => ({
+          planetA: a.planetA, planetB: a.planetB,
+          aspectName: a.aspect.name, exactOrb: a.aspect.exactOrb,
+          isApplying: a.aspect.isApplying, nature: a.aspect.nature,
+        }));
+      } else {
+        const sourceChart = reportMode === 'composite' && chartB ? chartA : chartA;
+        const computed = calculateNatalAspects(
+          sourceChart.planets as any,
+          allowedPlanets, allowedAspects,
+        );
+        aspects = computed.map(a => ({
+          planetA: a.planetA, planetB: a.planetB,
+          aspectName: a.aspect.name, exactOrb: a.aspect.exactOrb,
+          isApplying: a.aspect.isApplying, nature: a.aspect.nature,
+        }));
+      }
+
+      // Notes from localStorage
+      let notes: string[] | undefined;
+      if (chartNotesKey) {
+        try {
+          const raw = localStorage.getItem('astrologer_chart_notes');
+          if (raw) {
+            const all = JSON.parse(raw);
+            const ns = all[chartNotesKey];
+            if (Array.isArray(ns) && ns.length > 0) {
+              notes = ns.map((n: { text: string }) => n.text);
+            }
+          }
+        } catch { /* ignore */ }
+      }
+
+      const { exportChartAsReport } = await getChartExport();
+      await exportChartAsReport({
+        container: chartContainerRef.current,
+        filename: `${nameA.replace(/[^\w-]+/g, '_')}-report.pdf`,
+        mode: reportMode,
+        personA: {
+          name: nameA,
+          chart: chartA as any,
+          birth: shareBirthData ? {
+            date: shareBirthData.date,
+            time: shareBirthData.time,
+            location: shareBirthData.location,
+          } : undefined,
+        },
+        personB: reportMode === 'synastry' && chartB && nameB ? {
+          name: nameB,
+          chart: chartB as any,
+          birth: shareBirthDataB ? {
+            date: shareBirthDataB.date,
+            time: shareBirthDataB.time,
+            location: shareBirthDataB.location,
+          } : undefined,
+        } : undefined,
+        aspects,
+        notes,
+      });
+      analytics.trackChartExported({ format: 'pdf' });
+      toast.success('Report exported');
+    } catch (err: any) {
+      toast.error(err.message || 'Report export failed');
+    } finally {
+      setExporting(false);
+    }
+  }, [biWheelProps.nameA, biWheelProps.nameB, biWheelProps.chartA, biWheelProps.chartB, chartMode, visiblePlanets, visibleAspects, shareBirthData, shareBirthDataB, chartNotesKey]);
+
   // Build a shareable URL with birth data + current chart options (only non-defaults)
   const buildShareUrl = useCallback(() => {
     if (!shareBirthData) return null;
@@ -1215,6 +1314,20 @@ export const BiWheelMobileWrapper: React.FC<BiWheelMobileWrapperProps> = ({
                     >
                       <FileText className="w-3.5 h-3.5" />
                       Save as PDF
+                    </button>
+                    <button
+                      onClick={handleExportReport}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-muted transition-colors border-t border-border/40"
+                    >
+                      <FileBarChart className="w-3.5 h-3.5" />
+                      Pro Report (PDF)
+                    </button>
+                    <button
+                      onClick={() => { setShowExportMenu(false); window.print(); }}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-muted transition-colors"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      Print…
                     </button>
                   </div>
                 </>

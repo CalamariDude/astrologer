@@ -9,17 +9,21 @@ export interface ShortcutDef {
   category: 'Navigation' | 'Chart' | 'Chart Tabs' | 'View' | 'General';
 }
 
-/** Ordered tab values */
+/** Ordered tab values — must match the group order rendered in ChartPage.tsx */
 export const TAB_VALUES = [
+  // Analysis
   'aspect-grid',
-  'profections',
-  'age-degree',
-  'ephemeris',
-  'graphic-eph',
-  'transits',
-  'declination',
   'dignities',
   'fixed-stars',
+  'declination',
+  // Time
+  'profections',
+  'age-degree',
+  'transits',
+  // Data
+  'ephemeris',
+  'graphic-eph',
+  // Tools
   'ai-reading',
   'time-finder',
   'voc-moon',
@@ -30,14 +34,14 @@ export const TAB_VALUES = [
 /** Human-readable labels for each tab value (used in spotlight search) */
 export const TAB_LABELS: Record<string, string> = {
   'aspect-grid': 'Aspects',
-  'profections': 'Profections',
-  'age-degree': 'Activations',
-  'ephemeris': 'Ephemeris',
-  'graphic-eph': 'Graphic Ephemeris',
-  'transits': 'Transits',
-  'declination': 'Declination',
   'dignities': 'Dignities',
   'fixed-stars': 'Fixed Stars',
+  'declination': 'Declination',
+  'profections': 'Profections',
+  'age-degree': 'Activations',
+  'transits': 'Transits',
+  'ephemeris': 'Ephemeris',
+  'graphic-eph': 'Graphic Ephemeris',
   'ai-reading': 'AI Reading',
   'time-finder': 'Time Finder',
   'voc-moon': 'VOC Moon',

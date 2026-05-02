@@ -27,8 +27,8 @@ interface TransitAspect extends SynastryAspect {
 
 interface PlanetTooltipProps {
   planet: string;
-  chart: 'A' | 'B' | 'Transit';
-  name: string; // Person's name or "Transit"
+  chart: 'A' | 'B' | 'Transit' | 'Composite' | 'Progressed';
+  name: string; // Person's name, "Transit", "Composite", or "Progressed"
   partnerName?: string; // Other person's name
   data: PlanetData;
   ownHouse?: number; // Correctly calculated house in own chart (overrides data.house)

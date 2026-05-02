@@ -13,8 +13,8 @@
  *    Jad Zeineddine (m), 17 March 1998 at 9:07 , Downers Grove, IL (US)    Edit
  */
 
-import React, { useState, useCallback } from 'react';
-import { Loader2, Check, AlertCircle, MapPin, User, Calendar, Clock, ClipboardPaste } from 'lucide-react';
+import React, { useRef, useState, useCallback } from 'react';
+import { Loader2, Check, AlertCircle, MapPin, User, Calendar, Clock, ClipboardPaste, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -65,7 +65,8 @@ function parseAAFText(text: string): ParsedPerson[] {
     }
   }
 
-  for (const pair of pairs) {
+  for (let pairIndex = 0; pairIndex < pairs.length; pairIndex++) {
+    const pair = pairs[pairIndex];
     const aParts = pair.a;
     const bParts = pair.b;
 
@@ -75,7 +76,7 @@ function parseAAFText(text: string): ParsedPerson[] {
     if (aFields.length < 5) continue;
 
     // aFields[0] = flag (*), [1] = name, [2] = gender, [3] = date, [4] = time, [5..] = location
-    const name = aFields[1]?.trim() || `Person ${id}`;
+    const name = aFields[1]?.trim() || `Person ${pairIndex + 1}`;
     const gender = (aFields[2]?.trim() || '').toUpperCase();
     const dateRaw = aFields[3]?.trim() || '';
     const timeRaw = aFields[4]?.trim() || '12:00';
@@ -254,6 +255,21 @@ export function ChartImport({ isOpen, onClose, onImport }: ChartImportProps) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [geocoding, setGeocoding] = useState(false);
   const [detectedFormat, setDetectedFormat] = useState<DetectedFormat>('unknown');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      setPasteText(text);
+    } catch {
+      // Ignore unreadable files; user will see the textarea stay empty
+    } finally {
+      // Reset so the same file can be picked again
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }, []);
 
   const handleParse = useCallback(() => {
     const { persons, format } = parseUnified(pasteText);
@@ -347,7 +363,7 @@ export function ChartImport({ isOpen, onClose, onImport }: ChartImportProps) {
           </DialogTitle>
           <DialogDescription>
             {step === 'paste'
-              ? 'Paste chart data from Astro-Seek or Astro.com. Format is detected automatically.'
+              ? 'Paste chart data or upload an AAF file. Astro-Seek, Astro.com, and LUNA exports are all supported.'
               : <>
                   Found {parsed.length} profile{parsed.length !== 1 ? 's' : ''}
                   {detectedFormat !== 'unknown' && (
@@ -362,22 +378,42 @@ export function ChartImport({ isOpen, onClose, onImport }: ChartImportProps) {
 
         {step === 'paste' ? (
           <div className="space-y-3 flex-1 min-h-0">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] text-muted-foreground/70">Paste below or upload an .aaf / .txt file.</p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".aaf,.txt,text/plain"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                className="gap-1.5"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                Upload AAF file
+              </Button>
+            </div>
             <textarea
               value={pasteText}
               onChange={(e) => setPasteText(e.target.value)}
-              placeholder={'Paste any of these formats:\n\n• Astro-Seek AAF export:\n#A93:*,George,m,6.1.1970,00:00,Chicago, USA\n#B93:*,41n49,87w39,6hw00,0\n\n• Astro-Seek URL:\nhttps://horoscopes.astro-seek.com/birth-chart-horoscope-online?n1=...\n\n• Astro.com profile list:\nJad (m), 17 March 1998 at 9:07 , Downers Grove, IL (US)'}
+              placeholder={'Paste any of these formats:\n\n• AAF export (Astro-Seek, LUNA, Solar Fire):\n#A93:*,George,m,6.1.1970,00:00,Chicago, USA\n#B93:*,41n49,87w39,6hw00,0\n\n• Astro-Seek URL:\nhttps://horoscopes.astro-seek.com/birth-chart-horoscope-online?n1=...\n\n• Astro.com profile list:\nJad (m), 17 March 1998 at 9:07 , Downers Grove, IL (US)'}
               className="w-full h-44 px-3 py-2 border rounded-md bg-background text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-ring"
               autoFocus
             />
             <div className="text-xs text-muted-foreground space-y-2.5">
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-2.5">
                 <div>
                   <p className="font-medium text-foreground/70 mb-0.5">From Astro-Seek</p>
                   <ol className="text-[11px] leading-snug text-muted-foreground/70 list-decimal list-inside space-y-0.5">
                     <li>Log in to <span className="font-medium">astro-seek.com</span></li>
                     <li>Go to <span className="font-medium">My Astro DataBase &rarr; Saved persons</span></li>
-                    <li>Click <span className="font-medium">"Database backup (Export in AAF format)"</span> at the bottom</li>
-                    <li>Select all the text, copy, and paste here</li>
+                    <li>Click <span className="font-medium">"Database backup (Export in AAF format)"</span></li>
+                    <li>Copy text or save the file, then paste/upload here</li>
                   </ol>
                 </div>
                 <div>
@@ -387,6 +423,14 @@ export function ChartImport({ isOpen, onClose, onImport }: ChartImportProps) {
                     <li>Go to <span className="font-medium">My Astro &rarr; Saved Astro Data</span></li>
                     <li>Select the profile lines you want</li>
                     <li>Copy and paste here</li>
+                  </ol>
+                </div>
+                <div>
+                  <p className="font-medium text-foreground/70 mb-0.5">From LUNA</p>
+                  <ol className="text-[11px] leading-snug text-muted-foreground/70 list-decimal list-inside space-y-0.5">
+                    <li>LUNA has no self-serve export — contact <span className="font-medium">support.lunaastrology.com</span> and request an AAF export of your charts</li>
+                    <li>They&rsquo;ll send a text file; upload it above</li>
+                    <li>Faster path: if your charts originated on Astrodienst, use the Astro.com steps</li>
                   </ol>
                 </div>
               </div>
